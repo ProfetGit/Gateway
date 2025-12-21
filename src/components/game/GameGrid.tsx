@@ -1,53 +1,61 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { VirtuosoGrid } from 'react-virtuoso'
+import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useFilteredGames } from '../../stores/gameStore'
 import { Gamepad2 } from 'lucide-react'
 import { forwardRef } from 'react'
+import type { Game } from '../../types/game'
 
 export function GameGrid() {
     const games = useFilteredGames()
+    console.log('[GameGrid] Rendered', games.length, 'games')
 
     return (
-        <div className="h-full overflow-y-auto overflow-x-hidden p-6 scrollbar-hide">
-            <AnimatePresence mode="popLayout">
-                {games.length === 0 ? (
-                    <EmptyState key="empty" />
-                ) : (
-                    <motion.div
-                        key="grid"
-                        className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                    >
-                        {games.map((game, index) => (
-                            <motion.div
-                                key={game.id}
-                                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                                animate={{
-                                    opacity: 1,
-                                    y: 0,
-                                    scale: 1,
-                                    transition: {
-                                        delay: index * 0.03,
-                                        duration: 0.4,
-                                        ease: [0.16, 1, 0.3, 1]
-                                    }
-                                }}
-                                exit={{
-                                    opacity: 0,
-                                    scale: 0.9,
-                                    transition: { duration: 0.2 }
-                                }}
-                                layout
-                            >
-                                <GameCard game={game} />
-                            </motion.div>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+        <div className="flex-1 min-h-0 bg-void-pure relative">
+            {games.length === 0 ? (
+                <div className="absolute inset-0 overflow-y-auto">
+                    <EmptyState />
+                </div>
+            ) : (
+                <VirtuosoGrid
+                    style={{ height: '100%' }}
+                    totalCount={games.length}
+                    overscan={3000} // Keep ~10-15 screens of content rendered to prevent re-animation on scroll up
+                    listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
+                    itemClassName="min-h-[240px]"
+                    itemContent={(index) => (
+                        <AnimatedGameCard game={games[index]} index={index} />
+                    )}
+                />
+            )}
         </div>
+    )
+}
+
+// Wrapper to handle individual entrance animations
+function AnimatedGameCard({ game, index }: { game: Game; index: number }) {
+    // ONLY animate the first screen of items (approx 20)
+    // Everything else should just "be there" instantly when scrolled to
+    if (index > 20) {
+        return (
+            <div className="min-h-full">
+                <GameCard game={game} />
+            </div>
+        )
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+                duration: 0.4,
+                ease: "easeOut",
+                delay: (index % 5) * 0.05 // Strict left-to-right cascade
+            }}
+        >
+            <GameCard game={game} />
+        </motion.div>
     )
 }
 
@@ -55,7 +63,7 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
     return (
         <motion.div
             ref={ref}
-            className="h-full flex flex-col items-center justify-center text-center"
+            className="h-full flex flex-col items-center justify-center text-center p-6 min-h-[500px]"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}

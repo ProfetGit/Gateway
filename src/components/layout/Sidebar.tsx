@@ -1,16 +1,13 @@
 import { motion } from 'framer-motion'
 import {
-    Gamepad2,
-    Heart,
     Settings,
     Library,
-    CloudDownload,
     Home,
 } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 
 export function Sidebar() {
-    const { filter, setFilter, openSettings, currentView, setView } = useGameStore()
+    const { setFilterStatus, openSettings, currentView, setView } = useGameStore()
 
     return (
         <aside className="w-20 h-full bg-void-pure border-r border-void-border/30 flex flex-col items-center py-8 shrink-0 relative z-50">
@@ -27,27 +24,12 @@ export function Sidebar() {
                 <div className="w-6 h-px bg-void-border my-2" />
                 <NavButton
                     icon={<Library />}
-                    label="All Games"
-                    isActive={currentView === 'library' && filter === 'all'}
-                    onClick={() => setFilter('all')}
-                />
-                <NavButton
-                    icon={<Gamepad2 />}
-                    label="Installed"
-                    isActive={currentView === 'library' && filter === 'installed'}
-                    onClick={() => setFilter('installed')}
-                />
-                <NavButton
-                    icon={<CloudDownload />}
-                    label="Not Installed"
-                    isActive={currentView === 'library' && filter === 'not-installed'}
-                    onClick={() => setFilter('not-installed')}
-                />
-                <NavButton
-                    icon={<Heart />}
-                    label="Favorites"
-                    isActive={currentView === 'library' && filter === 'favorites'}
-                    onClick={() => setFilter('favorites')}
+                    label="Library"
+                    isActive={currentView === 'library'}
+                    onClick={() => {
+                        setView('library')
+                        setFilterStatus('all')
+                    }}
                 />
             </nav>
 
@@ -59,7 +41,7 @@ export function Sidebar() {
                     onClick={openSettings}
                 />
             </div>
-        </aside>
+        </aside >
     )
 }
 

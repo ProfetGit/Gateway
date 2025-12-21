@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Heart, Download } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
@@ -21,6 +21,7 @@ interface GameCardProps {
 }
 
 export function GameCard({ game }: GameCardProps) {
+    const [imgSrc, setImgSrc] = useState(game.coverUrl)
     const [imageError, setImageError] = useState(false)
     const { openDetail, toggleFavorite } = useGameStore()
 
@@ -41,7 +42,31 @@ export function GameCard({ game }: GameCardProps) {
         toggleFavorite(game.id)
     }
 
-    const hasCover = game.coverUrl && !imageError
+    // Reset state when game changes
+    useEffect(() => {
+        setImgSrc(game.coverUrl)
+        setImageError(false)
+    }, [game.coverUrl])
+
+    const handleImageError = () => {
+        if (!game.steamAppId) {
+            setImageError(true)
+            return
+        }
+
+        const currentSrc = imgSrc || ''
+
+        // Strategy: 2x -> 1x -> header -> error
+        if (currentSrc.includes('library_600x900_2x.jpg')) {
+            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/library_600x900.jpg`)
+        } else if (currentSrc.includes('library_600x900.jpg')) {
+            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/header.jpg`)
+        } else {
+            setImageError(true)
+        }
+    }
+
+    const hasCover = imgSrc && !imageError
 
     return (
         <motion.article
@@ -64,13 +89,15 @@ export function GameCard({ game }: GameCardProps) {
             <div className="absolute inset-0">
                 {hasCover ? (
                     <motion.img
-                        src={game.coverUrl}
+                        src={imgSrc}
                         alt={game.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover transition-all duration-500"
                         style={{
                             filter: game.isInstalled ? 'grayscale(0.2) contrast(1.1)' : 'grayscale(1) brightness(0.5)',
                         }}
-                        onError={() => setImageError(true)}
+                        onError={handleImageError}
                     />
                 ) : (
                     <div className="w-full h-full bg-void-deep flex items-center justify-center border border-white/5">

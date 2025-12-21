@@ -290,6 +290,7 @@ function setupIpcHandlers() {
       isFavorite: false,
       source: 'steam' as const,
       playtime: g.playtime,
+      lastPlayed: g.lastPlayed ? new Date(g.lastPlayed * 1000).toISOString() : undefined,
     }))
 
     store.set('games', games)
@@ -305,6 +306,108 @@ function setupIpcHandlers() {
   // Install a Steam game (opens Steam install dialog)
   ipcMain.handle('install-steam-game', async (_event, appId: string) => {
     await shell.openExternal(`steam://install/${appId}`)
+  })
+
+  // ═══════════════════════════════════════════════════════════
+  // Trending Games (Steam Store API)
+  // ═══════════════════════════════════════════════════════════
+
+  let trendingCache: { data: unknown; fetchedAt: number } | null = null
+  const TRENDING_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+
+  ipcMain.handle('get-trending-games', async () => {
+    console.log('[Main] get-trending-games IPC handler called')
+
+    // Check cache
+    if (trendingCache && Date.now() - trendingCache.fetchedAt < TRENDING_CACHE_TTL) {
+      console.log('[Main] Returning cached trending data')
+      return { success: true, data: trendingCache.data }
+    }
+
+    try {
+      // Fetch from Steam Store API (bypasses CORS in Electron main process)
+      const response = await fetch('https://store.steampowered.com/api/featuredcategories?cc=us&l=en')
+
+      if (!response.ok) {
+        throw new Error(`Steam API returned ${response.status}`)
+      }
+
+      const rawData = await response.json() as {
+        top_sellers?: {
+          items?: Array<{
+            id: number
+            name: string
+            header_image?: string
+            small_capsule_image?: string
+            discount_percent?: number
+            original_price?: number
+            final_price?: number
+            windows_available?: boolean
+            linux_available?: boolean
+            mac_available?: boolean
+          }>
+        }
+        specials?: { items?: Array<unknown> }
+        new_releases?: { items?: Array<unknown> }
+      }
+
+      // Extract top sellers (primary trending source)
+      const topSellers = rawData.top_sellers?.items || []
+
+      // Hardware IDs to exclude (Steam Deck, controllers, accessories)
+      const hardwareIds = new Set([
+        1675200,  // Steam Deck
+        1675180,  // Steam Deck Dock
+        353380,   // Steam Controller
+        530260,   // Steam Link
+        353370,   // Steam Link
+      ])
+
+      // Filter out hardware and non-game items
+      const filteredItems = topSellers.filter(item => {
+        // Exclude known hardware IDs
+        if (hardwareIds.has(item.id)) return false
+
+        // Exclude items with hardware-like names
+        const nameLower = item.name.toLowerCase()
+        const hardwarePatterns = ['steam deck', 'controller', 'hardware', 'dock', 'steam link', 'valve index']
+        if (hardwarePatterns.some(pattern => nameLower.includes(pattern))) return false
+
+        return true
+      })
+
+      const games = filteredItems.slice(0, 12).map(item => ({
+        id: item.id,
+        name: item.name,
+        headerImage: item.header_image || `https://steamcdn-a.akamaihd.net/steam/apps/${item.id}/header.jpg`,
+        capsuleImage: item.small_capsule_image || `https://steamcdn-a.akamaihd.net/steam/apps/${item.id}/capsule_184x69.jpg`,
+        discountPercent: item.discount_percent || 0,
+        originalPrice: item.original_price ? `$${(item.original_price / 100).toFixed(2)}` : undefined,
+        finalPrice: item.final_price ? (item.final_price === 0 ? 'Free' : `$${(item.final_price / 100).toFixed(2)}`) : undefined,
+        windowsAvailable: item.windows_available ?? true,
+        linuxAvailable: item.linux_available ?? false,
+        macAvailable: item.mac_available ?? false,
+      }))
+
+      const trendingData = {
+        games,
+        fetchedAt: Date.now(),
+        source: 'top_sellers' as const,
+      }
+
+      // Cache the result
+      trendingCache = { data: trendingData, fetchedAt: Date.now() }
+
+      console.log('[Main] ✓ Fetched', games.length, 'trending games from Steam')
+      return { success: true, data: trendingData }
+
+    } catch (error) {
+      console.error('[Main] Failed to fetch trending games:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch trending games'
+      }
+    }
   })
 
 
@@ -359,6 +462,7 @@ function setupIpcHandlers() {
               isFavorite: false,
               source: 'steam' as const,
               playtime: g.playtime,
+              lastPlayed: g.lastPlayed ? new Date(g.lastPlayed * 1000).toISOString() : undefined,
             }))
 
           if (newGames.length > 0) {
@@ -440,6 +544,7 @@ function setupIpcHandlers() {
           isFavorite: false,
           source: 'steam' as const,
           playtime: g.playtime,
+          lastPlayed: g.lastPlayed ? new Date(g.lastPlayed * 1000).toISOString() : undefined,
         }))
 
       store.set('games', [...updatedGames, ...newGames])

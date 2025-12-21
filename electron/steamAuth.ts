@@ -270,7 +270,7 @@ async function fetchUserProfile(steamId: string): Promise<SteamUser | null> {
 
 export interface FetchGamesResult {
     success: boolean
-    games: Array<{ appId: string; name: string; playtime: number }>
+    games: Array<{ appId: string; name: string; playtime: number; lastPlayed?: number }>
     error?: string
     errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'API_ERROR' | 'NETWORK_ERROR' | 'RATE_LIMITED'
 }
@@ -352,7 +352,15 @@ export async function fetchOwnedGames(steamId: string): Promise<FetchGamesResult
                 appId: String(game.appid),
                 name: game.name || `Game ${game.appid}`,
                 playtime: game.playtime_forever || 0,
+                lastPlayed: game.rtime_last_played || undefined,
             }))
+
+            // Log a few examples for debugging
+            const gamesWithPlayTime = games.filter((g: any) => g.lastPlayed && g.lastPlayed > 0)
+            console.log('[SteamAuth] Games with lastPlayed data:', gamesWithPlayTime.length, 'out of', games.length)
+            if (gamesWithPlayTime.length > 0) {
+                console.log('[SteamAuth] Example:', gamesWithPlayTime[0].name, 'lastPlayed:', new Date(gamesWithPlayTime[0].lastPlayed * 1000).toISOString())
+            }
 
             console.log('[SteamAuth] ✓ Fetched', games.length, 'owned games from Steam API')
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Star, Gamepad2, Play, Info } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import { GameCard } from '../game/GameCard'
+import { TrendingSection } from '../../features/trending'
 import type { Game } from '../../types/game'
 
 export function HomeView() {
@@ -40,7 +41,10 @@ export function HomeView() {
                         <WideHeroCarousel games={displayCarouselGames} onOpenDetail={openDetail} />
 
                         {/* CONTENT SECTIONS */}
-                        <div className="relative z-10 px-10 pb-12 space-y-12 bg-gradient-to-t from-void-pure via-void-pure/95 to-transparent -mt-24 pt-32">
+                        <div className="relative z-10 px-16 pb-12 space-y-12 bg-gradient-to-t from-void-pure via-void-pure/95 to-transparent -mt-24 pt-32">
+                            {/* Steam Trending Row */}
+                            <TrendingSection />
+
                             {/* Favorites Row */}
                             {favoriteGames.length > 0 && (
                                 <GameRow
@@ -99,7 +103,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
         if (game.source === 'steam' && game.steamAppId) {
             return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/logo.png`
         }
-        return null
+        return undefined
     }
 
     const handlePlay = async (e: React.MouseEvent, game: Game) => {
@@ -207,7 +211,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                     variants={{
                                         idle: { x: 0, scale: 1 },
                                         hover: { x: 8, scale: 1, backgroundColor: "#ffffff", color: "#dc2626", boxShadow: "0 0 50px rgba(255,255,255,0.4)" },
-                                        tap: { scale: 0.95, duration: 0.05 }
+                                        tap: { scale: 0.95, transition: { duration: 0.05 } }
                                     }}
                                     transition={{ type: "spring", stiffness: 500, damping: 35, mass: 1 }}
                                 >

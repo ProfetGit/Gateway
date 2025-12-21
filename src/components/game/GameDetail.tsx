@@ -7,15 +7,44 @@ import {
     Clock,
     Calendar,
     ExternalLink,
+    Terminal,
+    Share2,
+    Monitor
 } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export function GameDetail() {
     const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame } = useGameStore()
     const [isDeleting, setIsDeleting] = useState(false)
+    const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
+    const [imageError, setImageError] = useState(false)
+
+    useEffect(() => {
+        if (selectedGame) {
+            setImgSrc(selectedGame.coverUrl)
+            setImageError(false)
+        }
+    }, [selectedGame])
 
     if (!selectedGame) return null
+
+    const handleImageError = () => {
+        if (!selectedGame.steamAppId) {
+            setImageError(true)
+            return
+        }
+
+        const currentSrc = imgSrc || ''
+
+        if (currentSrc.includes('library_600x900_2x.jpg')) {
+            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_600x900.jpg`)
+        } else if (currentSrc.includes('library_600x900.jpg')) {
+            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/header.jpg`)
+        } else {
+            setImageError(true)
+        }
+    }
 
     const handlePlay = async () => {
         await window.api?.launchGame(selectedGame)
@@ -33,20 +62,22 @@ export function GameDetail() {
     }
 
     const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Never'
+        if (!dateString) return 'NEVER'
         return new Date(dateString).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
-        })
+        }).toUpperCase()
     }
 
     const formatPlaytime = (minutes?: number) => {
-        if (!minutes) return '0h'
+        if (!minutes) return '0h 00m'
         const hours = Math.floor(minutes / 60)
         const mins = minutes % 60
-        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+        return `${hours}h ${mins}m`
     }
+
+    const hasCover = imgSrc && !imageError
 
     return (
         <AnimatePresence>
@@ -54,7 +85,7 @@ export function GameDetail() {
                 <>
                     {/* Backdrop */}
                     <motion.div
-                        className="fixed inset-0 bg-black/90 backdrop-blur-md z-40"
+                        className="fixed inset-0 bg-void-pure/95 backdrop-blur-xl z-40"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -63,242 +94,190 @@ export function GameDetail() {
 
                     {/* Portal Container */}
                     <motion.div
-                        className="fixed inset-0 z-50 overflow-hidden"
-                        initial={{
-                            opacity: 0,
-                            clipPath: 'circle(0% at 50% 50%)',
-                        }}
-                        animate={{
-                            opacity: 1,
-                            clipPath: 'circle(150% at 50% 50%)',
-                        }}
-                        exit={{
-                            opacity: 0,
-                            clipPath: 'circle(0% at 50% 50%)',
-                        }}
-                        transition={{
-                            duration: 0.5,
-                            ease: [0.16, 1, 0.3, 1],
-                        }}
+                        className="fixed inset-4 md:inset-10 z-50 flex overflow-hidden border border-white/10 bg-void-deep shadow-2xl"
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <div className="h-full w-full flex bg-void-pure">
-                            {/* ═══════════════════════════════════════════════════════════
-                               COVER PANEL - Left side, full bleed
-                               ═══════════════════════════════════════════════════════════ */}
-                            <div className="relative w-[55%] h-full shrink-0 overflow-hidden">
-                                {/* Ambient bleed - extends behind details panel */}
-                                {selectedGame.coverUrl && (
-                                    <div
-                                        className="absolute inset-0 -right-[40%] ambient-bleed pointer-events-none"
-                                        style={{ backgroundImage: `url(${selectedGame.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                        {/* Decorative Corner Markers */}
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-crimson-500 z-50" />
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-crimson-500 z-50" />
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-crimson-500 z-50" />
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-crimson-500 z-50" />
+
+                        {/* LEFT: Visor / Cover Art Area */}
+                        <div className="relative w-[40%] h-full shrink-0 overflow-hidden bg-void-pure border-r border-white/5">
+                            {/* Background Texture */}
+                            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+
+                            {/* Image */}
+                            {hasCover ? (
+                                <motion.div
+                                    className="absolute inset-0"
+                                    initial={{ scale: 1.1, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.8 }}
+                                >
+                                    <img
+                                        src={imgSrc}
+                                        alt={selectedGame.title}
+                                        className="w-full h-full object-cover filter brightness-75 contrast-125 transition-all duration-700"
+                                        onError={handleImageError}
                                     />
-                                )}
+                                    {/* Scanline Overlay */}
+                                    <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_3px)] opacity-30" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-void-deep via-transparent to-transparent" />
+                                </motion.div>
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-void-surface">
+                                    <Terminal className="w-32 h-32 text-white/5" />
+                                </div>
+                            )}
 
-                                {/* Main cover image with dissolve mask */}
-                                {selectedGame.coverUrl ? (
-                                    <motion.div
-                                        className="absolute inset-0 cover-dissolve"
-                                        initial={{ opacity: 0, x: -40, scale: 1.1 }}
-                                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                                    >
-                                        <img
-                                            src={selectedGame.coverUrl}
-                                            alt={selectedGame.title}
-                                            className="w-full h-full object-cover object-top"
-                                        />
-                                    </motion.div>
-                                ) : (
-                                    /* Fallback monogram */
-                                    <motion.div
-                                        className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-void-surface to-void-pure cover-dissolve"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.4 }}
-                                    >
-                                        <motion.span
-                                            className="text-[20rem] font-etched text-crimson-950/30 select-none"
-                                            animate={{
-                                                textShadow: [
-                                                    '0 0 60px rgba(255, 58, 58, 0.1)',
-                                                    '0 0 120px rgba(255, 58, 58, 0.2)',
-                                                    '0 0 60px rgba(255, 58, 58, 0.1)',
-                                                ],
-                                            }}
-                                            transition={{ duration: 3, repeat: Infinity }}
-                                        >
-                                            {selectedGame.title.charAt(0)}
-                                        </motion.span>
-                                    </motion.div>
-                                )}
-
-                                {/* Gradient seam - luminous edge */}
-                                <div className="absolute top-0 right-0 bottom-0 w-32 bg-gradient-to-r from-transparent via-void-pure/50 to-void-pure pointer-events-none" />
-
-                                {/* Bottom vignette */}
-                                <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-void-pure to-transparent pointer-events-none" />
-                            </div>
-
-                            {/* ═══════════════════════════════════════════════════════════
-                               DETAILS PANEL - Right side, content overlaid
-                               ═══════════════════════════════════════════════════════════ */}
-                            <div className="relative flex-1 flex flex-col py-12 px-16 overflow-y-auto scrollbar-hide z-10">
-                                {/* Close button - top right, unobtrusive */}
-                                <motion.button
-                                    onClick={closeDetail}
-                                    className="absolute top-6 right-6 p-3 text-text-muted/50 hover:text-text-primary hover:bg-void-surface/50 rounded-full transition-all duration-200"
+                            {/* Data Overlay on Image */}
+                            <div className="absolute bottom-0 left-0 right-0 p-8 space-y-4">
+                                <motion.h1
+                                    className="text-5xl md:text-7xl font-display font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 italic uppercase tracking-tighter drop-shadow-lg transform -skew-x-6"
+                                    initial={{ x: -50, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: 0.2 }}
+                                >
+                                    {selectedGame.title}
+                                </motion.h1>
+                                <motion.div
+                                    className="flex items-center gap-4 text-xs font-mono text-crimson-500 tracking-[0.2em] font-bold"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.5 }}
-                                    whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 58, 58, 0.1)' }}
-                                    whileTap={{ scale: 0.9 }}
+                                    transition={{ delay: 0.4 }}
                                 >
-                                    <X className="w-5 h-5" />
-                                </motion.button>
+                                    <span className="bg-crimson-500/10 px-2 py-1 border border-crimson-500/20">ID: {selectedGame.id.slice(0, 8)}</span>
+                                    {selectedGame.source === 'steam' && <span className="flex items-center gap-2"><Monitor className="w-3 h-3" /> STEAM</span>}
+                                </motion.div>
+                            </div>
+                        </div>
 
-                                {/* Title & Status */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-                                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                                    transition={{ delay: 0.25, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        {/* RIGHT: Data / Controls */}
+                        <div className="relative flex-1 flex flex-col bg-void-deep">
+                            {/* Header Bar */}
+                            <div className="h-20 border-b border-white/5 flex items-center justify-between px-10 shrink-0">
+                                <div className="flex items-center gap-6">
+                                    {/* Tabs */}
+                                    <div className="flex items-center gap-8">
+                                        <button className="text-sm font-display font-bold italic text-white uppercase border-b-2 border-crimson-500 py-6">Overview</button>
+                                        <button className="text-sm font-display font-bold italic text-white/40 uppercase hover:text-white transition-colors py-6">Achievements</button>
+                                        <button className="text-sm font-display font-bold italic text-white/40 uppercase hover:text-white transition-colors py-6">Patch Notes</button>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={closeDetail}
+                                    className="p-2 text-white/40 hover:text-crimson-500 transition-colors hover:rotate-90 duration-300"
                                 >
-                                    <h1 className="text-5xl font-bold text-text-primary mb-4 leading-tight">
-                                        {selectedGame.title}
-                                    </h1>
-                                    <div className="flex items-center gap-3 mb-10">
-                                        {selectedGame.source === 'steam' && (
-                                            <span className="px-3 py-1.5 text-xs font-mono bg-void-surface text-text-muted rounded border border-void-border uppercase tracking-widest">
-                                                Steam
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            {/* Scrollable Content */}
+                            <div className="flex-1 overflow-y-auto p-10 scrollbar-hide">
+                                {/* Status Header */}
+                                <div className="flex items-start justify-between mb-12">
+                                    <div className="flex flex-col gap-2">
+                                        <span className="text-xs font-mono text-white/30 tracking-[0.2em] uppercase">STATUS</span>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-3 h-3 rounded-full ${selectedGame.isInstalled ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-white/10'}`} />
+                                            <span className={`text-2xl font-display font-bold italic uppercase ${selectedGame.isInstalled ? 'text-white' : 'text-white/40'}`}>
+                                                {selectedGame.isInstalled ? 'INSTALLED' : 'NOT INSTALLED'}
                                             </span>
-                                        )}
-                                        {selectedGame.isInstalled ? (
-                                            <span className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono text-emerald-400 bg-emerald-950/30 rounded border border-emerald-900/30">
-                                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                                INSTALLED
-                                            </span>
-                                        ) : (
-                                            <span className="px-3 py-1.5 text-xs font-mono text-text-ghost bg-void-surface/50 rounded border border-void-border/50">
-                                                NOT INSTALLED
-                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Actions */}
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => toggleFavorite(selectedGame.id)}
+                                            className={`p-3 border border-white/10 hover:border-crimson-500/50 hover:bg-crimson-500/10 transition-all group ${selectedGame.isFavorite ? 'border-crimson-500 bg-crimson-500/10' : ''}`}
+                                        >
+                                            <Heart className={`w-5 h-5 ${selectedGame.isFavorite ? 'text-crimson-500 fill-crimson-500' : 'text-white/40 group-hover:text-crimson-500'}`} />
+                                        </button>
+                                        <button className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white">
+                                            <Share2 className="w-5 h-5" />
+                                        </button>
+                                        {selectedGame.steamAppId && (
+                                            <a
+                                                href={`https://store.steampowered.com/app/${selectedGame.steamAppId}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white"
+                                            >
+                                                <ExternalLink className="w-5 h-5" />
+                                            </a>
                                         )}
                                     </div>
-                                </motion.div>
+                                </div>
 
                                 {/* Stats Grid */}
-                                <motion.div
-                                    className="grid grid-cols-2 gap-4 mb-10"
-                                    initial={{ opacity: 0, y: 30 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.35, duration: 0.5 }}
-                                >
-                                    <StatCard
-                                        icon={<Clock className="w-4 h-4" />}
-                                        label="Playtime"
+                                <div className="grid grid-cols-2 gap-px bg-white/10 border border-white/10 mb-12">
+                                    <StatBox
+                                        icon={<Clock className="w-4 h-4 text-crimson-500" />}
+                                        label="Total Runtime"
                                         value={formatPlaytime(selectedGame.playtime)}
                                     />
-                                    <StatCard
-                                        icon={<Calendar className="w-4 h-4" />}
-                                        label="Last Played"
+                                    <StatBox
+                                        icon={<Calendar className="w-4 h-4 text-crimson-500" />}
+                                        label="Last Session"
                                         value={formatDate(selectedGame.lastPlayed)}
                                     />
-                                </motion.div>
+                                </div>
 
-                                {/* Notes */}
-                                {selectedGame.notes && (
-                                    <motion.div
-                                        className="mb-10"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.4, duration: 0.4 }}
-                                    >
-                                        <h3 className="text-xs font-mono text-text-muted uppercase tracking-widest mb-3">
-                                            Notes
-                                        </h3>
-                                        <p className="text-sm text-text-secondary leading-relaxed max-w-md">
-                                            {selectedGame.notes}
-                                        </p>
-                                    </motion.div>
-                                )}
+                                {/* Notes Section */}
+                                <div className="mb-12">
+                                    <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                        <span className="w-1 h-1 bg-crimson-500" />
+                                        NOTES
+                                    </h3>
+                                    <div className="bg-black/20 border border-white/5 p-6 font-mono text-sm text-white/60 leading-relaxed min-h-[100px]">
+                                        {selectedGame.notes || "No notes available."}
+                                    </div>
+                                </div>
+                            </div>
 
-                                {/* Spacer */}
-                                <div className="flex-1 min-h-8" />
-
-                                {/* Action Bar */}
-                                <motion.div
-                                    className="flex items-center gap-4"
-                                    initial={{ opacity: 0, y: 30 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.45, duration: 0.5 }}
+                            {/* Footer Actions */}
+                            <div className="h-24 border-t border-white/5 bg-black/20 flex items-center justify-between px-10 shrink-0">
+                                <motion.button
+                                    onClick={handleDelete}
+                                    className={`
+                                        flex items-center gap-3 px-6 py-3
+                                        text-xs font-mono font-bold uppercase tracking-wider
+                                        border transition-all duration-300
+                                        ${isDeleting
+                                            ? 'border-red-500 text-red-500 bg-red-500/10'
+                                            : 'border-white/10 text-white/30 hover:text-red-500 hover:border-red-500/50'
+                                        }
+                                    `}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                 >
-                                    {/* Play Button - Hero action */}
-                                    <motion.button
-                                        onClick={handlePlay}
-                                        className="
-                                            flex items-center gap-3 px-8 py-4
-                                            bg-crimson-600 hover:bg-crimson-500 
-                                            text-white text-lg font-semibold
-                                            rounded-xl shadow-crimson-glow
-                                            transition-all duration-200
-                                        "
-                                        whileHover={{ scale: 1.02, boxShadow: '0 0 50px rgba(255, 58, 58, 0.5)' }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        <Play className="w-6 h-6 fill-current" />
-                                        <span>Play Now</span>
-                                    </motion.button>
+                                    <Trash2 className="w-4 h-4" />
+                                    <span>{isDeleting ? 'Confirm Delete?' : 'Uninstall'}</span>
+                                </motion.button>
 
-                                    {/* Favorite */}
-                                    <motion.button
-                                        onClick={() => toggleFavorite(selectedGame.id)}
-                                        className={`
-                                            p-4 rounded-xl transition-all duration-200
-                                            ${selectedGame.isFavorite
-                                                ? 'bg-crimson-600/20 text-crimson-400 border border-crimson-600/30'
-                                                : 'bg-void-surface text-text-muted hover:text-crimson-400 border border-void-border hover:border-crimson-900/30'
-                                            }
-                                        `}
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                    >
-                                        <Heart className={`w-5 h-5 ${selectedGame.isFavorite ? 'fill-current' : ''}`} />
-                                    </motion.button>
-
-                                    {/* Steam Link */}
-                                    {selectedGame.steamAppId && (
-                                        <motion.a
-                                            href={`https://store.steampowered.com/app/${selectedGame.steamAppId}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-4 bg-void-surface text-text-muted hover:text-text-primary rounded-xl border border-void-border hover:border-void-border/80 transition-all duration-200"
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                        >
-                                            <ExternalLink className="w-5 h-5" />
-                                        </motion.a>
-                                    )}
-
-                                    <div className="flex-1" />
-
-                                    {/* Delete */}
-                                    <motion.button
-                                        onClick={handleDelete}
-                                        className={`
-                                            flex items-center gap-2 px-5 py-4 rounded-xl transition-all duration-200
-                                            ${isDeleting
-                                                ? 'bg-red-600 text-white'
-                                                : 'bg-void-surface text-text-muted hover:text-red-400 hover:bg-red-950/20 border border-void-border hover:border-red-900/30'
-                                            }
-                                        `}
-                                        whileHover={{ scale: 1.02 }}
-                                        whileTap={{ scale: 0.98 }}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                        <span className="text-sm font-medium">
-                                            {isDeleting ? 'Click to Confirm' : 'Remove'}
-                                        </span>
-                                    </motion.button>
-                                </motion.div>
+                                <motion.button
+                                    onClick={handlePlay}
+                                    className="
+                                        group relative flex items-center gap-4 px-10 py-4
+                                        bg-crimson-600 hover:bg-crimson-500
+                                        text-white font-display font-black italic uppercase tracking-tighter text-2xl
+                                        clip-path-slant shadow-[0_0_30px_rgba(220,38,38,0.4)]
+                                        hover:shadow-[0_0_50px_rgba(220,38,38,0.6)]
+                                        transition-all duration-300
+                                    "
+                                    style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    <span>LAUNCH</span>
+                                    <Play className="w-6 h-6 fill-current group-hover:translate-x-1 transition-transform" />
+                                </motion.button>
                             </div>
                         </div>
                     </motion.div>
@@ -308,20 +287,14 @@ export function GameDetail() {
     )
 }
 
-interface StatCardProps {
-    icon: React.ReactNode
-    label: string
-    value: string
-}
-
-function StatCard({ icon, label, value }: StatCardProps) {
+function StatBox({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
     return (
-        <div className="bg-void-surface/80 backdrop-blur-sm border border-void-border rounded-xl p-5">
-            <div className="flex items-center gap-2 text-text-muted mb-2">
+        <div className="bg-void-surface p-6 flex flex-col gap-2 group hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-3 mb-1">
                 {icon}
-                <span className="text-xs font-mono uppercase tracking-widest">{label}</span>
+                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/30 group-hover:text-white/50 transition-colors">{label}</span>
             </div>
-            <span className="text-xl font-semibold text-text-primary">{value}</span>
+            <span className="text-2xl font-display font-bold italic text-white tracking-tight">{value}</span>
         </div>
     )
 }

@@ -1,15 +1,24 @@
 import { create } from 'zustand'
+import { useMemo } from 'react'
 import type { GameStore } from '../types/game'
 
 export const useGameStore = create<GameStore>((set, get) => ({
     games: [],
     selectedGame: null,
-    filter: 'all',
-    searchQuery: '',
+
+    currentView: 'home',
+    filters: {
+        status: 'all',
+        platform: 'all',
+        onlyFavorites: false,
+        search: '',
+        sortBy: 'alphabetical',
+        sortOrder: 'asc'
+    },
+
     isDetailOpen: false,
     isSettingsOpen: false,
     isAddModalOpen: false,
-    currentView: 'home',
 
     setView: (view) => set({ currentView: view }),
 
@@ -35,9 +44,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     selectGame: (game) => set({ selectedGame: game }),
 
-    setFilter: (filter) => set({ filter, currentView: 'library' }),
+    // Filter Actions
+    setFilterStatus: (status) => set((state) => ({
+        filters: { ...state.filters, status },
+        currentView: 'library'
+    })),
 
-    setSearchQuery: (searchQuery) => set({ searchQuery }),
+    setFilterPlatform: (platform) => set((state) => ({
+        filters: { ...state.filters, platform },
+        currentView: 'library'
+    })),
+
+    toggleOnlyFavorites: () => set((state) => ({
+        filters: { ...state.filters, onlyFavorites: !state.filters.onlyFavorites },
+        currentView: 'library'
+    })),
+
+    setSearchQuery: (search) => set((state) => ({
+        filters: { ...state.filters, search }
+    })),
+
+    setSort: (sortBy, sortOrder) => set((state) => ({
+        filters: { ...state.filters, sortBy, sortOrder }
+    })),
+
+    resetFilters: () => set({
+        filters: {
+            status: 'all',
+            platform: 'all',
+            onlyFavorites: false,
+            search: '',
+            sortBy: 'alphabetical',
+            sortOrder: 'asc'
+        }
+    }),
 
     toggleFavorite: (id) => {
         const { games, updateGame } = get()
@@ -80,29 +120,60 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
 // Selector hooks for filtered games
 export const useFilteredGames = () => {
-    const { games, filter, searchQuery } = useGameStore()
+    const games = useGameStore(state => state.games)
+    const filters = useGameStore(state => state.filters)
 
-    return games.filter((game) => {
-        // Apply search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase()
-            if (!game.title.toLowerCase().includes(query)) {
-                return false
+    return useMemo(() => {
+        const filtered = games.filter((game) => {
+            const { status, platform, onlyFavorites, search } = filters
+
+            // 1. Search Filter
+            if (search) {
+                const query = search.toLowerCase()
+                if (!game.title.toLowerCase().includes(query)) {
+                    return false
+                }
             }
-        }
 
-        // Apply category filter
-        switch (filter) {
-            case 'installed':
-                return game.isInstalled
-            case 'favorites':
-                return game.isFavorite
-            case 'steam':
-                return game.source === 'steam'
-            case 'not-installed':
-                return !game.isInstalled && game.source === 'steam'
-            default:
-                return true
-        }
-    })
+            // 2. Status Filter
+            if (status === 'installed' && !game.isInstalled) return false
+
+            // 3. Platform Filter
+            if (platform === 'steam' && game.source !== 'steam') return false
+
+            // 4. Favorites Filter
+            if (onlyFavorites && !game.isFavorite) return false
+
+            return true
+        })
+
+        // Sorting
+        return filtered.sort((a, b) => {
+            const { sortBy, sortOrder } = filters
+            let valA: any
+            let valB: any
+
+            switch (sortBy) {
+                case 'alphabetical':
+                    valA = a.title.toLowerCase()
+                    valB = b.title.toLowerCase()
+                    break
+                case 'playtime':
+                    valA = a.playtime || 0
+                    valB = b.playtime || 0
+                    break
+                case 'lastPlayed':
+                    valA = a.lastPlayed ? new Date(a.lastPlayed).getTime() : 0
+                    valB = b.lastPlayed ? new Date(b.lastPlayed).getTime() : 0
+                    break
+                default:
+                    valA = a.title
+                    valB = b.title
+            }
+
+            if (valA < valB) return sortOrder === 'asc' ? -1 : 1
+            if (valA > valB) return sortOrder === 'asc' ? 1 : -1
+            return 0
+        })
+    }, [games, filters])
 }

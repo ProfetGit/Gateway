@@ -13,6 +13,7 @@ export interface SteamGame {
     sizeOnDisk?: number
     lastPlayed?: number // Unix timestamp
     installPath?: string
+    playtime?: number
 }
 
 export interface SteamStatus {
@@ -34,6 +35,7 @@ export interface Game {
     source: 'manual' | 'steam'
     playtime?: number
     lastPlayed?: string
+    sizeOnDisk?: number
     notes?: string
     launchArgs?: string
 }
@@ -297,7 +299,6 @@ export function getInstalledGames(libraryPaths: string[]): SteamGame[] {
                     }
 
                     const sizeOnDisk = parseInt(appState['SizeOnDisk'] as string || '0', 10)
-                    const lastUpdated = parseInt(appState['LastUpdated'] as string || '0', 10)
                     const installDir = appState['installdir'] as string
 
                     games.push({
@@ -305,7 +306,6 @@ export function getInstalledGames(libraryPaths: string[]): SteamGame[] {
                         name,
                         isInstalled: true,
                         sizeOnDisk: sizeOnDisk > 0 ? sizeOnDisk : undefined,
-                        lastPlayed: lastUpdated > 0 ? lastUpdated : undefined,
                         installPath: installDir ? path.join(appsPath, 'common', installDir) : undefined,
                     })
                 } catch (error) {
@@ -361,15 +361,23 @@ interface OwnedGameInfo {
     playtime?: number
 }
 
+const STEAM_ID_OFFSET = BigInt('76561197960265728')
+
+function steamID64to32(steamId64: string): string {
+    try {
+        const id = BigInt(steamId64)
+        return (id - STEAM_ID_OFFSET).toString()
+    } catch {
+        return ''
+    }
+}
+
 /**
  * Get owned games from user's local config
  * This includes games that may not be installed
  */
 export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[] {
-    // Steam userdata folders use the 32-bit Steam ID, not the 64-bit one from loginusers.vdf
-    // We need to find the actual folder - it might be named differently
     const userdataPath = path.join(steamPath, 'userdata')
-
     console.log('[SteamService] Looking for userdata in:', userdataPath)
 
     if (!fs.existsSync(userdataPath)) {
@@ -377,66 +385,74 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
         return []
     }
 
-    // Find all userdata folders and try each one
-    let userdataFolders: string[] = []
-    try {
-        userdataFolders = fs.readdirSync(userdataPath).filter(f => {
-            const fullPath = path.join(userdataPath, f)
-            return fs.statSync(fullPath).isDirectory() && /^\d+$/.test(f)
-        })
-    } catch (error) {
-        console.error('[SteamService] Failed to read userdata folder:', error)
+    let targetFolder: string | null = null
+    const accountId = steamID64to32(userId)
+
+    if (accountId) {
+        const potentialPath = path.join(userdataPath, accountId)
+        if (fs.existsSync(potentialPath)) {
+            console.log('[SteamService] Found specific userdata folder for AccountID:', accountId)
+            targetFolder = accountId
+        }
+    }
+
+    // Fallback: Find most recently modified config
+    if (!targetFolder) {
+        console.log('[SteamService] Specific userdata folder not found, looking for most recent...')
+        try {
+            const folders = fs.readdirSync(userdataPath).filter(f => {
+                return fs.statSync(path.join(userdataPath, f)).isDirectory() && /^\d+$/.test(f)
+            })
+
+            let newestTime = 0
+
+            for (const folder of folders) {
+                const configPath = path.join(userdataPath, folder, 'config/localconfig.vdf')
+                if (fs.existsSync(configPath)) {
+                    const stats = fs.statSync(configPath)
+                    if (stats.mtimeMs > newestTime) {
+                        newestTime = stats.mtimeMs
+                        targetFolder = folder
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[SteamService] Failed to scan userdata folders:', error)
+        }
+    }
+
+    if (!targetFolder) {
+        console.log('[SteamService] Could not determine target userdata folder')
         return []
     }
 
-    console.log('[SteamService] Found userdata folders:', userdataFolders)
-
-    if (userdataFolders.length === 0) {
-        return []
-    }
-
-    // Use the first available folder (or could try to match userId)
-    const userFolder = userdataFolders[0]
-    const configPath = path.join(userdataPath, userFolder, 'config/localconfig.vdf')
-
-    console.log('[SteamService] Checking config at:', configPath)
+    const configPath = path.join(userdataPath, targetFolder, 'config/localconfig.vdf')
+    console.log('[SteamService] Reading config from:', configPath)
 
     if (!fs.existsSync(configPath)) {
-        console.log('[SteamService] localconfig.vdf does not exist at:', configPath)
         return []
     }
 
     const ownedGames: OwnedGameInfo[] = []
 
     try {
-        // Read the localconfig.vdf we found
-        console.log('[SteamService] Reading localconfig.vdf...')
         const content = fs.readFileSync(configPath, 'utf-8')
         const parsed = parseVdf(content)
 
         // Navigate to apps section
         const userLocalConfig = parsed['UserLocalConfigStore'] as VdfObject | undefined
-        console.log('[SteamService] UserLocalConfigStore exists:', !!userLocalConfig)
+        const software = userLocalConfig?.['Software'] as VdfObject | undefined
+        const valve = software?.['Valve'] as VdfObject || software?.['valve'] as VdfObject
+        const steam = valve?.['Steam'] as VdfObject || valve?.['steam'] as VdfObject
+        const apps = steam?.['apps'] as VdfObject || steam?.['Apps'] as VdfObject
 
-        if (userLocalConfig) {
-            const software = userLocalConfig['Software'] as VdfObject | undefined
-            console.log('[SteamService] Software exists:', !!software)
+        if (apps) {
+            for (const [appId, appData] of Object.entries(apps)) {
+                if (typeof appData === 'object' && !isNaN(parseInt(appId))) {
+                    const lastPlayed = parseInt(appData['LastPlayed'] as string || '0', 10)
+                    const playtime = parseInt(appData['Playtime'] as string || '0', 10)
 
-            const valve = software?.['Valve'] as VdfObject || software?.['valve'] as VdfObject
-            console.log('[SteamService] Valve exists:', !!valve)
-
-            const steam = valve?.['Steam'] as VdfObject || valve?.['steam'] as VdfObject
-            console.log('[SteamService] Steam exists:', !!steam)
-
-            const apps = steam?.['apps'] as VdfObject || steam?.['Apps'] as VdfObject
-            console.log('[SteamService] Apps exists:', !!apps, apps ? `(${Object.keys(apps).length} entries)` : '')
-
-            if (apps) {
-                for (const [appId, appData] of Object.entries(apps)) {
-                    if (typeof appData === 'object' && !isNaN(parseInt(appId))) {
-                        const lastPlayed = parseInt(appData['LastPlayed'] as string || '0', 10)
-                        const playtime = parseInt(appData['Playtime'] as string || '0', 10)
-
+                    if (lastPlayed > 0 || playtime > 0) {
                         ownedGames.push({
                             appId,
                             lastPlayed: lastPlayed > 0 ? lastPlayed : undefined,
@@ -447,10 +463,9 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
             }
         }
 
-        // Also check sharedconfig.vdf for additional games
-        const sharedconfigPath = path.join(userdataPath, userFolder, '7/remote/sharedconfig.vdf')
+        // Also check sharedconfig.vdf
+        const sharedconfigPath = path.join(userdataPath, targetFolder, '7/remote/sharedconfig.vdf')
         if (fs.existsSync(sharedconfigPath)) {
-            console.log('[SteamService] Also reading sharedconfig.vdf...')
             const sharedContent = fs.readFileSync(sharedconfigPath, 'utf-8')
             const sharedParsed = parseVdf(sharedContent)
 
@@ -462,7 +477,6 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
 
             if (apps) {
                 const existingIds = new Set(ownedGames.map(g => g.appId))
-
                 for (const appId of Object.keys(apps)) {
                     if (!existingIds.has(appId) && !isNaN(parseInt(appId))) {
                         ownedGames.push({ appId })
@@ -474,7 +488,7 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
         console.error('[SteamService] Failed to parse local config:', error)
     }
 
-    console.log('[SteamService] getOwnedGames returning:', ownedGames.length)
+    console.log('[SteamService] Found', ownedGames.length, 'owned games with playtime data')
     return ownedGames
 }
 
@@ -718,12 +732,19 @@ export class SteamService {
                         name: getAppName(this.steamPath, owned.appId) || `Game ${owned.appId}`,
                         isInstalled: false,
                         lastPlayed: owned.lastPlayed,
+                        playtime: owned.playtime,
                     })
                 } else {
                     // Update installed game with playtime info
                     const game = allGames.find(g => g.appId === owned.appId)
-                    if (game && owned.lastPlayed) {
-                        game.lastPlayed = owned.lastPlayed
+                    if (game) {
+                        if (owned.lastPlayed) {
+                            console.log(`[SteamService] Updating lastPlayed for ${game.name}: ${owned.lastPlayed}`)
+                            game.lastPlayed = owned.lastPlayed
+                        }
+                        if (owned.playtime) {
+                            game.playtime = owned.playtime
+                        }
                     }
                 }
             }
@@ -773,9 +794,20 @@ export class SteamService {
                     updates.lastPlayed = new Date(steamGame.lastPlayed * 1000).toISOString()
                 }
 
+                if (steamGame.sizeOnDisk) {
+                    updates.sizeOnDisk = steamGame.sizeOnDisk
+                }
+
+                if (steamGame.playtime) {
+                    updates.playtime = steamGame.playtime
+                }
+
                 // Only update if something changed
                 if (existing.isInstalled !== updates.isInstalled ||
-                    existing.title !== updates.title) {
+                    existing.title !== updates.title ||
+                    existing.sizeOnDisk !== updates.sizeOnDisk ||
+                    existing.playtime !== updates.playtime ||
+                    existing.lastPlayed !== updates.lastPlayed) {
                     updatedGames.push({ ...existing, ...updates })
                 }
             } else {
@@ -791,6 +823,8 @@ export class SteamService {
                     lastPlayed: steamGame.lastPlayed
                         ? new Date(steamGame.lastPlayed * 1000).toISOString()
                         : undefined,
+                    sizeOnDisk: steamGame.sizeOnDisk,
+                    playtime: steamGame.playtime,
                 })
             }
         }

@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('api', {
   fetchSteamGames: (): Promise<FetchGamesResult> => ipcRenderer.invoke('fetch-steam-games'),
 
 
+  // Trending games (Steam Store API)
+  getTrendingGames: () => ipcRenderer.invoke('get-trending-games'),
+
   // File dialogs
   selectExecutable: (): Promise<string | null> => ipcRenderer.invoke('select-executable'),
   selectImage: (): Promise<string | null> => ipcRenderer.invoke('select-image'),

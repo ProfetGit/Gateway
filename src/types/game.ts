@@ -9,23 +9,40 @@ export interface Game {
     source: 'manual' | 'steam'
     playtime?: number
     lastPlayed?: string
+    sizeOnDisk?: number // Bytes
     notes?: string
     launchArgs?: string
 }
 
-export type GameFilter = 'all' | 'installed' | 'favorites' | 'steam' | 'not-installed'
+export type FilterStatus = 'all' | 'installed'
+export type FilterPlatform = 'all' | 'steam'
+
+export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
+export type SortOrder = 'asc' | 'desc'
+
+export interface FilterState {
+    status: FilterStatus
+    platform: FilterPlatform
+    onlyFavorites: boolean
+    search: string
+    sortBy: SortOption
+    sortOrder: SortOrder
+}
 
 export type ViewType = 'home' | 'library'
 
 export interface GameStore {
     games: Game[]
     selectedGame: Game | null
-    filter: GameFilter
-    searchQuery: string
+
+    // UI State
+    currentView: ViewType
+    filters: FilterState
+
+    // Modal/Panel State
     isDetailOpen: boolean
     isSettingsOpen: boolean
     isAddModalOpen: boolean
-    currentView: ViewType
 
     // Actions
     setView: (view: ViewType) => void
@@ -34,8 +51,15 @@ export interface GameStore {
     updateGame: (id: string, updates: Partial<Game>) => void
     deleteGame: (id: string) => void
     selectGame: (game: Game | null) => void
-    setFilter: (filter: GameFilter) => void
+
+    // Filter Actions
+    setFilterStatus: (status: FilterStatus) => void
+    setFilterPlatform: (platform: FilterPlatform) => void
+    toggleOnlyFavorites: () => void
     setSearchQuery: (query: string) => void
+    setSort: (sortBy: SortOption, sortOrder: SortOrder) => void
+    resetFilters: () => void
+
     toggleFavorite: (id: string) => void
     openDetail: (game: Game) => void
     closeDetail: () => void
@@ -101,6 +125,9 @@ export interface ElectronAPI {
     getAuthState: () => Promise<AuthState>
     hasSteamApiKey: () => Promise<boolean>
     fetchSteamGames: () => Promise<FetchGamesResult>
+
+    // Trending games
+    getTrendingGames: () => Promise<import('./trending').FetchTrendingResult>
 
     // File dialogs
     selectExecutable: () => Promise<string | null>
