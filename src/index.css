@@ -1,0 +1,289 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════
+   CRIMSON VOID - Base Layer
+   OLED-optimized dark theme with true blacks
+   ═══════════════════════════════════════════════════════════ */
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: 'liga' 1, 'kern' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-void-pure text-text-primary font-display m-0 p-0 overflow-hidden;
+    min-height: 100vh;
+  }
+
+  #root {
+    @apply h-screen w-screen overflow-hidden;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-crimson-600/40 text-white;
+  }
+
+  ::-moz-selection {
+    @apply bg-crimson-600/40 text-white;
+  }
+
+  /* Custom scrollbar - nearly invisible but functional */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-void-border rounded-full transition-colors duration-200;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-crimson-900/50;
+  }
+
+  ::-webkit-scrollbar-corner {
+    @apply bg-transparent;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Component Layer - Reusable Patterns
+   ═══════════════════════════════════════════════════════════ */
+
+@layer components {
+
+  /* Glitch effect for focus states */
+  .glitch-border {
+    position: relative;
+  }
+
+  .glitch-border::before,
+  .glitch-border::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 1px solid theme('colors.crimson.500');
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .glitch-border:focus-within::before {
+    animation: glitch-border-1 0.3s ease-in-out;
+    opacity: 1;
+  }
+
+  .glitch-border:focus-within::after {
+    animation: glitch-border-2 0.3s ease-in-out 0.05s;
+    opacity: 0.5;
+  }
+
+  /* Crimson glow effect */
+  .crimson-glow {
+    box-shadow:
+      0 0 20px theme('colors.ember.glow'),
+      0 0 40px theme('colors.ember.pulse'),
+      inset 0 0 20px theme('colors.ember.trace');
+  }
+
+  .crimson-glow-intense {
+    box-shadow:
+      0 0 30px theme('colors.crimson.500' / 0.4),
+      0 0 60px theme('colors.crimson.500' / 0.2),
+      0 0 100px theme('colors.crimson.500' / 0.1);
+  }
+
+  /* Void card styling */
+  .void-card {
+    @apply bg-void-surface border border-void-border rounded-lg;
+    @apply transition-all duration-300 ease-out-expo;
+  }
+
+  .void-card:hover {
+    @apply bg-void-elevated border-crimson-900/30;
+    @apply shadow-crimson-glow;
+  }
+
+  /* Draggable region for title bar */
+  .drag-region {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  /* Etched text effect */
+  .text-etched {
+    @apply font-etched uppercase tracking-wider;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05),
+      0 -1px 0 rgba(0, 0, 0, 0.8);
+  }
+
+  /* Scanline overlay effect */
+  .scanlines::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px);
+    pointer-events: none;
+  }
+
+  /* Heartbeat hover effect for cards */
+  .heartbeat-hover {
+    @apply transition-all duration-300;
+  }
+
+  .heartbeat-hover:hover {
+    animation: heartbeat 2s ease-in-out infinite;
+  }
+
+  /* Button charge-release effect */
+  .btn-charge {
+    @apply transition-transform duration-150;
+  }
+
+  .btn-charge:active {
+    animation: charge 0.15s ease-out forwards;
+  }
+
+  .btn-charge:not(:active) {
+    animation: release 0.2s ease-out;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Utility Layer - One-off utilities
+   ═══════════════════════════════════════════════════════════ */
+
+@layer utilities {
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mask gradients for fade effects */
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  }
+
+  .mask-fade-t {
+    mask-image: linear-gradient(to top, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
+  }
+
+  /* GPU acceleration hints */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Keyframes for glitch border effect
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes glitch-border-1 {
+  0% {
+    transform: translate(0);
+    opacity: 0;
+  }
+
+  20% {
+    transform: translate(-2px, 2px);
+    opacity: 1;
+  }
+
+  40% {
+    transform: translate(-2px, -2px);
+    opacity: 1;
+  }
+
+  60% {
+    transform: translate(2px, 2px);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translate(2px, -2px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes glitch-border-2 {
+  0% {
+    transform: translate(0);
+    opacity: 0;
+  }
+
+  20% {
+    transform: translate(2px, -2px);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: translate(2px, 2px);
+    opacity: 0.5;
+  }
+
+  60% {
+    transform: translate(-2px, -2px);
+    opacity: 0.5;
+  }
+
+  80% {
+    transform: translate(-2px, 2px);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translate(0);
+    opacity: 0.5;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Framer Motion animation helpers
+   ═══════════════════════════════════════════════════════════ */
+
+.motion-reduce * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
