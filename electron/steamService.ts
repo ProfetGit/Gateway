@@ -784,7 +784,7 @@ export class SteamService {
                     id: uuidv4(),
                     title: steamGame.name,
                     steamAppId: steamGame.appId,
-                    coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${steamGame.appId}/library_600x900.jpg`,
+                    coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${steamGame.appId}/library_600x900_2x.jpg`,
                     isInstalled: steamGame.isInstalled,
                     isFavorite: false,
                     source: 'steam',
