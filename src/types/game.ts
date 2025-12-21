@@ -2,6 +2,7 @@ export interface Game {
     id: string
     title: string
     coverUrl?: string
+    localCoverPath?: string
     executablePath?: string
     steamAppId?: string
     isInstalled: boolean
@@ -147,6 +148,9 @@ export interface ElectronAPI {
     minimizeWindow: () => void
     maximizeWindow: () => void
     closeWindow: () => void
+
+    // Events
+    onGamesUpdated: (callback: (games: Game[]) => void) => () => void
 }
 
 declare global {

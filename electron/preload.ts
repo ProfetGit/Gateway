@@ -5,6 +5,7 @@ interface Game {
   id: string
   title: string
   coverUrl?: string
+  localCoverPath?: string
   executablePath?: string
   steamAppId?: string
   isInstalled: boolean
@@ -83,5 +84,12 @@ contextBridge.exposeInMainWorld('api', {
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),
   closeWindow: () => ipcRenderer.send('close-window'),
+
+  // Events
+  onGamesUpdated: (callback: (games: Game[]) => void) => {
+    const subscription = (_event: any, games: Game[]) => callback(games)
+    ipcRenderer.on('games-updated', subscription)
+    return () => ipcRenderer.removeListener('games-updated', subscription)
+  }
 })
 

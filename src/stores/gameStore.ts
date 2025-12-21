@@ -2,79 +2,25 @@ import { create } from 'zustand'
 import { useMemo } from 'react'
 import type { GameStore } from '../types/game'
 
-export const useGameStore = create<GameStore>((set, get) => ({
-    games: [],
-    selectedGame: null,
+export const useGameStore = create<GameStore>((set, get) => {
+    // Listen for updates from main process (e.g. cover mirroring completion)
+    if (typeof window !== 'undefined' && window.api) {
+        window.api.onGamesUpdated((updatedGames) => {
+            set({ games: updatedGames })
+        })
+    }
 
-    // Initial Preload State
-    preloadState: {
-        cursor: 0,
-        isActive: false
-    },
+    return {
+        games: [],
+        selectedGame: null,
 
-    currentView: 'home',
-    filters: {
-        status: 'all',
-        platform: 'all',
-        onlyFavorites: false,
-        search: '',
-        sortBy: 'alphabetical',
-        sortOrder: 'asc'
-    },
+        // Initial Preload State
+        preloadState: {
+            cursor: 0,
+            isActive: false
+        },
 
-    isDetailOpen: false,
-    isSettingsOpen: false,
-    isAddModalOpen: false,
-
-    setView: (view) => set({ currentView: view }),
-
-    setGames: (games) => set({ games }),
-
-    addGame: (game) => set((state) => ({
-        games: [...state.games, game],
-        isAddModalOpen: false,
-    })),
-
-    updateGame: (id, updates) => set((state) => ({
-        games: state.games.map((g) => g.id === id ? { ...g, ...updates } : g),
-        selectedGame: state.selectedGame?.id === id
-            ? { ...state.selectedGame, ...updates }
-            : state.selectedGame,
-    })),
-
-    deleteGame: (id) => set((state) => ({
-        games: state.games.filter((g) => g.id !== id),
-        selectedGame: state.selectedGame?.id === id ? null : state.selectedGame,
-        isDetailOpen: state.selectedGame?.id === id ? false : state.isDetailOpen,
-    })),
-
-    selectGame: (game) => set({ selectedGame: game }),
-
-    // Filter Actions
-    setFilterStatus: (status) => set((state) => ({
-        filters: { ...state.filters, status },
-        currentView: 'library'
-    })),
-
-    setFilterPlatform: (platform) => set((state) => ({
-        filters: { ...state.filters, platform },
-        currentView: 'library'
-    })),
-
-    toggleOnlyFavorites: () => set((state) => ({
-        filters: { ...state.filters, onlyFavorites: !state.filters.onlyFavorites },
-        currentView: 'library'
-    })),
-
-    setSearchQuery: (search) => set((state) => ({
-        filters: { ...state.filters, search }
-    })),
-
-    setSort: (sortBy, sortOrder) => set((state) => ({
-        filters: { ...state.filters, sortBy, sortOrder }
-    })),
-
-    resetFilters: () => set({
+        currentView: 'home',
         filters: {
             status: 'all',
             platform: 'all',
@@ -82,94 +28,157 @@ export const useGameStore = create<GameStore>((set, get) => ({
             search: '',
             sortBy: 'alphabetical',
             sortOrder: 'asc'
-        }
-    }),
+        },
 
-    toggleFavorite: (id) => {
-        const { games, updateGame } = get()
-        const game = games.find((g) => g.id === id)
-        if (game) {
-            updateGame(id, { isFavorite: !game.isFavorite })
-            // Persist to electron
-            window.api?.updateGame(id, { isFavorite: !game.isFavorite })
-        }
-    },
-
-    openDetail: (game) => set({
-        selectedGame: game,
-        isDetailOpen: true,
-        isSettingsOpen: false,
-        isAddModalOpen: false,
-    }),
-
-    closeDetail: () => set({
-        isDetailOpen: false,
-        // Keep selectedGame for potential re-open animation
-    }),
-
-    openSettings: () => set({
-        isSettingsOpen: true,
-        isDetailOpen: false,
-        isAddModalOpen: false,
-    }),
-
-    closeSettings: () => set({ isSettingsOpen: false }),
-
-    openAddModal: () => set({
-        isAddModalOpen: true,
         isDetailOpen: false,
         isSettingsOpen: false,
-    }),
+        isAddModalOpen: false,
 
-    stopPreloading: () => {
-        const { isActive } = get().preloadState
-        if (isActive) {
+        setView: (view) => set({ currentView: view }),
+
+        setGames: (games) => set({ games }),
+
+        addGame: (game) => set((state) => ({
+            games: [...state.games, game],
+            isAddModalOpen: false,
+        })),
+
+        updateGame: (id, updates) => set((state) => ({
+            games: state.games.map((g) => g.id === id ? { ...g, ...updates } : g),
+            selectedGame: state.selectedGame?.id === id
+                ? { ...state.selectedGame, ...updates }
+                : state.selectedGame,
+        })),
+
+        deleteGame: (id) => set((state) => ({
+            games: state.games.filter((g) => g.id !== id),
+            selectedGame: state.selectedGame?.id === id ? null : state.selectedGame,
+            isDetailOpen: state.selectedGame?.id === id ? false : state.isDetailOpen,
+        })),
+
+        selectGame: (game) => set({ selectedGame: game }),
+
+        // Filter Actions
+        setFilterStatus: (status) => set((state) => ({
+            filters: { ...state.filters, status },
+            currentView: 'library'
+        })),
+
+        setFilterPlatform: (platform) => set((state) => ({
+            filters: { ...state.filters, platform },
+            currentView: 'library'
+        })),
+
+        toggleOnlyFavorites: () => set((state) => ({
+            filters: { ...state.filters, onlyFavorites: !state.filters.onlyFavorites },
+            currentView: 'library'
+        })),
+
+        setSearchQuery: (search) => set((state) => ({
+            filters: { ...state.filters, search }
+        })),
+
+        setSort: (sortBy, sortOrder) => set((state) => ({
+            filters: { ...state.filters, sortBy, sortOrder }
+        })),
+
+        resetFilters: () => set({
+            filters: {
+                status: 'all',
+                platform: 'all',
+                onlyFavorites: false,
+                search: '',
+                sortBy: 'alphabetical',
+                sortOrder: 'asc'
+            }
+        }),
+
+        toggleFavorite: (id) => {
+            const { games, updateGame } = get()
+            const game = games.find((g) => g.id === id)
+            if (game) {
+                updateGame(id, { isFavorite: !game.isFavorite })
+                // Persist to electron
+                window.api?.updateGame(id, { isFavorite: !game.isFavorite })
+            }
+        },
+
+        openDetail: (game) => set({
+            selectedGame: game,
+            isDetailOpen: true,
+            isSettingsOpen: false,
+            isAddModalOpen: false,
+        }),
+
+        closeDetail: () => set({
+            isDetailOpen: false,
+            // Keep selectedGame for potential re-open animation
+        }),
+
+        openSettings: () => set({
+            isSettingsOpen: true,
+            isDetailOpen: false,
+            isAddModalOpen: false,
+        }),
+
+        closeSettings: () => set({ isSettingsOpen: false }),
+
+        openAddModal: () => set({
+            isAddModalOpen: true,
+            isDetailOpen: false,
+            isSettingsOpen: false,
+        }),
+
+        stopPreloading: () => {
+            const { isActive } = get().preloadState
+            if (isActive) {
+                set((state) => ({
+                    preloadState: { ...state.preloadState, isActive: false }
+                }))
+            }
+        },
+
+        startPreloading: () => {
+            const { games, preloadState } = get()
+            if (preloadState.isActive || preloadState.cursor >= games.length) return
+
             set((state) => ({
-                preloadState: { ...state.preloadState, isActive: false }
+                preloadState: { ...state.preloadState, isActive: true }
             }))
-        }
-    },
 
-    startPreloading: () => {
-        const { games, preloadState } = get()
-        if (preloadState.isActive || preloadState.cursor >= games.length) return
+            // We use a recursive timeout approach to allow interruption
+            const processNext = () => {
+                const { games, preloadState, stopPreloading } = get()
 
-        set((state) => ({
-            preloadState: { ...state.preloadState, isActive: true }
-        }))
+                // Check if we should stop
+                if (!preloadState.isActive) return
+                if (preloadState.cursor >= games.length) {
+                    stopPreloading()
+                    return
+                }
 
-        // We use a recursive timeout approach to allow interruption
-        const processNext = () => {
-            const { games, preloadState, stopPreloading } = get()
+                // Process one game
+                const game = games[preloadState.cursor]
+                if (game?.coverUrl) {
+                    const img = new Image()
+                    img.src = game.coverUrl
+                }
 
-            // Check if we should stop
-            if (!preloadState.isActive) return
-            if (preloadState.cursor >= games.length) {
-                stopPreloading()
-                return
+                // Move cursor and schedule next
+                set((state) => ({
+                    preloadState: { ...state.preloadState, cursor: state.preloadState.cursor + 1 }
+                }))
+
+                // Small delay to keep UI responsive and allow cancellation
+                setTimeout(processNext, 20)
             }
 
-            // Process one game
-            const game = games[preloadState.cursor]
-            if (game?.coverUrl) {
-                const img = new Image()
-                img.src = game.coverUrl
-            }
+            processNext()
+        },
 
-            // Move cursor and schedule next
-            set((state) => ({
-                preloadState: { ...state.preloadState, cursor: state.preloadState.cursor + 1 }
-            }))
-
-            // Small delay to keep UI responsive and allow cancellation
-            setTimeout(processNext, 20)
-        }
-
-        processNext()
-    },
-
-    closeAddModal: () => set({ isAddModalOpen: false }),
-}))
+        closeAddModal: () => set({ isAddModalOpen: false }),
+    }
+})
 
 // Selector hooks for filtered games
 export const useFilteredGames = () => {

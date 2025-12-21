@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -16,6 +16,7 @@ interface Game {
   id: string
   title: string
   coverUrl?: string
+  localCoverPath?: string
   executablePath?: string
   steamAppId?: string
   isInstalled: boolean
@@ -138,6 +139,64 @@ function createWindow() {
 // IPC Handlers
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════
+
+async function downloadGameCover(game: Game): Promise<string | null> {
+  if (!game.coverUrl || game.localCoverPath) return game.localCoverPath || null
+
+  try {
+    const userDataPath = app.getPath('userData')
+    const coversDir = path.join(userDataPath, 'assets', 'covers')
+
+    if (!fs.existsSync(coversDir)) {
+      fs.mkdirSync(coversDir, { recursive: true })
+    }
+
+    const fileName = `${game.steamAppId || game.id}.jpg`
+    const filePath = path.join(coversDir, fileName)
+
+    // Skip if already exists
+    if (fs.existsSync(filePath)) {
+      return fileName
+    }
+
+    const response = await fetch(game.coverUrl)
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    fs.writeFileSync(filePath, buffer)
+
+    return fileName
+  } catch (error) {
+    console.error(`Failed to download cover for ${game.title}:`, error)
+    return null
+  }
+}
+
+async function mirrorAllCovers() {
+  console.log('[Main] Mirroring covers in background...')
+  const games = store.get('games')
+  let updated = false
+
+  for (const game of games) {
+    if (game.coverUrl && !game.localCoverPath) {
+      const fileName = await downloadGameCover(game)
+      if (fileName) {
+        game.localCoverPath = fileName
+        updated = true
+      }
+    }
+  }
+
+  if (updated) {
+    store.set('games', games)
+    console.log('[Main] ✓ Mirroring complete, store updated')
+    // Notify renderer if window is open
+    win?.webContents.send('games-updated', games)
+  }
+}
+
 function setupIpcHandlers() {
   // Game CRUD operations
   ipcMain.handle('get-games', () => {
@@ -230,6 +289,9 @@ function setupIpcHandlers() {
     } catch (error) {
       console.error('[Main] sync-steam error:', error)
       throw error
+    } finally {
+      // Trigger mirroring in background
+      mirrorAllCovers()
     }
   })
 
@@ -295,6 +357,9 @@ function setupIpcHandlers() {
 
     store.set('games', games)
     console.log('[Main] ✓ Re-synced', games.length, 'games from Steam API')
+
+    // Background mirroring
+    mirrorAllCovers()
 
     return {
       success: true,
@@ -549,6 +614,9 @@ function setupIpcHandlers() {
 
       store.set('games', [...updatedGames, ...newGames])
       console.log('[Main] ✓ Synced games. Updated:', updatedGames.length, 'New:', newGames.length)
+
+      // Background mirroring
+      mirrorAllCovers()
     }
 
     return apiResult
@@ -609,6 +677,20 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   store = new JsonStore()
 
+  // Register custom protocol for local assets
+  protocol.handle('gateway', (request) => {
+    const url = request.url.replace('gateway://', '')
+    const [type, fileName] = url.split('/')
+
+    if (type === 'cover' && fileName) {
+      const userDataPath = app.getPath('userData')
+      const filePath = path.join(userDataPath, 'assets', 'covers', fileName)
+      return net.fetch(`file://${filePath}`)
+    }
+
+    return new Response('Not Found', { status: 404 })
+  })
+
   // Initialize Steam auth with persistent storage
   if (STEAM_API_KEY) {
     setSteamApiKey(STEAM_API_KEY)
@@ -620,4 +702,7 @@ app.whenReady().then(() => {
 
   setupIpcHandlers()
   createWindow()
+
+  // Initial mirroring
+  setTimeout(() => mirrorAllCovers(), 5000) // Delay to let app settle
 })

@@ -20,9 +20,14 @@ export function GameDetail() {
     const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
     const [imageError, setImageError] = useState(false)
 
+    const getCoverSrc = (game: any) => {
+        if (game?.localCoverPath) return `gateway://cover/${game.localCoverPath}`
+        return game?.coverUrl
+    }
+
     useEffect(() => {
         if (selectedGame) {
-            setImgSrc(selectedGame.coverUrl)
+            setImgSrc(getCoverSrc(selectedGame))
             setImageError(false)
         }
     }, [selectedGame])
@@ -30,12 +35,18 @@ export function GameDetail() {
     if (!selectedGame) return null
 
     const handleImageError = () => {
+        const currentSrc = imgSrc || ''
+
+        // If local cover failed, fallback to CDN
+        if (currentSrc.startsWith('gateway://') && selectedGame.coverUrl) {
+            setImgSrc(selectedGame.coverUrl)
+            return
+        }
+
         if (!selectedGame.steamAppId) {
             setImageError(true)
             return
         }
-
-        const currentSrc = imgSrc || ''
 
         if (currentSrc.includes('library_600x900_2x.jpg')) {
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_600x900.jpg`)

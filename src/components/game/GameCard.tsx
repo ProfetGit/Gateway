@@ -21,7 +21,12 @@ interface GameCardProps {
 }
 
 export function GameCard({ game }: GameCardProps) {
-    const [imgSrc, setImgSrc] = useState(game.coverUrl)
+    const getInitialSrc = () => {
+        if (game.localCoverPath) return `gateway://cover/${game.localCoverPath}`
+        return game.coverUrl
+    }
+
+    const [imgSrc, setImgSrc] = useState(getInitialSrc())
     const [imageError, setImageError] = useState(false)
     const { openDetail, toggleFavorite } = useGameStore()
 
@@ -44,17 +49,23 @@ export function GameCard({ game }: GameCardProps) {
 
     // Reset state when game changes
     useEffect(() => {
-        setImgSrc(game.coverUrl)
+        setImgSrc(getInitialSrc())
         setImageError(false)
-    }, [game.coverUrl])
+    }, [game.coverUrl, game.localCoverPath])
 
     const handleImageError = () => {
+        const currentSrc = imgSrc || ''
+
+        // If local cover failed, fallback to CDN
+        if (currentSrc.startsWith('gateway://') && game.coverUrl) {
+            setImgSrc(game.coverUrl)
+            return
+        }
+
         if (!game.steamAppId) {
             setImageError(true)
             return
         }
-
-        const currentSrc = imgSrc || ''
 
         // Strategy: 2x -> 1x -> header -> error
         if (currentSrc.includes('library_600x900_2x.jpg')) {
