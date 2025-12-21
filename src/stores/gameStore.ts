@@ -6,6 +6,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     games: [],
     selectedGame: null,
 
+    // Initial Preload State
+    preloadState: {
+        cursor: 0,
+        isActive: false
+    },
+
     currentView: 'home',
     filters: {
         status: 'all',
@@ -114,6 +120,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isDetailOpen: false,
         isSettingsOpen: false,
     }),
+
+    stopPreloading: () => {
+        const { isActive } = get().preloadState
+        if (isActive) {
+            set((state) => ({
+                preloadState: { ...state.preloadState, isActive: false }
+            }))
+        }
+    },
+
+    startPreloading: () => {
+        const { games, preloadState } = get()
+        if (preloadState.isActive || preloadState.cursor >= games.length) return
+
+        set((state) => ({
+            preloadState: { ...state.preloadState, isActive: true }
+        }))
+
+        // We use a recursive timeout approach to allow interruption
+        const processNext = () => {
+            const { games, preloadState, stopPreloading } = get()
+
+            // Check if we should stop
+            if (!preloadState.isActive) return
+            if (preloadState.cursor >= games.length) {
+                stopPreloading()
+                return
+            }
+
+            // Process one game
+            const game = games[preloadState.cursor]
+            if (game?.coverUrl) {
+                const img = new Image()
+                img.src = game.coverUrl
+            }
+
+            // Move cursor and schedule next
+            set((state) => ({
+                preloadState: { ...state.preloadState, cursor: state.preloadState.cursor + 1 }
+            }))
+
+            // Small delay to keep UI responsive and allow cancellation
+            setTimeout(processNext, 20)
+        }
+
+        processNext()
+    },
 
     closeAddModal: () => set({ isAddModalOpen: false }),
 }))

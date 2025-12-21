@@ -29,11 +29,21 @@ export interface FilterState {
     sortOrder: SortOrder
 }
 
+export interface PreloadState {
+    cursor: number
+    isActive: boolean
+}
+
 export type ViewType = 'home' | 'library'
 
 export interface GameStore {
     games: Game[]
     selectedGame: Game | null
+
+    // Preloading
+    preloadState: PreloadState
+    startPreloading: () => void
+    stopPreloading: () => void
 
     // UI State
     currentView: ViewType

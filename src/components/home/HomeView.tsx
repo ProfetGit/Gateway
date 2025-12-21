@@ -2,12 +2,20 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Star, Gamepad2, Play, Info } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
+import { useUIStore } from '../../stores/uiStore'
 import { GameCard } from '../game/GameCard'
 import { TrendingSection } from '../../features/trending'
 import type { Game } from '../../types/game'
 
 export function HomeView() {
     const { games, openDetail } = useGameStore()
+    const { setIsScrolled } = useUIStore()
+
+    // Reset scroll state on mount/unmount
+    React.useEffect(() => {
+        setIsScrolled(false)
+        return () => setIsScrolled(false)
+    }, [setIsScrolled])
 
     // Get most active games (last played)
     const activeCarouselGames = games
@@ -27,7 +35,10 @@ export function HomeView() {
         .slice(0, 8)
 
     return (
-        <div className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-void-pure scrollbar-hide">
+        <div
+            onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 50)}
+            className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-void-pure scrollbar-hide"
+        >
             <AnimatePresence mode="wait">
                 {games.length > 0 ? (
                     <motion.div

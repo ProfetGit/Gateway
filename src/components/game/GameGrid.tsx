@@ -3,34 +3,10 @@ import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useFilteredGames } from '../../stores/gameStore'
 import { Gamepad2 } from 'lucide-react'
-import { forwardRef } from 'react'
+import { forwardRef, useState, useEffect } from 'react'
 import type { Game } from '../../types/game'
 
-export function GameGrid() {
-    const games = useFilteredGames()
-    console.log('[GameGrid] Rendered', games.length, 'games')
 
-    return (
-        <div className="flex-1 min-h-0 bg-void-pure relative">
-            {games.length === 0 ? (
-                <div className="absolute inset-0 overflow-y-auto">
-                    <EmptyState />
-                </div>
-            ) : (
-                <VirtuosoGrid
-                    style={{ height: '100%' }}
-                    totalCount={games.length}
-                    overscan={3000} // Keep ~10-15 screens of content rendered to prevent re-animation on scroll up
-                    listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
-                    itemClassName="min-h-[240px]"
-                    itemContent={(index) => (
-                        <AnimatedGameCard game={games[index]} index={index} />
-                    )}
-                />
-            )}
-        </div>
-    )
-}
 
 // Wrapper to handle individual entrance animations
 function AnimatedGameCard({ game, index }: { game: Game; index: number }) {
@@ -56,6 +32,46 @@ function AnimatedGameCard({ game, index }: { game: Game; index: number }) {
         >
             <GameCard game={game} />
         </motion.div>
+    )
+}
+
+export function GameGrid() {
+    const games = useFilteredGames()
+    const [isReady, setIsReady] = useState(false)
+
+    useEffect(() => {
+        // Double RAF to ensure the navigation animation frame has started/painted 
+        // before we block the thread with the heavy grid initialization.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setIsReady(true)
+            })
+        })
+    }, [])
+
+    if (!isReady) {
+        return <div className="flex-1 min-h-0 bg-void-pure" />
+    }
+
+    return (
+        <div className="flex-1 min-h-0 bg-void-pure relative">
+            {games.length === 0 ? (
+                <div className="absolute inset-0 overflow-y-auto">
+                    <EmptyState />
+                </div>
+            ) : (
+                <VirtuosoGrid
+                    style={{ height: '100%' }}
+                    totalCount={games.length}
+                    overscan={200} // Reduced overscan slightly to improve initial mount speed
+                    listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
+                    itemClassName="min-h-[240px]"
+                    itemContent={(index) => (
+                        <AnimatedGameCard game={games[index]} index={index} />
+                    )}
+                />
+            )}
+        </div>
     )
 }
 
