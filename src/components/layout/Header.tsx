@@ -25,60 +25,72 @@ export function Header() {
     }
 
     return (
-        <header className="h-14 flex items-center justify-between px-6 border-b border-void-border bg-void-pure/50 backdrop-blur-sm shrink-0">
+    return (
+        <header className="h-24 flex items-center justify-between px-10 shrink-0 relative z-40 bg-gradient-to-b from-void-pure to-transparent">
             {/* Title & Count */}
-            <div className="flex items-center gap-4">
-                <h1 className="text-xl font-semibold text-text-primary tracking-tight">
-                    {filterLabel[filter]}
-                </h1>
-                <span className="px-2 py-0.5 text-xs font-mono text-text-muted bg-void-surface border border-void-border rounded">
-                    {gameCount} {gameCount === 1 ? 'game' : 'games'}
-                </span>
+            <div className="flex flex-col gap-1 select-none">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-4xl font-display font-black text-white italic tracking-tighter uppercase transform -skew-x-3 drop-shadow-2xl">
+                        {filterLabel[filter]}
+                    </h1>
+                    <div className="h-px w-12 bg-crimson-500/50 mt-2" />
+                </div>
+                <div className="flex items-center gap-2 text-xs font-mono tracking-[0.2em] text-white/30 uppercase pl-1">
+                    <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full" />
+                    <span>STATUS: {gameCount} {gameCount === 1 ? 'UNIT' : 'UNITS'} DEPLOYED</span>
+                </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
-                {/* Search */}
-                <div className="relative group glitch-border">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-crimson-500 transition-colors" />
+            <div className="flex items-center gap-6">
+                {/* Search - Terminal Style */}
+                <div className="relative group/search">
+                    <div className="absolute inset-x-0 bottom-0 h-px bg-white/20 group-focus-within/search:bg-crimson-500 transition-colors duration-300" />
+                    <Search className="absolute left-0 bottom-3 w-4 h-4 text-white/40 group-focus-within/search:text-crimson-500 transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search games..."
+                        placeholder="SEARCH_DB..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="
-              w-64 pl-10 pr-8 py-2 
-              bg-void-surface border border-void-border rounded-lg
-              text-sm font-mono text-text-primary placeholder:text-text-ghost
-              focus:outline-none focus:border-crimson-900/50 focus:ring-1 focus:ring-crimson-900/30
+              w-64 pl-8 pr-10 py-2.5
+              bg-transparent border-none
+              text-lg font-display font-bold italic tracking-wider text-white placeholder:text-white/20 uppercase
+              focus:outline-none focus:ring-0
               transition-all duration-200
             "
                     />
+                    {/* Blinking Cursor Decoration (only when empty) */}
+                    {!searchQuery && (
+                        <div className="absolute right-0 bottom-3 w-2 h-4 bg-crimson-500 animate-pulse pointer-events-none opacity-50" />
+                    )}
+
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                            className="absolute right-2 bottom-3 text-white/40 hover:text-white transition-colors"
                         >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4" />
                         </button>
                     )}
                 </div>
 
-                {/* Add Game */}
+                {/* Add Game - Text Button */}
                 <motion.button
                     onClick={openAddModal}
                     className="
-            flex items-center gap-2 px-4 py-2
-            bg-crimson-600 hover:bg-crimson-500 
-            text-white text-sm font-medium
-            rounded-lg shadow-crimson-glow
-            transition-all duration-200
+            relative group flex items-center gap-2 px-6 py-2
+            text-white/80 hover:text-white
+            font-display font-bold italic tracking-tighter uppercase
           "
-                    whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(255, 58, 58, 0.4)' }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                 >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Game</span>
+                    <span className="relative z-10 text-xl">Add Data</span>
+                    <Plus className="relative z-10 w-5 h-5 group-hover:text-crimson-500 transition-colors" />
+
+                    {/* Hover Bracket/Box */}
+                    <div className="absolute inset-0 border border-white/10 skew-x-[-12deg] group-hover:border-crimson-500/50 bg-white/0 group-hover:bg-crimson-500/10 transition-all duration-300" />
                 </motion.button>
             </div>
         </header>

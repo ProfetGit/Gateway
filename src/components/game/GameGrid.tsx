@@ -61,29 +61,21 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
             exit={{ opacity: 0, scale: 0.9 }}
         >
             {/* Void Icon */}
-            <motion.div
-                className="relative w-24 h-24 mb-8"
-                animate={{
-                    scale: [1, 1.05, 1],
-                    opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
-            >
-                <div className="absolute inset-0 bg-crimson-600/20 rounded-full blur-2xl" />
-                <div className="absolute inset-4 bg-crimson-600/30 rounded-full blur-xl" />
-                <Gamepad2 className="absolute inset-0 m-auto w-12 h-12 text-crimson-600/50" />
-            </motion.div>
+            <div className="relative w-32 h-32 mb-8 flex items-center justify-center">
+                <div className="absolute inset-0 border border-crimson-900/30 rotate-45" />
+                <div className="absolute inset-4 border border-crimson-900/50 -rotate-12" />
+                <Gamepad2 className="w-16 h-16 text-crimson-600/50 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+                {/* Glitch artifacts */}
+                <div className="absolute top-0 right-0 w-2 h-2 bg-crimson-500" />
+                <div className="absolute bottom-0 left-0 w-2 h-2 bg-crimson-500" />
+            </div>
 
             {/* Text */}
-            <h2 className="text-2xl font-etched text-text-ghost mb-3 tracking-wider">
-                THE VOID AWAITS
+            <h2 className="text-3xl font-display font-black italic tracking-tighter text-white uppercase mb-2">
+                NO_DATA_FOUND
             </h2>
-            <p className="text-sm font-mono text-text-muted max-w-xs">
-                Add games to your library or sync with Steam to begin
+            <p className="text-sm font-mono text-crimson-500/60 uppercase tracking-widest border border-crimson-900/30 px-3 py-1">
+                INITIALIZE_LIBRARY_SYNC
             </p>
 
             {/* Particle decoration */}
@@ -91,19 +83,20 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
                 {[...Array(20)].map((_, i) => (
                     <motion.div
                         key={i}
-                        className="absolute w-1 h-1 bg-crimson-600/30 rounded-full"
+                        className="absolute w-1 h-1 bg-crimson-500/40"
                         style={{
                             left: `${Math.random() * 100}%`,
                             top: `${Math.random() * 100}%`,
                         }}
                         animate={{
-                            y: [0, -100, 0],
-                            opacity: [0, 0.5, 0],
+                            y: [0, -100],
+                            opacity: [0, 1, 0],
                         }}
                         transition={{
-                            duration: 5 + Math.random() * 5,
+                            duration: 3 + Math.random() * 5,
                             repeat: Infinity,
                             delay: Math.random() * 5,
+                            ease: "linear"
                         }}
                     />
                 ))}

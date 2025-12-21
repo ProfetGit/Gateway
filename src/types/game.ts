@@ -15,6 +15,8 @@ export interface Game {
 
 export type GameFilter = 'all' | 'installed' | 'favorites' | 'steam' | 'not-installed'
 
+export type ViewType = 'home' | 'library'
+
 export interface GameStore {
     games: Game[]
     selectedGame: Game | null
@@ -23,8 +25,10 @@ export interface GameStore {
     isDetailOpen: boolean
     isSettingsOpen: boolean
     isAddModalOpen: boolean
+    currentView: ViewType
 
     // Actions
+    setView: (view: ViewType) => void
     setGames: (games: Game[]) => void
     addGame: (game: Game) => void
     updateGame: (id: string, updates: Partial<Game>) => void

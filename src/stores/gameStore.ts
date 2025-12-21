@@ -9,6 +9,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isDetailOpen: false,
     isSettingsOpen: false,
     isAddModalOpen: false,
+    currentView: 'home',
+
+    setView: (view) => set({ currentView: view }),
 
     setGames: (games) => set({ games }),
 
@@ -32,7 +35,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     selectGame: (game) => set({ selectedGame: game }),
 
-    setFilter: (filter) => set({ filter }),
+    setFilter: (filter) => set({ filter, currentView: 'library' }),
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 

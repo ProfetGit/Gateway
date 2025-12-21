@@ -1,15 +1,26 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Heart, Star, Download } from 'lucide-react'
+import { Play, Heart, Download } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import type { Game } from '../../types/game'
+
+/**
+ * GAME CARD DESIGN PRINCIPLES
+ * ══════════════════════════════════════════════════════════════
+ * 1. COVER IS KING — Art fills the entire card, no padding
+ * 2. INVISIBLE UI — Controls only appear on interaction
+ * 3. SINGLE FOCAL POINT — One action, one glance
+ * 4. SUBTLE DEPTH — Soft shadows, no harsh borders
+ * 5. MICRO-FEEDBACK — Every hover/tap has response < 100ms
+ * 6. UNINSTALLED = MUTED — Visual distinction without badges
+ * ══════════════════════════════════════════════════════════════
+ */
 
 interface GameCardProps {
     game: Game
 }
 
 export function GameCard({ game }: GameCardProps) {
-    const [isHovered, setIsHovered] = useState(false)
     const [imageError, setImageError] = useState(false)
     const { openDetail, toggleFavorite } = useGameStore()
 
@@ -30,178 +41,107 @@ export function GameCard({ game }: GameCardProps) {
         toggleFavorite(game.id)
     }
 
+    const hasCover = game.coverUrl && !imageError
+
     return (
-        <motion.div
-            className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+        <motion.article
+            className="relative aspect-[3/4] rounded-sm overflow-hidden cursor-pointer group isolate bg-void-deep"
             onClick={() => openDetail(game)}
-            whileHover={{ scale: 1.03 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            initial="idle"
+            whileHover="hover"
+            whileTap="tap"
+            variants={{
+                idle: { scale: 1 },
+                hover: { scale: 1.02 },
+                tap: { scale: 0.98 }
+            }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
         >
-            {/* Cover Image */}
-            <div className="absolute inset-0 bg-void-surface">
-                {game.coverUrl && !imageError ? (
-                    <img
+            {/* HOVER BORDER GLOW */}
+            <div className="absolute inset-0 border-2 border-transparent group-hover:border-crimson-500/50 transition-colors duration-300 z-50 pointer-events-none rounded-sm" />
+
+            {/* Base layer — cover or fallback */}
+            <div className="absolute inset-0">
+                {hasCover ? (
+                    <motion.img
                         src={game.coverUrl}
                         alt={game.title}
-                        className={`
-              w-full h-full object-cover 
-              transition-all duration-500
-              ${isHovered ? 'scale-110 brightness-110' : 'scale-100 brightness-100'}
-              ${!game.isInstalled ? 'grayscale-[50%] opacity-60' : ''}
-            `}
+                        className="w-full h-full object-cover transition-all duration-500"
+                        style={{
+                            filter: game.isInstalled ? 'grayscale(0.2) contrast(1.1)' : 'grayscale(1) brightness(0.5)',
+                        }}
                         onError={() => setImageError(true)}
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-void-surface to-void-deep">
-                        <span className="text-3xl font-etched text-crimson-900/50">
-                            {game.title.charAt(0)}
+                    <div className="w-full h-full bg-void-deep flex items-center justify-center border border-white/5">
+                        <span className="text-4xl font-display font-black text-white/20 select-none">
+                            {game.title.charAt(0).toUpperCase()}
                         </span>
                     </div>
                 )}
             </div>
 
-            {/* Crimson border glow on hover */}
-            <motion.div
-                className="absolute inset-0 rounded-lg pointer-events-none"
-                initial={{ opacity: 0 }}
-                animate={{
-                    opacity: isHovered ? 1 : 0,
-                    boxShadow: isHovered
-                        ? 'inset 0 0 0 2px rgba(255, 58, 58, 0.6), 0 0 30px rgba(255, 58, 58, 0.3)'
-                        : 'inset 0 0 0 1px rgba(255, 58, 58, 0), 0 0 0px rgba(255, 58, 58, 0)'
-                }}
-                transition={{ duration: 0.3 }}
-            />
+            {/* SCANLINE OVERLAY (Hover) */}
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.5)_3px)] opacity-0 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
 
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+            {/* Favorite Indicator */}
+            <motion.button
+                onClick={handleFavorite}
+                className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            >
+                <Heart
+                    className={`w-4 h-4 ${game.isFavorite
+                        ? 'text-crimson-500 fill-crimson-500'
+                        : 'text-white/50 hover:text-white'
+                        }`}
+                />
+            </motion.button>
 
-            {/* Status badges */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1">
-                {game.source === 'steam' && (
-                    <div className="px-1.5 py-0.5 text-[10px] font-mono bg-void-pure/80 text-text-muted rounded border border-void-border">
-                        STEAM
-                    </div>
-                )}
-                {!game.isInstalled && (
-                    <div className="px-1.5 py-0.5 text-[10px] font-mono bg-crimson-950/80 text-crimson-400 rounded border border-crimson-900/30">
-                        NOT INSTALLED
-                    </div>
-                )}
-            </div>
-
-            {/* Favorite indicator */}
-            {game.isFavorite && (
-                <motion.div
-                    className="absolute top-2 right-2"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 20 }}
-                >
-                    <Star className="w-4 h-4 text-crimson-500 fill-crimson-500" />
-                </motion.div>
+            {/* INSTALLED INDICATOR (Tech Dot) */}
+            {game.isInstalled && (
+                <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                    <span className="text-[10px] font-mono tracking-widest text-emerald-500/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 uppercase">
+                        Ready
+                    </span>
+                </div>
             )}
 
-            {/* Title & Actions */}
-            <div className="absolute bottom-0 inset-x-0 p-3">
-                <h3 className="text-sm font-medium text-text-primary truncate mb-2 group-hover:text-white transition-colors">
+            {/* FOOTER OVERLAY (Slide up) */}
+            <motion.div
+                className="absolute bottom-0 inset-x-0 bg-void-pure/90 backdrop-blur-md border-t border-crimson-500/30 p-4 z-20 flex flex-col gap-3"
+                variants={{
+                    idle: { y: "100%" },
+                    hover: { y: 0 }
+                }}
+                transition={{ duration: 0.2, ease: "circOut" }}
+            >
+                {/* Title */}
+                <h3 className="font-display font-black text-lg italic tracking-tighter text-white leading-none uppercase transform -skew-x-2">
                     {game.title}
                 </h3>
 
-                {/* Action buttons - appear on hover */}
-                <motion.div
-                    className="flex items-center gap-2"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{
-                        opacity: isHovered ? 1 : 0,
-                        y: isHovered ? 0 : 10
-                    }}
-                    transition={{ duration: 0.2 }}
-                >
-                    {/* Play/Install Button */}
+                {/* Action */}
+                <div className="w-full">
                     {game.isInstalled ? (
-                        <motion.button
+                        <button
                             onClick={handlePlay}
-                            className="
-                                flex-1 flex items-center justify-center gap-1.5 py-1.5
-                                bg-crimson-600 hover:bg-crimson-500 
-                                text-white text-xs font-medium
-                                rounded transition-colors
-                            "
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-crimson-600 hover:bg-crimson-500 text-white rounded-sm transition-colors group/btn"
                         >
-                            <Play className="w-3 h-3 fill-current" />
-                            <span>Play</span>
-                        </motion.button>
-                    ) : game.source === 'steam' && game.steamAppId ? (
-                        <motion.button
-                            onClick={handleInstall}
-                            className="
-                                flex-1 flex items-center justify-center gap-1.5 py-1.5
-                                bg-blue-600 hover:bg-blue-500 
-                                text-white text-xs font-medium
-                                rounded transition-colors
-                            "
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            <Download className="w-3 h-3" />
-                            <span>Install</span>
-                        </motion.button>
+                            <span className="font-mono text-xs font-bold tracking-widest uppercase">Launch</span>
+                            <Play className="w-3 h-3 fill-current group-hover/btn:scale-125 transition-transform" />
+                        </button>
                     ) : (
-                        <motion.button
-                            onClick={handlePlay}
-                            className="
-                                flex-1 flex items-center justify-center gap-1.5 py-1.5
-                                bg-void-surface/80 text-text-muted
-                                text-xs font-medium rounded
-                            "
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            disabled
+                        <button
+                            onClick={handleInstall}
+                            className="w-full flex items-center justify-between px-3 py-2 border border-white/20 hover:bg-white/5 text-white/60 hover:text-white rounded-sm transition-colors group/btn"
                         >
-                            <Play className="w-3 h-3" />
-                            <span>Play</span>
-                        </motion.button>
+                            <span className="font-mono text-xs font-bold tracking-widest uppercase">Install</span>
+                            <Download className="w-3 h-3 group-hover/btn:translate-y-1 transition-transform" />
+                        </button>
                     )}
-
-                    {/* Favorite Button */}
-                    <motion.button
-                        onClick={handleFavorite}
-                        className={`
-              p-1.5 rounded transition-colors
-              ${game.isFavorite
-                                ? 'bg-crimson-600/30 text-crimson-400'
-                                : 'bg-void-surface/80 text-text-muted hover:text-crimson-400'
-                            }
-            `}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                    >
-                        <Heart className={`w-3.5 h-3.5 ${game.isFavorite ? 'fill-current' : ''}`} />
-                    </motion.button>
-                </motion.div>
-            </div>
-
-            {/* Installed indicator - glowing dot */}
-            {game.isInstalled && (
-                <div className="absolute bottom-3 right-3">
-                    <motion.div
-                        className="w-2 h-2 bg-emerald-500 rounded-full"
-                        animate={{
-                            boxShadow: [
-                                '0 0 4px rgba(16, 185, 129, 0.5)',
-                                '0 0 8px rgba(16, 185, 129, 0.8)',
-                                '0 0 4px rgba(16, 185, 129, 0.5)',
-                            ],
-                        }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                    />
                 </div>
-            )}
-        </motion.div>
+            </motion.div>
+        </motion.article>
     )
 }

@@ -6,10 +6,11 @@ import { GameGrid } from './components/game/GameGrid'
 import { GameDetail } from './components/game/GameDetail'
 import { AddGameModal } from './components/game/AddGameModal'
 import { SettingsPanel } from './components/settings/SettingsPanel'
+import { HomeView } from './components/home/HomeView'
 import { useGameStore } from './stores/gameStore'
 
 function App() {
-  const { setGames } = useGameStore()
+  const { setGames, currentView } = useGameStore()
 
   // Load games from store on mount (no API call)
   useEffect(() => {
@@ -34,8 +35,14 @@ function App() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header />
-          <GameGrid />
+          {currentView === 'home' ? (
+            <HomeView />
+          ) : (
+            <>
+              <Header />
+              <GameGrid />
+            </>
+          )}
         </div>
       </div>
 
