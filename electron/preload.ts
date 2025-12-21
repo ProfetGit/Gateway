@@ -49,6 +49,26 @@ interface FetchGamesResult {
   error?: string
 }
 
+interface Achievement {
+  apiname: string
+  name: string
+  description: string
+  achieved: boolean
+  unlocktime: number
+  icon: string
+  icongray: string
+}
+
+interface FetchAchievementsResult {
+  success: boolean
+  achievements: Achievement[]
+  totalAchievements: number
+  unlockedCount: number
+  gameName?: string
+  error?: string
+  errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR'
+}
+
 // Expose secure API to renderer
 contextBridge.exposeInMainWorld('api', {
   // Game operations
@@ -71,6 +91,9 @@ contextBridge.exposeInMainWorld('api', {
   getAuthState: (): Promise<AuthState> => ipcRenderer.invoke('get-auth-state'),
   hasSteamApiKey: (): Promise<boolean> => ipcRenderer.invoke('has-steam-api-key'),
   fetchSteamGames: (): Promise<FetchGamesResult> => ipcRenderer.invoke('fetch-steam-games'),
+
+  // Achievements
+  getAchievements: (appId: string): Promise<FetchAchievementsResult> => ipcRenderer.invoke('get-achievements', appId),
 
 
   // Trending games (Steam Store API)

@@ -461,3 +461,168 @@ export function logout(): void {
 export function hasApiKey(): boolean {
     return !!steamApiKey
 }
+
+// ═══════════════════════════════════════════════════════════
+// Steam Achievements
+// ═══════════════════════════════════════════════════════════
+
+export interface Achievement {
+    apiname: string
+    name: string
+    description: string
+    achieved: boolean
+    unlocktime: number
+    icon: string
+    icongray: string
+}
+
+export interface FetchAchievementsResult {
+    success: boolean
+    achievements: Achievement[]
+    totalAchievements: number
+    unlockedCount: number
+    gameName?: string
+    error?: string
+    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR'
+}
+
+/**
+ * Fetch player achievements for a specific game
+ * Combines GetPlayerAchievements (unlock status) with GetSchemaForGame (names, icons)
+ */
+export async function fetchPlayerAchievements(
+    steamId: string,
+    appId: string
+): Promise<FetchAchievementsResult> {
+    console.log('[SteamAuth] fetchPlayerAchievements called for appId:', appId)
+
+    if (!steamApiKey) {
+        return {
+            success: false,
+            achievements: [],
+            totalAchievements: 0,
+            unlockedCount: 0,
+            error: 'Steam API key is not configured',
+            errorCode: 'NO_API_KEY',
+        }
+    }
+
+    try {
+        // Fetch both endpoints in parallel
+        const [playerResponse, schemaResponse] = await Promise.all([
+            fetch(`https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key=${steamApiKey}&steamid=${steamId}&appid=${appId}&l=english`),
+            fetch(`https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${steamApiKey}&appid=${appId}&l=english`)
+        ])
+
+        // Check for player achievements errors
+        if (!playerResponse.ok) {
+            if (playerResponse.status === 403) {
+                return {
+                    success: false,
+                    achievements: [],
+                    totalAchievements: 0,
+                    unlockedCount: 0,
+                    error: 'Profile or game details are private',
+                    errorCode: 'PROFILE_PRIVATE',
+                }
+            }
+            return {
+                success: false,
+                achievements: [],
+                totalAchievements: 0,
+                unlockedCount: 0,
+                error: `Steam API error: ${playerResponse.status}`,
+                errorCode: 'API_ERROR',
+            }
+        }
+
+        const playerData = await playerResponse.json()
+        const schemaData = await schemaResponse.json()
+
+        // Check if game has achievements
+        if (!playerData?.playerstats?.achievements) {
+            // Could be private profile or game without achievements
+            if (playerData?.playerstats?.error) {
+                return {
+                    success: false,
+                    achievements: [],
+                    totalAchievements: 0,
+                    unlockedCount: 0,
+                    error: playerData.playerstats.error,
+                    errorCode: playerData.playerstats.error.includes('Private') ? 'PROFILE_PRIVATE' : 'API_ERROR',
+                }
+            }
+            return {
+                success: true,
+                achievements: [],
+                totalAchievements: 0,
+                unlockedCount: 0,
+                gameName: playerData?.playerstats?.gameName,
+                errorCode: 'NO_ACHIEVEMENTS',
+            }
+        }
+
+        // Build a map of achievement schema (icons, descriptions)
+        const schemaMap = new Map<string, { name: string; description: string; icon: string; icongray: string }>()
+        if (schemaData?.game?.availableGameStats?.achievements) {
+            for (const ach of schemaData.game.availableGameStats.achievements) {
+                schemaMap.set(ach.name, {
+                    name: ach.displayName || ach.name,
+                    description: ach.description || '',
+                    icon: ach.icon || '',
+                    icongray: ach.icongray || '',
+                })
+            }
+        }
+
+        // Merge player achievements with schema
+        const achievements: Achievement[] = playerData.playerstats.achievements.map((ach: any) => {
+            const schema = schemaMap.get(ach.apiname) || {
+                name: ach.apiname,
+                description: '',
+                icon: '',
+                icongray: '',
+            }
+            return {
+                apiname: ach.apiname,
+                name: schema.name,
+                description: ach.description || schema.description,
+                achieved: ach.achieved === 1,
+                unlocktime: ach.unlocktime || 0,
+                icon: schema.icon,
+                icongray: schema.icongray,
+            }
+        })
+
+        // Sort: unlocked first (by unlock time desc), then locked alphabetically
+        achievements.sort((a, b) => {
+            if (a.achieved && !b.achieved) return -1
+            if (!a.achieved && b.achieved) return 1
+            if (a.achieved && b.achieved) return b.unlocktime - a.unlocktime
+            return a.name.localeCompare(b.name)
+        })
+
+        const unlockedCount = achievements.filter(a => a.achieved).length
+
+        console.log('[SteamAuth] ✓ Fetched', achievements.length, 'achievements,', unlockedCount, 'unlocked')
+
+        return {
+            success: true,
+            achievements,
+            totalAchievements: achievements.length,
+            unlockedCount,
+            gameName: playerData.playerstats.gameName,
+        }
+
+    } catch (error) {
+        console.error('[SteamAuth] Network error fetching achievements:', error)
+        return {
+            success: false,
+            achievements: [],
+            totalAchievements: 0,
+            unlockedCount: 0,
+            error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            errorCode: 'NETWORK_ERROR',
+        }
+    }
+}

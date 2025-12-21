@@ -115,6 +115,27 @@ export interface FetchGamesResult {
     errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'API_ERROR' | 'NETWORK_ERROR' | 'RATE_LIMITED'
 }
 
+// Achievement types
+export interface Achievement {
+    apiname: string
+    name: string
+    description: string
+    achieved: boolean
+    unlocktime: number
+    icon: string
+    icongray: string
+}
+
+export interface FetchAchievementsResult {
+    success: boolean
+    achievements: Achievement[]
+    totalAchievements: number
+    unlockedCount: number
+    gameName?: string
+    error?: string
+    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR'
+}
+
 // Electron IPC API types
 export interface ElectronAPI {
     // Game operations
@@ -136,6 +157,9 @@ export interface ElectronAPI {
     getAuthState: () => Promise<AuthState>
     hasSteamApiKey: () => Promise<boolean>
     fetchSteamGames: () => Promise<FetchGamesResult>
+
+    // Achievements
+    getAchievements: (appId: string) => Promise<FetchAchievementsResult>
 
     // Trending games
     getTrendingGames: () => Promise<import('./trending').FetchTrendingResult>

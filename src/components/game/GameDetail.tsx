@@ -12,13 +12,59 @@ import {
     Monitor
 } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { AchievementsTab } from './AchievementsTab'
+import type { FetchAchievementsResult } from '../../types/game'
+
+type TabType = 'overview' | 'achievements' | 'patchnotes'
 
 export function GameDetail() {
     const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame } = useGameStore()
     const [isDeleting, setIsDeleting] = useState(false)
     const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
     const [imageError, setImageError] = useState(false)
+    const [activeTab, setActiveTab] = useState<TabType>('overview')
+
+    // Achievements cache - only fetch once per game
+    const [achievementsData, setAchievementsData] = useState<FetchAchievementsResult | null>(null)
+    const [achievementsLoading, setAchievementsLoading] = useState(false)
+    const fetchedAppIdRef = useRef<string | null>(null)
+
+    // Reset tab and cache when game changes
+    useEffect(() => {
+        setActiveTab('overview')
+        setAchievementsData(null)
+        fetchedAppIdRef.current = null
+    }, [selectedGame?.id])
+
+    // Fetch achievements when switching to achievements tab (only once per game)
+    useEffect(() => {
+        if (activeTab !== 'achievements') return
+        if (!selectedGame?.steamAppId) return
+        if (fetchedAppIdRef.current === selectedGame.steamAppId) return
+
+        fetchedAppIdRef.current = selectedGame.steamAppId
+        setAchievementsLoading(true)
+
+        window.api?.getAchievements(selectedGame.steamAppId)
+            .then(result => {
+                setAchievementsData(result)
+            })
+            .catch(error => {
+                console.error('Failed to fetch achievements:', error)
+                setAchievementsData({
+                    success: false,
+                    achievements: [],
+                    totalAchievements: 0,
+                    unlockedCount: 0,
+                    error: 'Failed to fetch achievements',
+                    errorCode: 'NETWORK_ERROR',
+                })
+            })
+            .finally(() => {
+                setAchievementsLoading(false)
+            })
+    }, [activeTab, selectedGame?.steamAppId])
 
     const getCoverSrc = (game: any) => {
         if (game?.localCoverPath) return `gateway://cover/${game.localCoverPath}`
@@ -174,10 +220,49 @@ export function GameDetail() {
                             <div className="h-20 border-b border-white/5 flex items-center justify-between px-10 shrink-0">
                                 <div className="flex items-center gap-6">
                                     {/* Tabs */}
-                                    <div className="flex items-center gap-8">
-                                        <button className="text-sm font-display font-bold italic text-white uppercase border-b-2 border-crimson-500 py-6">Overview</button>
-                                        <button className="text-sm font-display font-bold italic text-white/40 uppercase hover:text-white transition-colors py-6">Achievements</button>
-                                        <button className="text-sm font-display font-bold italic text-white/40 uppercase hover:text-white transition-colors py-6">Patch Notes</button>
+                                    <div className="flex items-center gap-8 relative">
+                                        <button
+                                            onClick={() => setActiveTab('overview')}
+                                            className={`relative text-sm font-display font-bold italic uppercase py-6 transition-colors ${activeTab === 'overview' ? 'text-white' : 'text-white/40 hover:text-white'
+                                                }`}
+                                        >
+                                            Overview
+                                            {activeTab === 'overview' && (
+                                                <motion.div
+                                                    layoutId="tab-indicator"
+                                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-crimson-500"
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                                />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('achievements')}
+                                            className={`relative text-sm font-display font-bold italic uppercase py-6 transition-colors ${activeTab === 'achievements' ? 'text-white' : 'text-white/40 hover:text-white'
+                                                }`}
+                                        >
+                                            Achievements
+                                            {activeTab === 'achievements' && (
+                                                <motion.div
+                                                    layoutId="tab-indicator"
+                                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-crimson-500"
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                                />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('patchnotes')}
+                                            className={`relative text-sm font-display font-bold italic uppercase py-6 transition-colors ${activeTab === 'patchnotes' ? 'text-white' : 'text-white/40 hover:text-white'
+                                                }`}
+                                        >
+                                            Patch Notes
+                                            {activeTab === 'patchnotes' && (
+                                                <motion.div
+                                                    layoutId="tab-indicator"
+                                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-crimson-500"
+                                                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                                                />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
                                 <button
@@ -190,66 +275,124 @@ export function GameDetail() {
 
                             {/* Scrollable Content */}
                             <div className="flex-1 overflow-y-auto p-10 scrollbar-hide">
-                                {/* Status Header */}
-                                <div className="flex items-start justify-between mb-12">
-                                    <div className="flex flex-col gap-2">
-                                        <span className="text-xs font-mono text-white/30 tracking-[0.2em] uppercase">STATUS</span>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-3 h-3 rounded-full ${selectedGame.isInstalled ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-white/10'}`} />
-                                            <span className={`text-2xl font-display font-bold italic uppercase ${selectedGame.isInstalled ? 'text-white' : 'text-white/40'}`}>
-                                                {selectedGame.isInstalled ? 'INSTALLED' : 'NOT INSTALLED'}
-                                            </span>
+                                {activeTab === 'overview' && (
+                                    <motion.div
+                                        key="overview"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        {/* Status Header */}
+                                        <div className="flex items-start justify-between mb-12">
+                                            <div className="flex flex-col gap-2">
+                                                <span className="text-xs font-mono text-white/30 tracking-[0.2em] uppercase">STATUS</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-3 h-3 rounded-full ${selectedGame.isInstalled ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-white/10'}`} />
+                                                    <span className={`text-2xl font-display font-bold italic uppercase ${selectedGame.isInstalled ? 'text-white' : 'text-white/40'}`}>
+                                                        {selectedGame.isInstalled ? 'INSTALLED' : 'NOT INSTALLED'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Quick Actions */}
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => toggleFavorite(selectedGame.id)}
+                                                    className={`p-3 border border-white/10 hover:border-crimson-500/50 hover:bg-crimson-500/10 transition-all group ${selectedGame.isFavorite ? 'border-crimson-500 bg-crimson-500/10' : ''}`}
+                                                >
+                                                    <Heart className={`w-5 h-5 ${selectedGame.isFavorite ? 'text-crimson-500 fill-crimson-500' : 'text-white/40 group-hover:text-crimson-500'}`} />
+                                                </button>
+                                                <button className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white">
+                                                    <Share2 className="w-5 h-5" />
+                                                </button>
+                                                {selectedGame.steamAppId && (
+                                                    <a
+                                                        href={`https://store.steampowered.com/app/${selectedGame.steamAppId}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white"
+                                                    >
+                                                        <ExternalLink className="w-5 h-5" />
+                                                    </a>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Quick Actions */}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => toggleFavorite(selectedGame.id)}
-                                            className={`p-3 border border-white/10 hover:border-crimson-500/50 hover:bg-crimson-500/10 transition-all group ${selectedGame.isFavorite ? 'border-crimson-500 bg-crimson-500/10' : ''}`}
-                                        >
-                                            <Heart className={`w-5 h-5 ${selectedGame.isFavorite ? 'text-crimson-500 fill-crimson-500' : 'text-white/40 group-hover:text-crimson-500'}`} />
-                                        </button>
-                                        <button className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white">
-                                            <Share2 className="w-5 h-5" />
-                                        </button>
-                                        {selectedGame.steamAppId && (
-                                            <a
-                                                href={`https://store.steampowered.com/app/${selectedGame.steamAppId}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white"
-                                            >
-                                                <ExternalLink className="w-5 h-5" />
-                                            </a>
-                                        )}
-                                    </div>
-                                </div>
+                                        {/* Stats Grid */}
+                                        <div className="grid grid-cols-2 gap-px bg-white/10 border border-white/10 mb-12">
+                                            <StatBox
+                                                icon={<Clock className="w-4 h-4 text-crimson-500" />}
+                                                label="Total Runtime"
+                                                value={formatPlaytime(selectedGame.playtime)}
+                                            />
+                                            <StatBox
+                                                icon={<Calendar className="w-4 h-4 text-crimson-500" />}
+                                                label="Last Session"
+                                                value={formatDate(selectedGame.lastPlayed)}
+                                            />
+                                        </div>
 
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-2 gap-px bg-white/10 border border-white/10 mb-12">
-                                    <StatBox
-                                        icon={<Clock className="w-4 h-4 text-crimson-500" />}
-                                        label="Total Runtime"
-                                        value={formatPlaytime(selectedGame.playtime)}
-                                    />
-                                    <StatBox
-                                        icon={<Calendar className="w-4 h-4 text-crimson-500" />}
-                                        label="Last Session"
-                                        value={formatDate(selectedGame.lastPlayed)}
-                                    />
-                                </div>
+                                        {/* Notes Section */}
+                                        <div className="mb-12">
+                                            <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                                <span className="w-1 h-1 bg-crimson-500" />
+                                                NOTES
+                                            </h3>
+                                            <div className="bg-black/20 border border-white/5 p-6 font-mono text-sm text-white/60 leading-relaxed min-h-[100px]">
+                                                {selectedGame.notes || "No notes available."}
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
 
-                                {/* Notes Section */}
-                                <div className="mb-12">
-                                    <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                        <span className="w-1 h-1 bg-crimson-500" />
-                                        NOTES
-                                    </h3>
-                                    <div className="bg-black/20 border border-white/5 p-6 font-mono text-sm text-white/60 leading-relaxed min-h-[100px]">
-                                        {selectedGame.notes || "No notes available."}
-                                    </div>
-                                </div>
+                                {activeTab === 'achievements' && selectedGame.steamAppId && (
+                                    <motion.div
+                                        key="achievements"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <AchievementsTab data={achievementsData} isLoading={achievementsLoading} />
+                                    </motion.div>
+                                )}
+
+                                {activeTab === 'achievements' && !selectedGame.steamAppId && (
+                                    <motion.div
+                                        key="achievements-unavailable"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="flex flex-col items-center justify-center py-20 text-center"
+                                    >
+                                        <div className="w-16 h-16 rounded-full bg-void-surface flex items-center justify-center mb-6">
+                                            <Terminal className="w-8 h-8 text-white/20" />
+                                        </div>
+                                        <h3 className="text-xl font-display font-bold italic text-white/60 mb-2">
+                                            NOT AVAILABLE
+                                        </h3>
+                                        <p className="text-sm text-white/30">
+                                            Achievements are only available for Steam games
+                                        </p>
+                                    </motion.div>
+                                )}
+
+                                {activeTab === 'patchnotes' && (
+                                    <motion.div
+                                        key="patchnotes"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className="flex flex-col items-center justify-center py-20 text-center"
+                                    >
+                                        <div className="w-16 h-16 rounded-full bg-void-surface flex items-center justify-center mb-6">
+                                            <Terminal className="w-8 h-8 text-white/20" />
+                                        </div>
+                                        <h3 className="text-xl font-display font-bold italic text-white/60 mb-2">
+                                            COMING SOON
+                                        </h3>
+                                        <p className="text-sm text-white/30">
+                                            Patch notes will be available in a future update
+                                        </p>
+                                    </motion.div>
+                                )}
                             </div>
 
                             {/* Footer Actions */}

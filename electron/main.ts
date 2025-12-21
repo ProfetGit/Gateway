@@ -4,7 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { v4 as uuidv4 } from 'uuid'
 import { steamService } from './steamService'
-import { setSteamApiKey, loginWithSteam, logout, getAuthState, fetchOwnedGames, hasApiKey, initAuth } from './steamAuth'
+import { setSteamApiKey, loginWithSteam, logout, getAuthState, fetchOwnedGames, hasApiKey, initAuth, fetchPlayerAchievements } from './steamAuth'
 
 // Steam API key (configured after store is created)
 const STEAM_API_KEY = process.env.STEAM_API_KEY || '663994EA064069331B86FD6D3CCADDB5'
@@ -620,6 +620,26 @@ function setupIpcHandlers() {
     }
 
     return apiResult
+  })
+
+  // ═══════════════════════════════════════════════════════════
+  // Achievements
+  // ═══════════════════════════════════════════════════════════
+
+  ipcMain.handle('get-achievements', async (_event, appId: string) => {
+    console.log('[Main] get-achievements called for appId:', appId)
+    const auth = getAuthState()
+    if (!auth.isLoggedIn || !auth.user) {
+      return {
+        success: false,
+        achievements: [],
+        totalAchievements: 0,
+        unlockedCount: 0,
+        error: 'Not logged in. Please login with Steam first.',
+        errorCode: 'NO_API_KEY' as const,
+      }
+    }
+    return fetchPlayerAchievements(auth.user.steamId, appId)
   })
 
   // File dialogs

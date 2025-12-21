@@ -146,34 +146,49 @@ export const useGameStore = create<GameStore>((set, get) => {
                 preloadState: { ...state.preloadState, isActive: true }
             }))
 
-            // We use a recursive timeout approach to allow interruption
-            const processNext = () => {
+            // Concurrent batch preloading — loads 8 images at a time
+            const BATCH_SIZE = 8
+
+            const processBatch = async () => {
                 const { games, preloadState, stopPreloading } = get()
 
-                // Check if we should stop
                 if (!preloadState.isActive) return
                 if (preloadState.cursor >= games.length) {
                     stopPreloading()
                     return
                 }
 
-                // Process one game
-                const game = games[preloadState.cursor]
-                if (game?.coverUrl) {
-                    const img = new Image()
-                    img.src = game.coverUrl
-                }
+                // Get next batch of games
+                const batchStart = preloadState.cursor
+                const batchEnd = Math.min(batchStart + BATCH_SIZE, games.length)
+                const batch = games.slice(batchStart, batchEnd)
 
-                // Move cursor and schedule next
+                // Preload batch concurrently
+                await Promise.all(
+                    batch.map((game) => {
+                        const coverUrl = game.coverUrl
+                        if (!coverUrl) return Promise.resolve()
+                        return new Promise<void>((resolve) => {
+                            const img = new Image()
+                            img.onload = () => resolve()
+                            img.onerror = () => resolve()
+                            img.src = game.localCoverPath
+                                ? `gateway://cover/${game.localCoverPath}`
+                                : coverUrl
+                        })
+                    })
+                )
+
+                // Update cursor
                 set((state) => ({
-                    preloadState: { ...state.preloadState, cursor: state.preloadState.cursor + 1 }
+                    preloadState: { ...state.preloadState, cursor: batchEnd }
                 }))
 
-                // Small delay to keep UI responsive and allow cancellation
-                setTimeout(processNext, 20)
+                // Continue with next batch (small delay for responsiveness)
+                setTimeout(processBatch, 10)
             }
 
-            processNext()
+            processBatch()
         },
 
         closeAddModal: () => set({ isAddModalOpen: false }),

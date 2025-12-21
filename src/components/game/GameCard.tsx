@@ -1,18 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Heart, Download } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import type { Game } from '../../types/game'
 
 /**
- * GAME CARD DESIGN PRINCIPLES
+ * GAME CARD DESIGN PRINCIPLES (Optimized for Performance)
  * ══════════════════════════════════════════════════════════════
- * 1. COVER IS KING — Art fills the entire card, no padding
- * 2. INVISIBLE UI — Controls only appear on interaction
- * 3. SINGLE FOCAL POINT — One action, one glance
- * 4. SUBTLE DEPTH — Soft shadows, no harsh borders
- * 5. MICRO-FEEDBACK — Every hover/tap has response < 100ms
- * 6. UNINSTALLED = MUTED — Visual distinction without badges
+ * 1. CSS-ONLY BASE INTERACTIONS — No framer-motion for hover scale
+ * 2. MEMOIZED — Re-renders only when game data changes
+ * 3. LAZY IMAGES — Browser-native lazy loading
+ * 4. LOCAL-FIRST — gateway:// protocol with CDN fallback
  * ══════════════════════════════════════════════════════════════
  */
 
@@ -20,14 +18,15 @@ interface GameCardProps {
     game: Game
 }
 
-export function GameCard({ game }: GameCardProps) {
+export const GameCard = memo(function GameCard({ game }: GameCardProps) {
     const getInitialSrc = () => {
         if (game.localCoverPath) return `gateway://cover/${game.localCoverPath}`
         return game.coverUrl
     }
 
-    const [imgSrc, setImgSrc] = useState(getInitialSrc())
+    const [imgSrc, setImgSrc] = useState(getInitialSrc)
     const [imageError, setImageError] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
     const { openDetail, toggleFavorite } = useGameStore()
 
     const handlePlay = async (e: React.MouseEvent) => {
@@ -80,18 +79,11 @@ export function GameCard({ game }: GameCardProps) {
     const hasCover = imgSrc && !imageError
 
     return (
-        <motion.article
-            className="relative aspect-[3/4] rounded-sm overflow-hidden cursor-pointer group isolate bg-void-deep"
+        <article
+            className="relative aspect-[3/4] rounded-sm overflow-hidden cursor-pointer group isolate bg-void-deep transition-transform duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
             onClick={() => openDetail(game)}
-            initial="idle"
-            whileHover="hover"
-            whileTap="tap"
-            variants={{
-                idle: { scale: 1 },
-                hover: { scale: 1.02 },
-                tap: { scale: 0.98 }
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
             {/* HOVER BORDER GLOW */}
             <div className="absolute inset-0 border-2 border-transparent group-hover:border-crimson-500/50 transition-colors duration-300 z-50 pointer-events-none rounded-sm" />
@@ -99,7 +91,7 @@ export function GameCard({ game }: GameCardProps) {
             {/* Base layer — cover or fallback */}
             <div className="absolute inset-0">
                 {hasCover ? (
-                    <motion.img
+                    <img
                         src={imgSrc}
                         alt={game.title}
                         loading="lazy"
@@ -123,7 +115,7 @@ export function GameCard({ game }: GameCardProps) {
             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.5)_3px)] opacity-0 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
 
             {/* Favorite Indicator */}
-            <motion.button
+            <button
                 onClick={handleFavorite}
                 className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
             >
@@ -133,7 +125,7 @@ export function GameCard({ game }: GameCardProps) {
                         : 'text-white/50 hover:text-white'
                         }`}
                 />
-            </motion.button>
+            </button>
 
             {/* INSTALLED INDICATOR (Tech Dot) */}
             {game.isInstalled && (
@@ -145,14 +137,12 @@ export function GameCard({ game }: GameCardProps) {
                 </div>
             )}
 
-            {/* FOOTER OVERLAY (Slide up) */}
+            {/* FOOTER OVERLAY (Slide up) — keeping motion here for smooth slide */}
             <motion.div
                 className="absolute bottom-0 inset-x-0 bg-void-pure/90 backdrop-blur-md border-t border-crimson-500/30 p-4 z-20 flex flex-col gap-3"
-                variants={{
-                    idle: { y: "100%" },
-                    hover: { y: 0 }
-                }}
-                transition={{ duration: 0.2, ease: "circOut" }}
+                initial={false}
+                animate={{ y: isHovered ? 0 : '100%' }}
+                transition={{ duration: 0.2, ease: 'circOut' }}
             >
                 {/* Title */}
                 <h3 className="font-display font-black text-lg italic tracking-tighter text-white leading-none uppercase transform -skew-x-2">
@@ -180,6 +170,7 @@ export function GameCard({ game }: GameCardProps) {
                     )}
                 </div>
             </motion.div>
-        </motion.article>
+        </article>
     )
-}
+})
+

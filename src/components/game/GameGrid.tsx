@@ -3,55 +3,18 @@ import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useFilteredGames } from '../../stores/gameStore'
 import { Gamepad2 } from 'lucide-react'
-import { forwardRef, useState, useEffect } from 'react'
+import { forwardRef, memo } from 'react'
 import type { Game } from '../../types/game'
 
-
-
-// Wrapper to handle individual entrance animations
-function AnimatedGameCard({ game, index }: { game: Game; index: number }) {
-    // ONLY animate the first screen of items (approx 20)
-    // Everything else should just "be there" instantly when scrolled to
-    if (index > 20) {
-        return (
-            <div className="min-h-full">
-                <GameCard game={game} />
-            </div>
-        )
-    }
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-                duration: 0.4,
-                ease: "easeOut",
-                delay: (index % 5) * 0.05 // Strict left-to-right cascade
-            }}
-        >
-            <GameCard game={game} />
-        </motion.div>
-    )
-}
+// Memoized card wrapper — prevents re-renders unless game data changes
+const MemoizedGameCard = memo(function MemoizedGameCard({ game }: { game: Game }) {
+    return <GameCard game={game} />
+})
 
 export function GameGrid() {
     const games = useFilteredGames()
-    const [isReady, setIsReady] = useState(false)
 
-    useEffect(() => {
-        // Double RAF to ensure the navigation animation frame has started/painted 
-        // before we block the thread with the heavy grid initialization.
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                setIsReady(true)
-            })
-        })
-    }, [])
-
-    if (!isReady) {
-        return <div className="flex-1 min-h-0 bg-void-pure" />
-    }
+    // Removed double-RAF delay — cards render immediately
 
     return (
         <div className="flex-1 min-h-0 bg-void-pure relative">
@@ -63,11 +26,11 @@ export function GameGrid() {
                 <VirtuosoGrid
                     style={{ height: '100%' }}
                     totalCount={games.length}
-                    overscan={200} // Reduced overscan slightly to improve initial mount speed
+                    overscan={50}
                     listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
                     itemClassName="min-h-[240px]"
                     itemContent={(index) => (
-                        <AnimatedGameCard game={games[index]} index={index} />
+                        <MemoizedGameCard game={games[index]} />
                     )}
                 />
             )}
