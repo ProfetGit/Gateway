@@ -138,7 +138,7 @@ export function SettingsPanel() {
                                 <div>
                                     <div className="flex items-center gap-2 text-crimson-500 mb-1">
                                         <div className="w-2 h-2 bg-crimson-500 rounded-full animate-pulse" />
-                                        <span className="font-mono text-[10px] tracking-[0.2em] uppercase">System_Config_Mode</span>
+                                        <span className="font-mono text-[10px] tracking-[0.2em] uppercase">System Settings</span>
                                     </div>
                                     <h2 className="text-4xl font-display font-black text-white italic tracking-tighter uppercase transform -skew-x-6">
                                         Settings
@@ -162,7 +162,7 @@ export function SettingsPanel() {
 
                                 {/* USER IDENTITY */}
                                 <section>
-                                    <SectionHeader icon={<User className="w-4 h-4" />} title="User_Identity" />
+                                    <SectionHeader icon={<User className="w-4 h-4" />} title="Account" />
 
                                     <div className="bg-white/5 border border-white/10 p-6 relative overflow-hidden group">
 
@@ -188,7 +188,7 @@ export function SettingsPanel() {
                                                                 {authState.user.username}
                                                             </h3>
                                                             <p className="font-mono text-xs text-crimson-400 tracking-widest mt-1">
-                                                                STEAM_ID: {authState.user.steamId?.slice(0, 8)}...
+                                                                Steam ID: {authState.user.steamId?.slice(0, 8)}...
                                                             </p>
                                                         </div>
                                                     </div>
@@ -205,7 +205,7 @@ export function SettingsPanel() {
                                                         onClick={handleSyncLibrary}
                                                         disabled={isFetching}
                                                         icon={isFetching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                                        label={isFetching ? "SYNCING..." : "FORCE_SYNC_LIBRARY"}
+                                                        label={isFetching ? "SYNCING..." : "Sync Library"}
                                                         description="Update local cache from remote"
                                                         variant="primary"
                                                         className="w-full"
@@ -225,7 +225,7 @@ export function SettingsPanel() {
                                                     onClick={handleSteamLogin}
                                                     disabled={isLoggingIn}
                                                     icon={<LogIn className="w-4 h-4" />}
-                                                    label={isLoggingIn ? "ESTABLISHING_LINK..." : "INITIATE_STEAM_UPLINK"}
+                                                    label={isLoggingIn ? "Connecting..." : "Connect Steam"}
                                                     variant="primary"
                                                 />
                                             </div>
@@ -235,9 +235,9 @@ export function SettingsPanel() {
 
                                 {/* DATABASE METRICS */}
                                 <section>
-                                    <SectionHeader icon={<Database className="w-4 h-4" />} title="Database_Metrics" />
+                                    <SectionHeader icon={<Database className="w-4 h-4" />} title="Library Stats" />
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <StatMetric label="TOTAL_ENTRIES" value={games.length} />
+                                        <StatMetric label="Total Games" value={games.length} />
                                         <StatMetric label="INSTALLED" value={games.filter(g => g.isInstalled).length} color="crimson" />
                                         <StatMetric label="FAVORITES" value={games.filter(g => g.isFavorite).length} />
                                         <StatMetric label="PLATFORM" value="STEAM" />
@@ -246,17 +246,17 @@ export function SettingsPanel() {
 
                                 {/* I/O OPERATIONS */}
                                 <section>
-                                    <SectionHeader icon={<HardDrive className="w-4 h-4" />} title="I/O_Operations" />
+                                    <SectionHeader icon={<HardDrive className="w-4 h-4" />} title="Library Tools" />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <BespokeButton
                                             icon={<Download className="w-4 h-4" />}
-                                            label="EXPORT_DB"
+                                            label="Export Library"
                                             description="Backup library manifest"
                                             onClick={handleExport}
                                         />
                                         <BespokeButton
                                             icon={<Upload className="w-4 h-4" />}
-                                            label="IMPORT_DB"
+                                            label="Import Library"
                                             description="Restore from backup"
                                             onClick={handleImport}
                                         />
@@ -266,7 +266,7 @@ export function SettingsPanel() {
                                 {/* DANGER ZONE */}
                                 <section className="relative">
                                     <div className="absolute inset-0 bg-red-500/5 mix-blend-overlay pointer-events-none -m-4 rounded-lg" />
-                                    <SectionHeader icon={<ShieldAlert className="w-4 h-4 text-red-500" />} title="Critical_Zone" className="text-red-500" />
+                                    <SectionHeader icon={<ShieldAlert className="w-4 h-4 text-red-500" />} title="Danger Zone" className="text-red-500" />
                                     <div className="bg-red-950/20 border border-red-500/20 p-6">
                                         <div className="flex items-start justify-between gap-6">
                                             <div>
@@ -277,7 +277,7 @@ export function SettingsPanel() {
                                             </div>
                                             <BespokeButton
                                                 icon={<Trash2 className="w-4 h-4" />}
-                                                label="EXECUTE_PURGE"
+                                                label="Clear Library"
                                                 onClick={handleClearLibrary}
                                                 variant="danger"
                                             />
@@ -290,7 +290,7 @@ export function SettingsPanel() {
                             {/* Footer */}
                             <div className="p-6 border-t border-white/10 bg-void-pure text-center relative z-20">
                                 <p className="font-mono text-[10px] text-white/20 uppercase tracking-[0.3em]">
-                                    Gateway OS v1.0.0 /// SYSTEM_READY
+                                    Gateway OS v1.0.0 /// System Ready
                                 </p>
                             </div>
                         </div>

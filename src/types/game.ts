@@ -136,6 +136,53 @@ export interface FetchAchievementsResult {
     errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR'
 }
 
+// Game News / Patch Notes types
+export interface NewsItem {
+    gid: string
+    title: string
+    url: string
+    author: string
+    contents: string
+    feedlabel: string
+    feedname: string
+    date: number
+    appId: string
+}
+
+export interface FetchNewsResult {
+    success: boolean
+    news: NewsItem[]
+    totalCount: number
+    error?: string
+    errorCode?: 'NO_STEAM_APP' | 'API_ERROR' | 'NETWORK_ERROR'
+}
+
+// Steam Store Game Details types
+export interface GameDetails {
+    appId: string
+    name: string
+    shortDescription: string
+    detailedDescription: string
+    developers: string[]
+    publishers: string[]
+    releaseDate: string
+    metacriticScore?: number
+    metacriticUrl?: string
+    pcRequirements: {
+        minimum?: string
+        recommended?: string
+    }
+    genres: string[]
+    categories: string[]
+}
+
+export interface FetchGameDetailsResult {
+    success: boolean
+    details: GameDetails | null
+    error?: string
+    errorCode?: 'NO_STEAM_APP' | 'API_ERROR' | 'NETWORK_ERROR'
+}
+
 // Electron IPC API types
 export interface ElectronAPI {
     // Game operations
@@ -160,6 +207,12 @@ export interface ElectronAPI {
 
     // Achievements
     getAchievements: (appId: string) => Promise<FetchAchievementsResult>
+
+    // Game News / Patch Notes
+    getGameNews: (appId: string, count?: number) => Promise<FetchNewsResult>
+
+    // Game Details (Steam Store)
+    getGameDetails: (appId: string) => Promise<FetchGameDetailsResult>
 
     // Trending games
     getTrendingGames: () => Promise<import('./trending').FetchTrendingResult>

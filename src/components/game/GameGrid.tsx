@@ -59,10 +59,10 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
 
             {/* Text */}
             <h2 className="text-3xl font-display font-black italic tracking-tighter text-white uppercase mb-2">
-                NO_DATA_FOUND
+                No games found
             </h2>
             <p className="text-sm font-mono text-crimson-500/60 uppercase tracking-widest border border-crimson-900/30 px-3 py-1">
-                INITIALIZE_LIBRARY_SYNC
+                Sync Library Now
             </p>
 
             {/* Particle decoration */}

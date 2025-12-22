@@ -14,7 +14,8 @@ import {
 import { useGameStore } from '../../stores/gameStore'
 import { useState, useEffect, useRef } from 'react'
 import { AchievementsTab } from './AchievementsTab'
-import type { FetchAchievementsResult } from '../../types/game'
+import { PatchNotesTab } from './PatchNotesTab'
+import type { FetchAchievementsResult, FetchNewsResult, FetchGameDetailsResult } from '../../types/game'
 
 type TabType = 'overview' | 'achievements' | 'patchnotes'
 
@@ -28,22 +29,62 @@ export function GameDetail() {
     // Achievements cache - only fetch once per game
     const [achievementsData, setAchievementsData] = useState<FetchAchievementsResult | null>(null)
     const [achievementsLoading, setAchievementsLoading] = useState(false)
-    const fetchedAppIdRef = useRef<string | null>(null)
+    const fetchedAchievementsRef = useRef<string | null>(null)
+
+    // News cache - only fetch once per game
+    const [newsData, setNewsData] = useState<FetchNewsResult | null>(null)
+    const [newsLoading, setNewsLoading] = useState(false)
+    const fetchedNewsRef = useRef<string | null>(null)
+
+    // Game details cache - fetch on mount for Steam games
+    const [gameDetails, setGameDetails] = useState<FetchGameDetailsResult | null>(null)
+    const [detailsLoading, setDetailsLoading] = useState(false)
+    const fetchedDetailsRef = useRef<string | null>(null)
 
     // Reset tab and cache when game changes
     useEffect(() => {
         setActiveTab('overview')
         setAchievementsData(null)
-        fetchedAppIdRef.current = null
+        setNewsData(null)
+        setGameDetails(null)
+        fetchedAchievementsRef.current = null
+        fetchedNewsRef.current = null
+        fetchedDetailsRef.current = null
     }, [selectedGame?.id])
+
+    // Fetch game details immediately for Steam games (for Overview tab)
+    useEffect(() => {
+        if (!selectedGame?.steamAppId) return
+        if (fetchedDetailsRef.current === selectedGame.steamAppId) return
+
+        fetchedDetailsRef.current = selectedGame.steamAppId
+        setDetailsLoading(true)
+
+        window.api?.getGameDetails(selectedGame.steamAppId)
+            .then(result => {
+                setGameDetails(result)
+            })
+            .catch(error => {
+                console.error('Failed to fetch game details:', error)
+                setGameDetails({
+                    success: false,
+                    details: null,
+                    error: 'Failed to fetch details',
+                    errorCode: 'NETWORK_ERROR',
+                })
+            })
+            .finally(() => {
+                setDetailsLoading(false)
+            })
+    }, [selectedGame?.steamAppId])
 
     // Fetch achievements when switching to achievements tab (only once per game)
     useEffect(() => {
         if (activeTab !== 'achievements') return
         if (!selectedGame?.steamAppId) return
-        if (fetchedAppIdRef.current === selectedGame.steamAppId) return
+        if (fetchedAchievementsRef.current === selectedGame.steamAppId) return
 
-        fetchedAppIdRef.current = selectedGame.steamAppId
+        fetchedAchievementsRef.current = selectedGame.steamAppId
         setAchievementsLoading(true)
 
         window.api?.getAchievements(selectedGame.steamAppId)
@@ -63,6 +104,34 @@ export function GameDetail() {
             })
             .finally(() => {
                 setAchievementsLoading(false)
+            })
+    }, [activeTab, selectedGame?.steamAppId])
+
+    // Fetch news when switching to patchnotes tab (only once per game)
+    useEffect(() => {
+        if (activeTab !== 'patchnotes') return
+        if (!selectedGame?.steamAppId) return
+        if (fetchedNewsRef.current === selectedGame.steamAppId) return
+
+        fetchedNewsRef.current = selectedGame.steamAppId
+        setNewsLoading(true)
+
+        window.api?.getGameNews(selectedGame.steamAppId, 10)
+            .then(result => {
+                setNewsData(result)
+            })
+            .catch(error => {
+                console.error('Failed to fetch news:', error)
+                setNewsData({
+                    success: false,
+                    news: [],
+                    totalCount: 0,
+                    error: 'Failed to fetch news',
+                    errorCode: 'NETWORK_ERROR',
+                })
+            })
+            .finally(() => {
+                setNewsLoading(false)
             })
     }, [activeTab, selectedGame?.steamAppId])
 
@@ -318,30 +387,151 @@ export function GameDetail() {
                                             </div>
                                         </div>
 
-                                        {/* Stats Grid */}
-                                        <div className="grid grid-cols-2 gap-px bg-white/10 border border-white/10 mb-12">
-                                            <StatBox
-                                                icon={<Clock className="w-4 h-4 text-crimson-500" />}
-                                                label="Total Runtime"
-                                                value={formatPlaytime(selectedGame.playtime)}
-                                            />
-                                            <StatBox
-                                                icon={<Calendar className="w-4 h-4 text-crimson-500" />}
-                                                label="Last Session"
-                                                value={formatDate(selectedGame.lastPlayed)}
-                                            />
+                                        {/* Hero Stats Row */}
+                                        <div className="flex items-stretch gap-6 mb-8">
+                                            {/* Primary Stat - Playtime */}
+                                            <div className="flex-1 bg-gradient-to-br from-crimson-500/10 to-transparent border border-crimson-500/20 p-6 relative overflow-hidden group hover:border-crimson-500/40 transition-all">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-crimson-500/5 rounded-full blur-2xl translate-x-1/2 -translate-y-1/2" />
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Clock className="w-4 h-4 text-crimson-500" />
+                                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Playtime</span>
+                                                </div>
+                                                <span className="text-4xl font-display font-black italic text-white tracking-tight">
+                                                    {formatPlaytime(selectedGame.playtime)}
+                                                </span>
+                                            </div>
+
+                                            {/* Secondary Stat - Last Played */}
+                                            <div className="flex-1 bg-void-surface border border-white/5 p-6 relative overflow-hidden group hover:border-white/20 transition-all">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Calendar className="w-4 h-4 text-white/40" />
+                                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Last Session</span>
+                                                </div>
+                                                <span className="text-3xl font-display font-bold italic text-white/90 tracking-tight">
+                                                    {formatDate(selectedGame.lastPlayed)}
+                                                </span>
+                                            </div>
+
+                                            {/* Metacritic (if available) */}
+                                            {gameDetails?.details?.metacriticScore && (
+                                                <div className={`w-28 shrink-0 flex flex-col items-center justify-center border p-4 ${gameDetails.details.metacriticScore >= 75
+                                                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                                                    : gameDetails.details.metacriticScore >= 50
+                                                        ? 'bg-amber-500/10 border-amber-500/30'
+                                                        : 'bg-red-500/10 border-red-500/30'
+                                                    }`}>
+                                                    <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/40 mb-1">Metacritic</span>
+                                                    <span className={`text-4xl font-display font-black italic ${gameDetails.details.metacriticScore >= 75
+                                                        ? 'text-emerald-400'
+                                                        : gameDetails.details.metacriticScore >= 50
+                                                            ? 'text-amber-400'
+                                                            : 'text-red-400'
+                                                        }`}>
+                                                        {gameDetails.details.metacriticScore}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {/* Notes Section */}
-                                        <div className="mb-12">
-                                            <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                                <span className="w-1 h-1 bg-crimson-500" />
-                                                NOTES
-                                            </h3>
-                                            <div className="bg-black/20 border border-white/5 p-6 font-mono text-sm text-white/60 leading-relaxed min-h-[100px]">
-                                                {selectedGame.notes || "No notes available."}
-                                            </div>
+                                        {/* Metadata Row - Inline chips */}
+                                        <div className="flex flex-wrap items-center gap-3 mb-10">
+                                            {gameDetails?.details && (
+                                                <>
+                                                    {gameDetails.details.developers[0] && (
+                                                        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 text-xs font-mono">
+                                                            <span className="text-white/30">DEV</span>
+                                                            <span className="text-white/70">{gameDetails.details.developers[0]}</span>
+                                                        </span>
+                                                    )}
+                                                    {gameDetails.details.publishers[0] && gameDetails.details.publishers[0] !== gameDetails.details.developers[0] && (
+                                                        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 text-xs font-mono">
+                                                            <span className="text-white/30">PUB</span>
+                                                            <span className="text-white/70">{gameDetails.details.publishers[0]}</span>
+                                                        </span>
+                                                    )}
+                                                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 text-xs font-mono">
+                                                        <span className="text-white/30">REL</span>
+                                                        <span className="text-white/70">{gameDetails.details.releaseDate}</span>
+                                                    </span>
+                                                    {achievementsData?.success && achievementsData.totalAchievements > 0 && (
+                                                        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-crimson-500/10 border border-crimson-500/20 text-xs font-mono">
+                                                            <span className="text-crimson-500/60">🏆</span>
+                                                            <span className="text-crimson-400">{achievementsData.unlockedCount}/{achievementsData.totalAchievements}</span>
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                            {detailsLoading && (
+                                                <>
+                                                    <div className="h-8 w-32 bg-void-surface border border-void-border animate-pulse" />
+                                                    <div className="h-8 w-28 bg-void-surface border border-void-border animate-pulse" />
+                                                    <div className="h-8 w-24 bg-void-surface border border-void-border animate-pulse" />
+                                                </>
+                                            )}
                                         </div>
+
+                                        {/* Game Description */}
+                                        {gameDetails?.details?.shortDescription && (
+                                            <div className="mb-10">
+                                                <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                                    <span className="w-1 h-1 bg-crimson-500" />
+                                                    ABOUT THIS GAME
+                                                </h3>
+                                                <div className="bg-black/20 border border-white/5 p-6">
+                                                    <p className="text-sm text-white/70 leading-relaxed">
+                                                        {gameDetails.details.shortDescription}
+                                                    </p>
+                                                    {gameDetails.details.genres.length > 0 && (
+                                                        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
+                                                            {gameDetails.details.genres.map((genre, i) => (
+                                                                <span key={i} className="text-xs font-mono px-2 py-1 bg-white/5 border border-white/10 text-white/50">
+                                                                    {genre}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {detailsLoading && (
+                                            <div className="mb-10">
+                                                <div className="h-4 bg-void-border w-32 mb-4 animate-pulse" />
+                                                <div className="bg-void-surface border border-void-border p-6 animate-pulse">
+                                                    <div className="h-4 bg-void-border w-full mb-2" />
+                                                    <div className="h-4 bg-void-border w-3/4" />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* System Requirements */}
+                                        {gameDetails?.details?.pcRequirements?.minimum && (
+                                            <div className="mb-10">
+                                                <h3 className="text-xs font-mono text-white/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                                    <span className="w-1 h-1 bg-crimson-500" />
+                                                    SYSTEM REQUIREMENTS
+                                                </h3>
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                    {gameDetails.details.pcRequirements.minimum && (
+                                                        <div className="bg-black/20 border border-white/5 p-5">
+                                                            <h4 className="text-xs font-mono text-crimson-500 uppercase tracking-wider mb-3">Minimum</h4>
+                                                            <div
+                                                                className="text-xs text-white/50 leading-relaxed space-y-1 [&_strong]:text-white/70 [&_br]:hidden [&_ul]:list-none [&_ul]:p-0 [&_li]:py-0.5"
+                                                                dangerouslySetInnerHTML={{ __html: gameDetails.details.pcRequirements.minimum }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {gameDetails.details.pcRequirements.recommended && (
+                                                        <div className="bg-black/20 border border-white/5 p-5">
+                                                            <h4 className="text-xs font-mono text-emerald-500 uppercase tracking-wider mb-3">Recommended</h4>
+                                                            <div
+                                                                className="text-xs text-white/50 leading-relaxed space-y-1 [&_strong]:text-white/70 [&_br]:hidden [&_ul]:list-none [&_ul]:p-0 [&_li]:py-0.5"
+                                                                dangerouslySetInnerHTML={{ __html: gameDetails.details.pcRequirements.recommended }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </motion.div>
                                 )}
 
@@ -375,9 +565,20 @@ export function GameDetail() {
                                     </motion.div>
                                 )}
 
-                                {activeTab === 'patchnotes' && (
+                                {activeTab === 'patchnotes' && selectedGame.steamAppId && (
                                     <motion.div
                                         key="patchnotes"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <PatchNotesTab data={newsData} isLoading={newsLoading} />
+                                    </motion.div>
+                                )}
+
+                                {activeTab === 'patchnotes' && !selectedGame.steamAppId && (
+                                    <motion.div
+                                        key="patchnotes-unavailable"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         className="flex flex-col items-center justify-center py-20 text-center"
@@ -386,10 +587,10 @@ export function GameDetail() {
                                             <Terminal className="w-8 h-8 text-white/20" />
                                         </div>
                                         <h3 className="text-xl font-display font-bold italic text-white/60 mb-2">
-                                            COMING SOON
+                                            NOT AVAILABLE
                                         </h3>
                                         <p className="text-sm text-white/30">
-                                            Patch notes will be available in a future update
+                                            Patch notes are only available for Steam games
                                         </p>
                                     </motion.div>
                                 )}
@@ -438,17 +639,5 @@ export function GameDetail() {
                 </>
             )}
         </AnimatePresence>
-    )
-}
-
-function StatBox({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
-    return (
-        <div className="bg-void-surface p-6 flex flex-col gap-2 group hover:bg-white/5 transition-colors">
-            <div className="flex items-center gap-3 mb-1">
-                {icon}
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/30 group-hover:text-white/50 transition-colors">{label}</span>
-            </div>
-            <span className="text-2xl font-display font-bold italic text-white tracking-tight">{value}</span>
-        </div>
     )
 }

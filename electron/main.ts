@@ -642,6 +642,221 @@ function setupIpcHandlers() {
     return fetchPlayerAchievements(auth.user.steamId, appId)
   })
 
+  // ═══════════════════════════════════════════════════════════
+  // Game News / Patch Notes
+  // ═══════════════════════════════════════════════════════════
+
+  const newsCache = new Map<string, { data: unknown; fetchedAt: number }>()
+  const NEWS_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+  ipcMain.handle('get-game-news', async (_event, appId: string, count: number = 10) => {
+    console.log('[Main] get-game-news called for appId:', appId)
+
+    if (!appId) {
+      return {
+        success: false,
+        news: [],
+        totalCount: 0,
+        error: 'No Steam App ID provided',
+        errorCode: 'NO_STEAM_APP' as const,
+      }
+    }
+
+    // Check cache
+    const cached = newsCache.get(appId)
+    if (cached && Date.now() - cached.fetchedAt < NEWS_CACHE_TTL) {
+      console.log('[Main] Returning cached news for appId:', appId)
+      return cached.data
+    }
+
+    try {
+      // Steam ISteamNews/GetNewsForApp API (no API key required)
+      // Filter to steam_community_announcements to avoid regional third-party news sites
+      const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appId}&count=${count}&maxlength=0&format=json&feeds=steam_community_announcements`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`Steam API returned ${response.status}`)
+      }
+
+      const data = await response.json() as {
+        appnews?: {
+          appid: number
+          newsitems: Array<{
+            gid: string
+            title: string
+            url: string
+            is_external_url: boolean
+            author: string
+            contents: string
+            feedlabel: string
+            feedname: string
+            date: number
+            tags?: string[]
+          }>
+          count: number
+        }
+      }
+
+      if (!data.appnews || !data.appnews.newsitems) {
+        return {
+          success: true,
+          news: [],
+          totalCount: 0,
+        }
+      }
+
+      const news = data.appnews.newsitems.map(item => ({
+        gid: item.gid,
+        title: item.title,
+        url: item.url,
+        author: item.author || 'Unknown',
+        contents: item.contents,
+        feedlabel: item.feedlabel,
+        feedname: item.feedname,
+        date: item.date,
+        appId: String(data.appnews!.appid),
+      }))
+
+      const result = {
+        success: true,
+        news,
+        totalCount: data.appnews.count,
+      }
+
+      // Cache the result
+      newsCache.set(appId, { data: result, fetchedAt: Date.now() })
+      console.log('[Main] ✓ Fetched', news.length, 'news items for appId:', appId)
+
+      return result
+
+    } catch (error) {
+      console.error('[Main] Failed to fetch game news:', error)
+      return {
+        success: false,
+        news: [],
+        totalCount: 0,
+        error: error instanceof Error ? error.message : 'Failed to fetch game news',
+        errorCode: 'NETWORK_ERROR' as const,
+      }
+    }
+  })
+
+  // ═══════════════════════════════════════════════════════════
+  // Game Details (Steam Store API)
+  // ═══════════════════════════════════════════════════════════
+
+  const detailsCache = new Map<string, { data: unknown; fetchedAt: number }>()
+  const DETAILS_CACHE_TTL = 30 * 60 * 1000 // 30 minutes (details don't change often)
+
+  ipcMain.handle('get-game-details', async (_event, appId: string) => {
+    console.log('[Main] get-game-details called for appId:', appId)
+
+    if (!appId) {
+      return {
+        success: false,
+        details: null,
+        error: 'No Steam App ID provided',
+        errorCode: 'NO_STEAM_APP' as const,
+      }
+    }
+
+    // Check cache
+    const cached = detailsCache.get(appId)
+    if (cached && Date.now() - cached.fetchedAt < DETAILS_CACHE_TTL) {
+      console.log('[Main] Returning cached details for appId:', appId)
+      return cached.data
+    }
+
+    try {
+      // Steam Store appdetails API (no API key required)
+      const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=en`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`Steam Store API returned ${response.status}`)
+      }
+
+      const data = await response.json() as {
+        [key: string]: {
+          success: boolean
+          data?: {
+            type: string
+            name: string
+            steam_appid: number
+            short_description: string
+            detailed_description: string
+            developers?: string[]
+            publishers?: string[]
+            release_date?: {
+              coming_soon: boolean
+              date: string
+            }
+            metacritic?: {
+              score: number
+              url: string
+            }
+            pc_requirements?: {
+              minimum?: string
+              recommended?: string
+            }
+            genres?: Array<{ id: string; description: string }>
+            categories?: Array<{ id: number; description: string }>
+          }
+        }
+      }
+
+      const appData = data[appId]
+      if (!appData?.success || !appData.data) {
+        return {
+          success: false,
+          details: null,
+          error: 'Game details not found',
+          errorCode: 'API_ERROR' as const,
+        }
+      }
+
+      const d = appData.data
+      const details = {
+        appId,
+        name: d.name,
+        shortDescription: d.short_description || '',
+        detailedDescription: d.detailed_description || '',
+        developers: d.developers || [],
+        publishers: d.publishers || [],
+        releaseDate: d.release_date?.date || 'Unknown',
+        metacriticScore: d.metacritic?.score,
+        metacriticUrl: d.metacritic?.url,
+        pcRequirements: {
+          minimum: d.pc_requirements?.minimum,
+          recommended: d.pc_requirements?.recommended,
+        },
+        genres: d.genres?.map(g => g.description) || [],
+        categories: d.categories?.map(c => c.description) || [],
+      }
+
+      const result = {
+        success: true,
+        details,
+      }
+
+      // Cache the result
+      detailsCache.set(appId, { data: result, fetchedAt: Date.now() })
+      console.log('[Main] ✓ Fetched details for:', d.name)
+
+      return result
+
+    } catch (error) {
+      console.error('[Main] Failed to fetch game details:', error)
+      return {
+        success: false,
+        details: null,
+        error: error instanceof Error ? error.message : 'Failed to fetch game details',
+        errorCode: 'NETWORK_ERROR' as const,
+      }
+    }
+  })
+
   // File dialogs
   ipcMain.handle('select-executable', async () => {
     if (!win) return null

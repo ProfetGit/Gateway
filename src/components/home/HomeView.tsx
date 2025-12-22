@@ -250,7 +250,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                         transition={{ duration: 0.1, ease: "easeOut" }}
                                     >
                                         <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-ping" />
-                                        READY_TO_ENGAGE
+                                        Ready to play
                                     </motion.div>
                                 </div>
                             </motion.button>
@@ -259,7 +259,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                 onClick={() => onOpenDetail(activeGame)}
                                 className="group flex items-center gap-2 px-6 py-3 border-l border-white/20 hover:border-crimson-500/50 hover:bg-white/5 transition-all"
                             >
-                                <span className="uppercase tracking-widest text-sm font-bold text-white/60 group-hover:text-white transition-colors">Data_Log</span>
+                                <span className="uppercase tracking-widest text-sm font-bold text-white/60 group-hover:text-white transition-colors">Details</span>
                                 <Info className="w-4 h-4 text-white/40 group-hover:text-crimson-500 transition-colors" />
                             </motion.button>
                         </div>

@@ -95,6 +95,12 @@ contextBridge.exposeInMainWorld('api', {
   // Achievements
   getAchievements: (appId: string): Promise<FetchAchievementsResult> => ipcRenderer.invoke('get-achievements', appId),
 
+  // Game News / Patch Notes
+  getGameNews: (appId: string, count: number = 10) => ipcRenderer.invoke('get-game-news', appId, count),
+
+  // Game Details (Steam Store)
+  getGameDetails: (appId: string) => ipcRenderer.invoke('get-game-details', appId),
+
 
   // Trending games (Steam Store API)
   getTrendingGames: () => ipcRenderer.invoke('get-trending-games'),
