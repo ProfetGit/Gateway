@@ -1,9 +1,8 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Gamepad2, Play, Info } from 'lucide-react'
+import { Play, Info } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
-import { GameCard } from '../game/GameCard'
 import { TrendingSection } from '../../features/trending'
 import { FreeDealsSection } from '../../features/free-deals'
 import type { Game } from '../../types/game'
@@ -29,12 +28,6 @@ export function HomeView() {
         ? activeCarouselGames
         : games.slice(0, 6)
 
-    // Filtered rows
-    const favoriteGames = games.filter(g => g.isFavorite).slice(0, 8)
-    const installedGames = games
-        .filter(g => g.isInstalled && !displayCarouselGames.some(r => r.id === g.id))
-        .slice(0, 8)
-
     return (
         <div
             onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 50)}
@@ -58,27 +51,12 @@ export function HomeView() {
                             <TrendingSection />
 
                             {/* Free Deals Row - temporarily free Steam games */}
-                            <FreeDealsSection />
-
-                            {/* Favorites Row */}
-                            {favoriteGames.length > 0 && (
-                                <GameRow
-                                    title="Favorites"
-                                    icon={<Star className="w-5 h-5 text-ember-500" />}
-                                    games={favoriteGames}
-                                    delay={0.2}
-                                />
-                            )}
-
-                            {/* Ready to Play Row */}
-                            {installedGames.length > 0 && (
-                                <GameRow
-                                    title="Ready to Play"
-                                    icon={<Gamepad2 className="w-5 h-5 text-crimson-500" />}
-                                    games={installedGames}
-                                    delay={0.3}
-                                />
-                            )}
+                            <FreeDealsSection
+                                onGameClick={(appId) => {
+                                    const game = games.find(g => g.steamAppId === String(appId))
+                                    if (game) openDetail(game)
+                                }}
+                            />
                         </div>
                     </motion.div>
                 ) : (
@@ -323,45 +301,6 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                 ))}
             </div>
         </section>
-    )
-}
-
-function GameRow({ title, icon, games, delay = 0 }: { title: string, icon: React.ReactNode, games: Game[], delay?: number }) {
-    return (
-        <motion.section
-            initial={{ y: 30, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-            <div className="flex items-center justify-between mb-8 group/header relative">
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <div className="w-3 h-3 bg-crimson-500 rotate-45" />
-                        <div className="absolute inset-0 bg-crimson-500/50 blur animate-pulse" />
-                    </div>
-                    <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
-                        {title}
-                        <span className="text-xs font-mono font-medium tracking-[0.1em] text-void-border px-2 py-0.5 border border-void-border/30 rounded ml-2">
-                            0{games.length}
-                        </span>
-                    </h2>
-                </div>
-
-                {/* Decorative line */}
-                <div className="flex-1 h-px bg-gradient-to-r from-crimson-900/40 to-transparent ml-8" />
-
-                <div className="opacity-40 group-hover/header:opacity-100 transition-opacity duration-300 transform group-hover/header:translate-x-1">
-                    {icon}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-5">
-                {games.map((game) => (
-                    <GameCard key={game.id} game={game} />
-                ))}
-            </div>
-        </motion.section>
     )
 }
 

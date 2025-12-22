@@ -95,13 +95,8 @@ export function Header() {
                             placeholder="SEARCH..."
                             value={filters.search}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="
-                  w-full pl-8 pr-10 py-2
-                  bg-transparent border-none
-                  text-lg font-display font-bold italic tracking-wider text-white placeholder:text-white/20 uppercase
-                  focus:outline-none focus:ring-0
-                  transition-all duration-200
-                "
+                            className="w-full pl-8 pr-10 py-2 bg-transparent border-none outline-none text-lg font-display font-bold italic tracking-wider text-white placeholder:text-white/20 uppercase focus:outline-none focus:ring-0 focus:border-none"
+                            style={{ outline: 'none', boxShadow: 'none' }}
                         />
                         {/* Blinking Cursor Decoration (only when empty) */}
                         {!filters.search && (

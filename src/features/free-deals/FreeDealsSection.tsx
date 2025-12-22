@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Gift, ExternalLink, Sparkles, Clock, Check } from 'lucide-react'
+import { Gift, Sparkles, Clock, Check } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
 import type { FreeDeal, FreeDealsData } from '../../types/freeDeals'
 
@@ -10,7 +10,11 @@ interface FreeDealsResult {
     error?: string
 }
 
-export function FreeDealsSection() {
+interface FreeDealsSectionProps {
+    onGameClick?: (gameId: number) => void
+}
+
+export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
     const [data, setData] = React.useState<FreeDealsData | null>(null)
     const [isLoading, setIsLoading] = React.useState(true)
     const [error, setError] = React.useState<string | null>(null)
@@ -133,6 +137,7 @@ export function FreeDealsSection() {
                     deals={data.deals}
                     claimedIds={claimedIds}
                     onDealClick={handleClaimGame}
+                    onGameClick={onGameClick}
                 />
             ) : null}
         </motion.section>
@@ -191,9 +196,10 @@ interface FreeDealsCarouselProps {
     deals: FreeDeal[]
     claimedIds: Set<string>
     onDealClick: (steamAppId: string | null, claimUrl: string) => void
+    onGameClick?: (gameId: number) => void
 }
 
-function FreeDealsCarousel({ deals, claimedIds, onDealClick }: FreeDealsCarouselProps) {
+function FreeDealsCarousel({ deals, claimedIds, onDealClick, onGameClick }: FreeDealsCarouselProps) {
     const scrollRef = React.useRef<HTMLDivElement>(null)
     const [canScrollLeft, setCanScrollLeft] = React.useState(false)
     const [canScrollRight, setCanScrollRight] = React.useState(true)
@@ -259,7 +265,15 @@ function FreeDealsCarousel({ deals, claimedIds, onDealClick }: FreeDealsCarousel
                             title={deal.title}
                             image={deal.image}
                             index={index}
-                            onClick={() => onDealClick(deal.steamAppId, deal.claimUrl)}
+                            onClick={() => {
+                                if (isClaimed && deal.steamAppId && onGameClick) {
+                                    // Redirect to game detail page for claimed games
+                                    onGameClick(parseInt(deal.steamAppId, 10))
+                                } else {
+                                    // Open claim page for unclaimed games
+                                    onDealClick(deal.steamAppId, deal.claimUrl)
+                                }
+                            }}
                             accentColor="emerald"
                             width={280}
                             isClaimed={isClaimed}
@@ -293,17 +307,6 @@ function FreeDealsCarousel({ deals, claimedIds, onDealClick }: FreeDealsCarousel
                                         FREE
                                     </span>
                                 </div>
-                            }
-                            bottomRight={
-                                isClaimed ? (
-                                    <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-wider flex items-center gap-1">
-                                        In Library
-                                    </span>
-                                ) : (
-                                    <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-wider flex items-center gap-1">
-                                        Claim <ExternalLink className="w-3 h-3" />
-                                    </span>
-                                )
                             }
                         />
                     )

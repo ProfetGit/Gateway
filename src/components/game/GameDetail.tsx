@@ -9,7 +9,9 @@ import {
     ExternalLink,
     Terminal,
     Share2,
-    Monitor
+    Monitor,
+    Download,
+    CloudDownload
 } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import { useState, useEffect, useRef } from 'react'
@@ -22,6 +24,7 @@ type TabType = 'overview' | 'achievements' | 'patchnotes'
 export function GameDetail() {
     const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame } = useGameStore()
     const [isDeleting, setIsDeleting] = useState(false)
+    const [isInstalling, setIsInstalling] = useState(false)
     const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
     const [imageError, setImageError] = useState(false)
     const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -174,6 +177,20 @@ export function GameDetail() {
 
     const handlePlay = async () => {
         await window.api?.launchGame(selectedGame)
+    }
+
+    const handleInstall = async () => {
+        if (!selectedGame.steamAppId) return
+        setIsInstalling(true)
+        try {
+            await window.api?.installSteamGame(selectedGame.steamAppId)
+        } catch (error) {
+            console.error('Failed to start installation:', error)
+        } finally {
+            // Keep the installing state for visual feedback
+            // The actual install happens in Steam client
+            setTimeout(() => setIsInstalling(false), 2000)
+        }
     }
 
     const handleDelete = async () => {
@@ -356,11 +373,16 @@ export function GameDetail() {
                                             <div className="flex flex-col gap-2">
                                                 <span className="text-xs font-mono text-white/30 tracking-[0.2em] uppercase">STATUS</span>
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-3 h-3 rounded-full ${selectedGame.isInstalled ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-white/10'}`} />
-                                                    <span className={`text-2xl font-display font-bold italic uppercase ${selectedGame.isInstalled ? 'text-white' : 'text-white/40'}`}>
+                                                    <div className={`w-3 h-3 rounded-full ${selectedGame.isInstalled ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-amber-500/50 animate-pulse'}`} />
+                                                    <span className={`text-2xl font-display font-bold italic uppercase ${selectedGame.isInstalled ? 'text-white' : 'text-amber-400/80'}`}>
                                                         {selectedGame.isInstalled ? 'INSTALLED' : 'NOT INSTALLED'}
                                                     </span>
                                                 </div>
+                                                {!selectedGame.isInstalled && selectedGame.steamAppId && (
+                                                    <span className="text-xs font-mono text-white/30 mt-1">
+                                                        Available in your Steam library
+                                                    </span>
+                                                )}
                                             </div>
 
                                             {/* Quick Actions */}
@@ -387,51 +409,160 @@ export function GameDetail() {
                                             </div>
                                         </div>
 
-                                        {/* Hero Stats Row */}
-                                        <div className="flex items-stretch gap-6 mb-8">
-                                            {/* Primary Stat - Playtime */}
-                                            <div className="flex-1 bg-gradient-to-br from-crimson-500/10 to-transparent border border-crimson-500/20 p-6 relative overflow-hidden group hover:border-crimson-500/40 transition-all">
-                                                <div className="absolute top-0 right-0 w-32 h-32 bg-crimson-500/5 rounded-full blur-2xl translate-x-1/2 -translate-y-1/2" />
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Clock className="w-4 h-4 text-crimson-500" />
-                                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Playtime</span>
-                                                </div>
-                                                <span className="text-4xl font-display font-black italic text-white tracking-tight">
-                                                    {formatPlaytime(selectedGame.playtime)}
-                                                </span>
-                                            </div>
-
-                                            {/* Secondary Stat - Last Played */}
-                                            <div className="flex-1 bg-void-surface border border-white/5 p-6 relative overflow-hidden group hover:border-white/20 transition-all">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Calendar className="w-4 h-4 text-white/40" />
-                                                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Last Session</span>
-                                                </div>
-                                                <span className="text-3xl font-display font-bold italic text-white/90 tracking-tight">
-                                                    {formatDate(selectedGame.lastPlayed)}
-                                                </span>
-                                            </div>
-
-                                            {/* Metacritic (if available) */}
-                                            {gameDetails?.details?.metacriticScore && (
-                                                <div className={`w-28 shrink-0 flex flex-col items-center justify-center border p-4 ${gameDetails.details.metacriticScore >= 75
-                                                    ? 'bg-emerald-500/10 border-emerald-500/30'
-                                                    : gameDetails.details.metacriticScore >= 50
-                                                        ? 'bg-amber-500/10 border-amber-500/30'
-                                                        : 'bg-red-500/10 border-red-500/30'
-                                                    }`}>
-                                                    <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/40 mb-1">Metacritic</span>
-                                                    <span className={`text-4xl font-display font-black italic ${gameDetails.details.metacriticScore >= 75
-                                                        ? 'text-emerald-400'
-                                                        : gameDetails.details.metacriticScore >= 50
-                                                            ? 'text-amber-400'
-                                                            : 'text-red-400'
-                                                        }`}>
-                                                        {gameDetails.details.metacriticScore}
+                                        {/* Hero Stats Row - Different treatment for installed vs not */}
+                                        {selectedGame.isInstalled ? (
+                                            <div className="flex items-stretch gap-6 mb-8">
+                                                {/* Primary Stat - Playtime */}
+                                                <div className="flex-1 bg-gradient-to-br from-crimson-500/10 to-transparent border border-crimson-500/20 p-6 relative overflow-hidden group hover:border-crimson-500/40 transition-all">
+                                                    <div className="absolute top-0 right-0 w-32 h-32 bg-crimson-500/5 rounded-full blur-2xl translate-x-1/2 -translate-y-1/2" />
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Clock className="w-4 h-4 text-crimson-500" />
+                                                        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Playtime</span>
+                                                    </div>
+                                                    <span className="text-4xl font-display font-black italic text-white tracking-tight">
+                                                        {formatPlaytime(selectedGame.playtime)}
                                                     </span>
                                                 </div>
-                                            )}
-                                        </div>
+
+                                                {/* Secondary Stat - Last Played */}
+                                                <div className="flex-1 bg-void-surface border border-white/5 p-6 relative overflow-hidden group hover:border-white/20 transition-all">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Calendar className="w-4 h-4 text-white/40" />
+                                                        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">Last Session</span>
+                                                    </div>
+                                                    <span className="text-3xl font-display font-bold italic text-white/90 tracking-tight">
+                                                        {formatDate(selectedGame.lastPlayed)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Metacritic (if available) */}
+                                                {gameDetails?.details?.metacriticScore && (
+                                                    <div className={`w-28 shrink-0 flex flex-col items-center justify-center border p-4 ${gameDetails.details.metacriticScore >= 75
+                                                        ? 'bg-emerald-500/10 border-emerald-500/30'
+                                                        : gameDetails.details.metacriticScore >= 50
+                                                            ? 'bg-amber-500/10 border-amber-500/30'
+                                                            : 'bg-red-500/10 border-red-500/30'
+                                                        }`}>
+                                                        <span className="text-[9px] font-mono uppercase tracking-[0.15em] text-white/40 mb-1">Metacritic</span>
+                                                        <span className={`text-4xl font-display font-black italic ${gameDetails.details.metacriticScore >= 75
+                                                            ? 'text-emerald-400'
+                                                            : gameDetails.details.metacriticScore >= 50
+                                                                ? 'text-amber-400'
+                                                                : 'text-red-400'
+                                                            }`}>
+                                                            {gameDetails.details.metacriticScore}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            /* Not Installed - Show Install CTA prominent area */
+                                            <div className="mb-10">
+                                                <motion.div
+                                                    className="relative p-8 border border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent overflow-hidden"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: 0.1 }}
+                                                >
+                                                    {/* Decorative background pattern */}
+                                                    <div className="absolute inset-0 opacity-5">
+                                                        <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,currentColor_10px,currentColor_11px)] text-amber-500" />
+                                                    </div>
+
+                                                    <div className="relative flex items-center justify-between gap-6">
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="w-16 h-16 flex items-center justify-center border border-amber-500/30 bg-amber-500/10">
+                                                                <CloudDownload className="w-8 h-8 text-amber-400" />
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-lg font-display font-bold italic text-white mb-1">
+                                                                    Ready to Download
+                                                                </h3>
+                                                                <p className="text-sm text-white/50 max-w-md">
+                                                                    {selectedGame.steamAppId
+                                                                        ? 'This game is in your Steam library. Click Install to download it through Steam.'
+                                                                        : 'Set an executable path to launch this game, or install it manually.'
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {selectedGame.steamAppId && (
+                                                            <motion.button
+                                                                onClick={handleInstall}
+                                                                disabled={isInstalling}
+                                                                className="
+                                                                    flex items-center gap-3 px-8 py-4
+                                                                    bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50
+                                                                    text-black font-display font-bold italic uppercase tracking-tight text-lg
+                                                                    transition-all duration-300
+                                                                "
+                                                                whileHover={{ scale: isInstalling ? 1 : 1.02 }}
+                                                                whileTap={{ scale: isInstalling ? 1 : 0.98 }}
+                                                            >
+                                                                {isInstalling ? (
+                                                                    <>
+                                                                        <motion.div
+                                                                            animate={{ rotate: 360 }}
+                                                                            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                                                        >
+                                                                            <Download className="w-5 h-5" />
+                                                                        </motion.div>
+                                                                        <span>Opening Steam...</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Download className="w-5 h-5" />
+                                                                        <span>Install</span>
+                                                                    </>
+                                                                )}
+                                                            </motion.button>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+
+                                                {/* Minimal stats row for uninstalled - show what's known */}
+                                                <div className="flex items-stretch gap-4 mt-6">
+                                                    {selectedGame.playtime && selectedGame.playtime > 0 ? (
+                                                        <div className="flex-1 bg-void-surface/50 border border-white/5 p-4 opacity-60">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <Clock className="w-3 h-3 text-white/30" />
+                                                                <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/30">Previous Playtime</span>
+                                                            </div>
+                                                            <span className="text-xl font-display font-bold italic text-white/50 tracking-tight">
+                                                                {formatPlaytime(selectedGame.playtime)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex-1 bg-void-surface/30 border border-dashed border-white/10 p-4 flex items-center justify-center">
+                                                            <span className="text-xs font-mono text-white/20 uppercase tracking-wider">
+                                                                Playtime tracked after install
+                                                            </span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Metacritic (if available) */}
+                                                    {gameDetails?.details?.metacriticScore && (
+                                                        <div className={`w-24 shrink-0 flex flex-col items-center justify-center border p-3 ${gameDetails.details.metacriticScore >= 75
+                                                            ? 'bg-emerald-500/10 border-emerald-500/30'
+                                                            : gameDetails.details.metacriticScore >= 50
+                                                                ? 'bg-amber-500/10 border-amber-500/30'
+                                                                : 'bg-red-500/10 border-red-500/30'
+                                                            }`}>
+                                                            <span className="text-[8px] font-mono uppercase tracking-[0.1em] text-white/40 mb-0.5">Metacritic</span>
+                                                            <span className={`text-2xl font-display font-black italic ${gameDetails.details.metacriticScore >= 75
+                                                                ? 'text-emerald-400'
+                                                                : gameDetails.details.metacriticScore >= 50
+                                                                    ? 'text-amber-400'
+                                                                    : 'text-red-400'
+                                                                }`}>
+                                                                {gameDetails.details.metacriticScore}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Metadata Row - Inline chips */}
                                         <div className="flex flex-wrap items-center gap-3 mb-10">
@@ -598,41 +729,104 @@ export function GameDetail() {
 
                             {/* Footer Actions */}
                             <div className="h-24 border-t border-white/5 bg-black/20 flex items-center justify-between px-10 shrink-0">
-                                <motion.button
-                                    onClick={handleDelete}
-                                    className={`
-                                        flex items-center gap-3 px-6 py-3
-                                        text-xs font-mono font-bold uppercase tracking-wider
-                                        border transition-all duration-300
-                                        ${isDeleting
-                                            ? 'border-red-500 text-red-500 bg-red-500/10'
-                                            : 'border-white/10 text-white/30 hover:text-red-500 hover:border-red-500/50'
-                                        }
-                                    `}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    <span>{isDeleting ? 'Confirm Delete?' : 'Uninstall'}</span>
-                                </motion.button>
+                                {/* Left side - Uninstall (only for installed games) */}
+                                <div>
+                                    {selectedGame.isInstalled ? (
+                                        <motion.button
+                                            onClick={handleDelete}
+                                            className={`
+                                                flex items-center gap-3 px-6 py-3
+                                                text-xs font-mono font-bold uppercase tracking-wider
+                                                border transition-all duration-300
+                                                ${isDeleting
+                                                    ? 'border-red-500 text-red-500 bg-red-500/10'
+                                                    : 'border-white/10 text-white/30 hover:text-red-500 hover:border-red-500/50'
+                                                }
+                                            `}
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            <span>{isDeleting ? 'Confirm Delete?' : 'Uninstall'}</span>
+                                        </motion.button>
+                                    ) : (
+                                        /* Placeholder to maintain layout */
+                                        <div className="flex items-center gap-2 text-white/20 text-xs font-mono">
+                                            <Terminal className="w-4 h-4" />
+                                            <span>Not installed locally</span>
+                                        </div>
+                                    )}
+                                </div>
 
-                                <motion.button
-                                    onClick={handlePlay}
-                                    className="
-                                        group relative flex items-center gap-4 px-10 py-4
-                                        bg-crimson-600 hover:bg-crimson-500
-                                        text-white font-display font-black italic uppercase tracking-tighter text-2xl
-                                        clip-path-slant shadow-[0_0_30px_rgba(220,38,38,0.4)]
-                                        hover:shadow-[0_0_50px_rgba(220,38,38,0.6)]
-                                        transition-all duration-300
-                                    "
-                                    style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    <span>LAUNCH</span>
-                                    <Play className="w-6 h-6 fill-current group-hover:translate-x-1 transition-transform" />
-                                </motion.button>
+                                {/* Right side - Primary Action */}
+                                {selectedGame.isInstalled ? (
+                                    <motion.button
+                                        onClick={handlePlay}
+                                        className="
+                                            group relative flex items-center gap-4 px-10 py-4
+                                            bg-crimson-600 hover:bg-crimson-500
+                                            text-white font-display font-black italic uppercase tracking-tighter text-2xl
+                                            clip-path-slant shadow-[0_0_30px_rgba(220,38,38,0.4)]
+                                            hover:shadow-[0_0_50px_rgba(220,38,38,0.6)]
+                                            transition-all duration-300
+                                        "
+                                        style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        <span>LAUNCH</span>
+                                        <Play className="w-6 h-6 fill-current group-hover:translate-x-1 transition-transform" />
+                                    </motion.button>
+                                ) : selectedGame.steamAppId ? (
+                                    <motion.button
+                                        onClick={handleInstall}
+                                        disabled={isInstalling}
+                                        className="
+                                            group relative flex items-center gap-4 px-10 py-4
+                                            bg-gradient-to-r from-amber-500 to-amber-400  
+                                            hover:from-amber-400 hover:to-amber-300
+                                            disabled:from-amber-500/50 disabled:to-amber-400/50
+                                            text-black font-display font-black italic uppercase tracking-tighter text-2xl
+                                            shadow-[0_0_30px_rgba(245,158,11,0.3)]
+                                            hover:shadow-[0_0_50px_rgba(245,158,11,0.5)]
+                                            transition-all duration-300
+                                        "
+                                        style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                                        whileHover={{ scale: isInstalling ? 1 : 1.05 }}
+                                        whileTap={{ scale: isInstalling ? 1 : 0.95 }}
+                                    >
+                                        {isInstalling ? (
+                                            <>
+                                                <motion.div
+                                                    animate={{ rotate: 360 }}
+                                                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                                                >
+                                                    <Download className="w-6 h-6" />
+                                                </motion.div>
+                                                <span>OPENING...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>INSTALL</span>
+                                                <Download className="w-6 h-6 group-hover:translate-y-0.5 transition-transform" />
+                                            </>
+                                        )}
+                                    </motion.button>
+                                ) : (
+                                    /* Non-Steam game that's not installed - disabled state */
+                                    <div
+                                        className="
+                                            flex items-center gap-4 px-10 py-4
+                                            bg-void-surface border border-white/10
+                                            text-white/30 font-display font-bold italic uppercase tracking-tighter text-xl
+                                            cursor-not-allowed
+                                        "
+                                        style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                                    >
+                                        <span>NOT AVAILABLE</span>
+                                        <Terminal className="w-5 h-5" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.div>

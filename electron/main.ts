@@ -173,14 +173,69 @@ app.on('browser-window-focus', async () => {
     }
 
     if (owned) {
-      // Persist to local store
+      // Persist to local claims store
       const currentClaims = store.get('claimedAppIds') || []
       if (!currentClaims.includes(appIdToCheck)) {
         store.set('claimedAppIds', [...currentClaims, appIdToCheck])
         console.log('[Main] Persisted claim locally:', appIdToCheck)
       }
 
-      // Notify renderer
+      // Add game to library if not already there
+      const games = store.get('games')
+      const alreadyInLibrary = games.some(g => g.steamAppId === appIdToCheck)
+
+      if (!alreadyInLibrary) {
+        console.log('[Main] Adding claimed game to library:', appIdToCheck)
+
+        // Fetch game details from Steam Store API
+        const gameDetails = await fetchSteamStoreDetails([appIdToCheck])
+
+        if (gameDetails.length > 0) {
+          const detail = gameDetails[0]
+          const newGame: Game = {
+            id: uuidv4(),
+            title: detail.name,
+            steamAppId: appIdToCheck,
+            coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${appIdToCheck}/library_600x900_2x.jpg`,
+            isInstalled: false,
+            isFavorite: false,
+            source: 'steam',
+            playtime: 0,
+            lastPlayed: undefined,
+          }
+
+          const updatedGames = [...games, newGame]
+          store.set('games', updatedGames)
+          console.log('[Main] ✓ Added', detail.name, 'to library')
+
+          // Notify renderer of updated games list
+          if (win) {
+            win.webContents.send('games-updated', updatedGames)
+          }
+        } else {
+          // Fallback: add placeholder if store API fails
+          const placeholderGame: Game = {
+            id: uuidv4(),
+            title: `Game ${appIdToCheck}`,
+            steamAppId: appIdToCheck,
+            coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${appIdToCheck}/library_600x900_2x.jpg`,
+            isInstalled: false,
+            isFavorite: false,
+            source: 'steam',
+            playtime: 0,
+          }
+
+          const updatedGames = [...games, placeholderGame]
+          store.set('games', updatedGames)
+          console.log('[Main] Added placeholder for', appIdToCheck)
+
+          if (win) {
+            win.webContents.send('games-updated', updatedGames)
+          }
+        }
+      }
+
+      // Notify renderer of claim status
       if (win) {
         win.webContents.send('game-claimed', { appId: appIdToCheck, owned: true })
       }

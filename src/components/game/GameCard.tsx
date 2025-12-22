@@ -1,16 +1,17 @@
 import { useState, useEffect, memo } from 'react'
-import { motion } from 'framer-motion'
 import { Play, Heart, Download } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import type { Game } from '../../types/game'
 
 /**
- * GAME CARD DESIGN PRINCIPLES (Optimized for Performance)
+ * GAME CARD DESIGN PRINCIPLES (Premium + Performance)
  * ══════════════════════════════════════════════════════════════
- * 1. CSS-ONLY BASE INTERACTIONS — No framer-motion for hover scale
- * 2. MEMOIZED — Re-renders only when game data changes
- * 3. LAZY IMAGES — Browser-native lazy loading
- * 4. LOCAL-FIRST — gateway:// protocol with CDN fallback
+ * 1. HEXAGON PLAY BUTTON — Centered action on hover
+ * 2. CORNER BRACKETS — Animated accent corners on hover
+ * 3. GLOW EFFECTS — Crimson shadow bloom on hover
+ * 4. IMAGE SCALE — Parallax-like zoom on hover
+ * 5. MEMOIZED — Re-renders only when game data changes
+ * 6. LOCAL-FIRST — gateway:// protocol with CDN fallback
  * ══════════════════════════════════════════════════════════════
  */
 
@@ -26,7 +27,6 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
 
     const [imgSrc, setImgSrc] = useState(getInitialSrc)
     const [imageError, setImageError] = useState(false)
-    const [isHovered, setIsHovered] = useState(false)
     const { openDetail, toggleFavorite } = useGameStore()
 
     const handlePlay = async (e: React.MouseEvent) => {
@@ -55,7 +55,6 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
     const handleImageError = () => {
         const currentSrc = imgSrc || ''
 
-        // If local cover failed, fallback to CDN
         if (currentSrc.startsWith('gateway://') && game.coverUrl) {
             setImgSrc(game.coverUrl)
             return
@@ -66,7 +65,6 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
             return
         }
 
-        // Strategy: 2x -> 1x -> header -> error
         if (currentSrc.includes('library_600x900_2x.jpg')) {
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/library_600x900.jpg`)
         } else if (currentSrc.includes('library_600x900.jpg')) {
@@ -80,97 +78,181 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
 
     return (
         <article
-            className="relative aspect-[3/4] rounded-sm overflow-hidden cursor-pointer group isolate bg-void-deep transition-transform duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+            className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(220,38,38,0.25)]"
             onClick={() => openDetail(game)}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
-            {/* HOVER BORDER GLOW */}
-            <div className="absolute inset-0 border-2 border-transparent group-hover:border-crimson-500/50 transition-colors duration-300 z-50 pointer-events-none rounded-sm" />
+            {/* Corner bracket accents on hover */}
+            <div className="absolute top-0 left-0 w-0 h-0 border-t-[3px] border-l-[3px] border-transparent group-hover:w-6 group-hover:h-6 group-hover:border-crimson-500 transition-all duration-300 z-40 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-0 h-0 border-b-[3px] border-r-[3px] border-transparent group-hover:w-6 group-hover:h-6 group-hover:border-crimson-500 transition-all duration-300 z-40 pointer-events-none" />
 
             {/* Base layer — cover or fallback */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 overflow-hidden">
                 {hasCover ? (
                     <img
                         src={imgSrc}
                         alt={game.title}
                         loading="lazy"
                         decoding="async"
-                        className="w-full h-full object-cover transition-all duration-500"
+                        className="w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-110"
                         style={{
-                            filter: game.isInstalled ? 'grayscale(0.2) contrast(1.1)' : 'grayscale(1) brightness(0.5)',
+                            filter: game.isInstalled ? 'none' : 'grayscale(0.6) brightness(0.6)',
                         }}
                         onError={handleImageError}
                     />
                 ) : (
-                    <div className="w-full h-full bg-void-deep flex items-center justify-center border border-white/5">
-                        <span className="text-4xl font-display font-black text-white/20 select-none">
+                    <div className="w-full h-full bg-gradient-to-br from-void-surface to-void-deep flex items-center justify-center">
+                        <span className="text-5xl font-display font-black text-white/10 select-none">
                             {game.title.charAt(0).toUpperCase()}
                         </span>
                     </div>
                 )}
             </div>
 
-            {/* SCANLINE OVERLAY (Hover) */}
-            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.5)_3px)] opacity-0 group-hover:opacity-30 transition-opacity duration-300 pointer-events-none" />
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300 pointer-events-none" />
 
-            {/* Favorite Indicator */}
+            {/* Scanline overlay */}
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_3px)] opacity-0 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none" />
+
+            {/* Hover glow effect from bottom */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t from-crimson-500/15 via-transparent to-transparent" />
+
+            {/* Favorite button */}
             <button
                 onClick={handleFavorite}
-                className="absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                className="absolute top-2.5 right-2.5 z-30 p-1.5 rounded-sm bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 hover:bg-black/60 transition-all duration-200"
             >
                 <Heart
-                    className={`w-4 h-4 ${game.isFavorite
+                    className={`w-3.5 h-3.5 transition-colors ${game.isFavorite
                         ? 'text-crimson-500 fill-crimson-500'
-                        : 'text-white/50 hover:text-white'
+                        : 'text-white/60 hover:text-white'
                         }`}
                 />
             </button>
 
-            {/* INSTALLED INDICATOR (Tech Dot) */}
+            {/* Installed indicator */}
             {game.isInstalled && (
-                <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-sm shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                    <span className="text-[10px] font-mono tracking-widest text-emerald-500/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 uppercase">
-                        Ready
-                    </span>
+                <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-1.5">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
                 </div>
             )}
 
-            {/* FOOTER OVERLAY (Slide up) — keeping motion here for smooth slide */}
-            <motion.div
-                className="absolute bottom-0 inset-x-0 bg-void-pure/90 backdrop-blur-md border-t border-crimson-500/30 p-4 z-20 flex flex-col gap-3"
-                initial={false}
-                animate={{ y: isHovered ? 0 : '100%' }}
-                transition={{ duration: 0.2, ease: 'circOut' }}
-            >
-                {/* Title */}
-                <h3 className="font-display font-black text-lg italic tracking-tighter text-white leading-none uppercase transform -skew-x-2">
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* HEXAGON PLAY/INSTALL BUTTON — Center of card on hover      */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                <button
+                    onClick={game.isInstalled ? handlePlay : handleInstall}
+                    className={`
+                        group/hex relative flex items-center justify-center
+                        transition-all duration-300 ease-out
+                        opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100
+                        pointer-events-auto cursor-pointer focus:outline-none
+                        hover:!scale-110 active:!scale-95
+                    `}
+                    style={{ width: 60, height: 52 }}
+                >
+                    {/* Hexagon shape using SVG for perfect symmetry */}
+                    <svg
+                        viewBox="0 0 100 87"
+                        className="absolute inset-0 w-full h-full overflow-visible"
+                        style={{
+                            filter: game.isInstalled
+                                ? 'drop-shadow(0 0 20px rgba(220, 38, 38, 0.7))'
+                                : 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))'
+                        }}
+                    >
+                        <defs>
+                            {/* Installed gradient */}
+                            <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="#dc2626" />
+                                <stop offset="100%" stopColor="#991b1b" />
+                            </linearGradient>
+
+                            {/* Uninstalled ghost background */}
+                            <linearGradient id="hexGradientGhost" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="rgba(40, 40, 45, 0.95)" />
+                                <stop offset="100%" stopColor="rgba(25, 25, 30, 0.95)" />
+                            </linearGradient>
+
+                            {/* Fill gradient for download animation */}
+                            <linearGradient id="hexFillGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                                <stop offset="0%" stopColor="#dc2626" />
+                                <stop offset="100%" stopColor="#ef4444" />
+                            </linearGradient>
+
+                            {/* Hexagon clip path for the fill animation */}
+                            <clipPath id="hexClip">
+                                <polygon points="50,0 100,25 100,62 50,87 0,62 0,25" />
+                            </clipPath>
+                        </defs>
+
+                        {/* Base hexagon shape */}
+                        <polygon
+                            points="50,0 100,25 100,62 50,87 0,62 0,25"
+                            fill={game.isInstalled ? 'url(#hexGradient)' : 'url(#hexGradientGhost)'}
+                            stroke={game.isInstalled ? 'none' : 'rgba(255,255,255,0.3)'}
+                            strokeWidth={game.isInstalled ? 0 : 2}
+                        />
+
+                        {/* Animated fill layer for uninstalled games */}
+                        {!game.isInstalled && (
+                            <g clipPath="url(#hexClip)">
+                                {/* Fill rectangle that rises on hover */}
+                                <rect
+                                    x="0"
+                                    y="87"
+                                    width="100"
+                                    height="87"
+                                    fill="url(#hexFillGradient)"
+                                    className="transition-transform duration-500 ease-out group-hover/hex:-translate-y-full"
+                                />
+                            </g>
+                        )}
+
+                        {/* Border overlay for uninstalled - stays on top */}
+                        {!game.isInstalled && (
+                            <polygon
+                                points="50,0 100,25 100,62 50,87 0,62 0,25"
+                                fill="none"
+                                stroke="rgba(255,255,255,0.3)"
+                                strokeWidth="2"
+                                className="transition-all duration-500 group-hover/hex:stroke-white/50"
+                            />
+                        )}
+                    </svg>
+
+                    {/* Icon */}
+                    <div className="relative z-10">
+                        {game.isInstalled ? (
+                            <Play className="w-6 h-6 text-white fill-white ml-0.5 drop-shadow-lg" />
+                        ) : (
+                            <Download className="w-5 h-5 text-white drop-shadow-lg transition-transform duration-300 group-hover/hex:scale-110" />
+                        )}
+                    </div>
+                </button>
+            </div>
+
+            {/* Game title — always visible at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none z-10">
+                <h3
+                    className="font-display font-bold text-sm text-white leading-tight group-hover:text-crimson-200 transition-colors duration-300"
+                    style={{
+                        textShadow: '0 2px 10px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,0.9)',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                    }}
+                >
                     {game.title}
                 </h3>
 
-                {/* Action */}
-                <div className="w-full">
-                    {game.isInstalled ? (
-                        <button
-                            onClick={handlePlay}
-                            className="w-full flex items-center justify-between px-3 py-2 bg-crimson-600 hover:bg-crimson-500 text-white rounded-sm transition-colors group/btn"
-                        >
-                            <span className="font-mono text-xs font-bold tracking-widest uppercase">Launch</span>
-                            <Play className="w-3 h-3 fill-current group-hover/btn:scale-125 transition-transform" />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleInstall}
-                            className="w-full flex items-center justify-between px-3 py-2 border border-white/20 hover:bg-white/5 text-white/60 hover:text-white rounded-sm transition-colors group/btn"
-                        >
-                            <span className="font-mono text-xs font-bold tracking-widest uppercase">Install</span>
-                            <Download className="w-3 h-3 group-hover/btn:translate-y-1 transition-transform" />
-                        </button>
-                    )}
-                </div>
-            </motion.div>
+                {/* Subtle action hint */}
+                <span className="text-[9px] font-mono uppercase tracking-widest text-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-1 block">
+                    {game.isInstalled ? 'Click to launch' : 'Click to install'}
+                </span>
+            </div>
         </article>
     )
 })
-

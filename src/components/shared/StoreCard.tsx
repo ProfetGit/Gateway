@@ -11,9 +11,8 @@ export interface StoreCardProps {
     // Badges
     topLeftBadge?: React.ReactNode
     topRightBadge?: React.ReactNode
-    // Bottom content
+    // Price/info content (appears bottom-right)
     bottomLeft?: React.ReactNode
-    bottomRight?: React.ReactNode
     // Card size
     width?: number
     // Claimed state (for free games)
@@ -53,7 +52,6 @@ export function StoreCard({
     topLeftBadge,
     topRightBadge,
     bottomLeft,
-    bottomRight,
     width = 280,
     isClaimed = false,
 }: StoreCardProps) {
@@ -103,6 +101,41 @@ export function StoreCard({
                 {/* Scanlines */}
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_3px)] pointer-events-none opacity-50" />
 
+                {/* Free Game States - Shimmer for unclaimed, Static glow for claimed */}
+                {accentColor === 'emerald' && !isClaimed && (
+                    /* Animated shimmer sweep for claimable free games */
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div
+                            className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite]"
+                            style={{
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(16,185,129,0.15) 50%, transparent 100%)',
+                            }}
+                        />
+                    </div>
+                )}
+
+                {isClaimed && (
+                    /* Static emerald glow for claimed games - no animation */
+                    <>
+                        {/* Top edge glow */}
+                        <div
+                            className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
+                            style={{
+                                background: 'linear-gradient(180deg, rgba(16,185,129,0.25) 0%, transparent 100%)',
+                            }}
+                        />
+                        {/* Corner accent glow */}
+                        <div
+                            className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
+                            style={{
+                                background: 'radial-gradient(circle at top left, rgba(16,185,129,0.3) 0%, transparent 70%)',
+                            }}
+                        />
+                        {/* Subtle border enhancement */}
+                        <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-emerald-400/30 pointer-events-none" />
+                    </>
+                )}
+
                 {/* Top Left Badge */}
                 {topLeftBadge && (
                     <div className="absolute top-3 left-3">
@@ -113,30 +146,41 @@ export function StoreCard({
                 {/* Top Right Badge */}
                 {topRightBadge && (
                     <motion.div
-                        initial={{ scale: 0, rotate: -10 }}
+                        initial={{ scale: 0, rotate: -5 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: index * 0.08 + 0.2, type: 'spring', stiffness: 400 }}
+                        transition={{ delay: index * 0.08 + 0.2, type: 'spring', stiffness: 200, damping: 20 }}
                         className="absolute top-3 right-3"
                     >
                         {topRightBadge}
                     </motion.div>
                 )}
 
-                {/* Content */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <h3 className={`text-white text-sm font-bold truncate mb-2 ${colors.text} transition-colors`}>
+                {/* Content - Bottom corners layout */}
+                <div className="absolute bottom-0 left-0 right-0 pb-3 pl-3 pointer-events-none">
+                    {/* Title - Bottom Left */}
+                    <h3
+                        className={`text-white text-sm font-bold leading-snug max-w-[65%] text-left ${colors.text} transition-colors`}
+                        style={{
+                            textShadow: '0 2px 12px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8)',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                        }}
+                    >
                         {title}
                     </h3>
-
-                    <div className="flex items-center justify-between">
-                        {bottomLeft}
-                        {bottomRight && (
-                            <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                {bottomRight}
-                            </span>
-                        )}
-                    </div>
                 </div>
+
+                {/* Price - Bottom Right */}
+                {bottomLeft && (
+                    <div
+                        className="absolute bottom-3 right-3 pointer-events-none"
+                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                    >
+                        {bottomLeft}
+                    </div>
+                )}
 
                 {/* Hover glow effect */}
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t ${colors.glow} via-transparent to-transparent`} />

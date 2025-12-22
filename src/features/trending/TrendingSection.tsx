@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Flame, ExternalLink } from 'lucide-react'
+import { TrendingUp, Flame } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
 import type { TrendingGame, TrendingData } from '../../types/trending'
 
@@ -236,11 +236,6 @@ function TrendingCarousel({ games, onGameClick }: TrendingCarouselProps) {
                                     </span>
                                 </div>
                             )
-                        }
-                        bottomRight={
-                            <span className="text-[10px] font-mono text-amber-400/80 uppercase tracking-wider flex items-center gap-1">
-                                View <ExternalLink className="w-3 h-3" />
-                            </span>
                         }
                     />
                 ))}
