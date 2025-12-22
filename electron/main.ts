@@ -44,6 +44,8 @@ interface StoreData {
     steamPath: string
   }
   steamAuth?: SteamAuthData
+  claimedAppIds?: string[]
+  pendingClaimAppId?: string | null
 }
 
 // Simple JSON file store
@@ -68,7 +70,9 @@ class JsonStore {
     }
     return {
       games: [],
-      settings: { steamPath: '' }
+      settings: { steamPath: '' },
+      claimedAppIds: [],
+      pendingClaimAppId: null
     }
   }
 
@@ -135,12 +139,57 @@ function createWindow() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// IPC Handlers
-// ═══════════════════════════════════════════════════════════
+// Global focus handler for reliability
+app.on('browser-window-focus', async () => {
+  const pendingClaimAppId = store.get('pendingClaimAppId')
+  if (pendingClaimAppId) {
+    console.log('[Main] App focused, checking pending claim:', pendingClaimAppId)
+    const appIdToCheck = pendingClaimAppId
+    store.set('pendingClaimAppId', null) // Clear immediately
+
+    const auth = getAuthState()
+    if (!auth.isLoggedIn || !auth.user) {
+      console.log('[Main] Not logged in, skipping claim check')
+      return
+    }
+
+    // Small delay to allow Steam to register the claim
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const result = await fetchOwnedGames(auth.user.steamId)
+    let owned = false
+
+    if (result.success) {
+      owned = result.games.some(g => g.appId === appIdToCheck)
+      console.log('[Main] Claim check result:', appIdToCheck, 'owned =', owned)
+    }
+
+    // HYBRID FALLBACK:
+    // If API says NOT owned, but we just returned from a pending claim,
+    // we assume the user claimed it (especially for F2P games API misses).
+    if (!owned) {
+      console.log('[Main] API failed to detect claim, assuming success (Hybrid)')
+      owned = true // Optimistic assumption
+    }
+
+    if (owned) {
+      // Persist to local store
+      const currentClaims = store.get('claimedAppIds') || []
+      if (!currentClaims.includes(appIdToCheck)) {
+        store.set('claimedAppIds', [...currentClaims, appIdToCheck])
+        console.log('[Main] Persisted claim locally:', appIdToCheck)
+      }
+
+      // Notify renderer
+      if (win) {
+        win.webContents.send('game-claimed', { appId: appIdToCheck, owned: true })
+      }
+    }
+  }
+})
 
 // ═══════════════════════════════════════════════════════════
-// Helpers
+// Helper Functions
 // ═══════════════════════════════════════════════════════════
 
 async function downloadGameCover(game: Game): Promise<string | null> {
@@ -172,6 +221,51 @@ async function downloadGameCover(game: Game): Promise<string | null> {
     console.error(`Failed to download cover for ${game.title}:`, error)
     return null
   }
+}
+
+// Helper to fetch game details from Steam Store API
+async function fetchSteamStoreDetails(appIds: string[]) {
+  if (appIds.length === 0) return []
+
+  const games: any[] = []
+
+  // Fetch each app individually for reliability (Steam API can be finicky with batch requests)
+  for (const appId of appIds) {
+    try {
+      const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic`
+      console.log('[Main] Fetching store details for:', appId)
+
+      const res = await fetch(url, {
+        headers: {
+          'Accept-Encoding': 'gzip, deflate',
+          'Accept': 'application/json'
+        }
+      })
+
+      if (!res.ok) {
+        console.warn('[Main] Store API returned', res.status, 'for', appId)
+        continue
+      }
+
+      const data = await res.json() as Record<string, { success: boolean; data: { name: string; steam_appid: number } }>
+
+      if (data[appId]?.success && data[appId]?.data?.name) {
+        console.log('[Main] Got name for', appId, ':', data[appId].data.name)
+        games.push({
+          appId: String(data[appId].data.steam_appid),
+          name: data[appId].data.name,
+          playtime: 0,
+          lastPlayed: undefined
+        })
+      } else {
+        console.warn('[Main] No data for appId:', appId)
+      }
+    } catch (error) {
+      console.error('[Main] Failed to fetch store details for', appId, ':', error)
+    }
+  }
+
+  return games
 }
 
 async function mirrorAllCovers() {
@@ -338,7 +432,42 @@ function setupIpcHandlers() {
     // Fetch all games from Steam API
     const apiResult = await fetchOwnedGames(auth.user.steamId)
 
-    if (!apiResult.success) {
+    // Merge with local claims that might be missing from API (F2P games)
+    // Do this BEFORE checking apiResult.success so we always try to include local claims
+    const localClaims = store.get('claimedAppIds') || []
+    if (localClaims.length > 0) {
+      const ownedAppIds = new Set(apiResult.success ? apiResult.games.map(g => g.appId) : [])
+      const missingAppIds = localClaims.filter(id => !ownedAppIds.has(id))
+
+      if (missingAppIds.length > 0) {
+        console.log('[Main] Found missing local claims:', missingAppIds)
+        const missingGames = await fetchSteamStoreDetails(missingAppIds)
+
+        // Even if store details fetch fails, we MUST include these games so they don't disappear.
+        // We'll create placeholders for any ID that fetchSteamStoreDetails missed.
+        const fetchedIds = new Set(missingGames.map((g: any) => g.appId))
+        const failedIds = missingAppIds.filter(id => !fetchedIds.has(id))
+
+        if (failedIds.length > 0) {
+          console.log('[Main] Store API failed for some claims, adding placeholders:', failedIds)
+          for (const id of failedIds) {
+            missingGames.push({
+              appId: id,
+              name: `Claimed Game (${id})`,
+              playtime: 0,
+              lastPlayed: undefined
+            })
+          }
+        }
+
+        if (missingGames.length > 0) {
+          console.log('[Main] Merging', missingGames.length, 'missing games into library')
+          apiResult.games.push(...missingGames)
+        }
+      }
+    }
+
+    if (!apiResult.success && apiResult.games.length === 0) {
       return { success: false, error: apiResult.error }
     }
 
@@ -471,6 +600,112 @@ function setupIpcHandlers() {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to fetch trending games'
+      }
+    }
+  })
+
+  // ═══════════════════════════════════════════════════════════
+  // Free Deals (GamerPower API - Steam giveaways)
+  // ═══════════════════════════════════════════════════════════
+
+  let freeDealsCache: { data: unknown; fetchedAt: number } | null = null
+  const FREE_DEALS_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
+
+  ipcMain.handle('get-free-deals', async () => {
+    console.log('[Main] get-free-deals IPC handler called')
+
+    // Check cache
+    if (freeDealsCache && Date.now() - freeDealsCache.fetchedAt < FREE_DEALS_CACHE_TTL) {
+      console.log('[Main] Returning cached free deals data')
+      return { success: true, data: freeDealsCache.data }
+    }
+
+    try {
+      // GamerPower API: Steam platform, game type only (not DLC/loot)
+      const response = await fetch(
+        'https://www.gamerpower.com/api/giveaways?platform=steam&type=game'
+      )
+
+      if (!response.ok) {
+        throw new Error(`GamerPower API returned ${response.status}`)
+      }
+
+      const rawGiveaways = await response.json() as Array<{
+        id: number
+        title: string
+        worth: string
+        thumbnail: string
+        image: string
+        description: string
+        open_giveaway_url: string
+        published_date: string
+        end_date: string
+        platforms: string
+        status: string
+      }>
+
+      // Helper to search Steam for App ID
+      const searchSteamAppId = async (gameName: string): Promise<string | null> => {
+        try {
+          const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameName)}&l=en&cc=US`
+          const searchRes = await fetch(searchUrl)
+          if (!searchRes.ok) return null
+
+          const searchData = await searchRes.json() as {
+            items?: Array<{ id: number; name: string }>
+          }
+
+          if (searchData.items && searchData.items.length > 0) {
+            // Find best match (case-insensitive)
+            const exactMatch = searchData.items.find(
+              item => item.name.toLowerCase() === gameName.toLowerCase()
+            )
+            return String(exactMatch?.id || searchData.items[0].id)
+          }
+          return null
+        } catch {
+          return null
+        }
+      }
+
+
+      // Map to our expected format and fetch Steam App IDs
+      const dealsWithAppIds = await Promise.all(
+        rawGiveaways.slice(0, 12).map(async (giveaway) => {
+          const cleanTitle = giveaway.title.replace(/ \(Steam\) Giveaway$/i, '')
+          const steamAppId = await searchSteamAppId(cleanTitle)
+
+          return {
+            id: giveaway.id,
+            title: cleanTitle,
+            originalPrice: giveaway.worth,
+            thumbnail: giveaway.thumbnail,
+            image: giveaway.image,
+            description: giveaway.description,
+            claimUrl: giveaway.open_giveaway_url,
+            endDate: giveaway.end_date,
+            status: giveaway.status,
+            steamAppId, // New field: Steam App ID for opening in Steam app
+          }
+        })
+      )
+
+      const freeDealsData = {
+        deals: dealsWithAppIds,
+        fetchedAt: Date.now(),
+      }
+
+      // Cache the result
+      freeDealsCache = { data: freeDealsData, fetchedAt: Date.now() }
+
+      console.log('[Main] ✓ Fetched', dealsWithAppIds.length, 'free Steam giveaways from GamerPower')
+      return { success: true, data: freeDealsData }
+
+    } catch (error) {
+      console.error('[Main] Failed to fetch free deals:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch free deals'
       }
     }
   })
@@ -855,6 +1090,66 @@ function setupIpcHandlers() {
         errorCode: 'NETWORK_ERROR' as const,
       }
     }
+  })
+
+  // ═══════════════════════════════════════════════════════════
+  // Steam Store & URL Openers + Claim Detection
+  // ═══════════════════════════════════════════════════════════
+
+
+
+  // Open Steam store page in Steam app
+  ipcMain.handle('open-steam-store', async (_event, appId: string) => {
+    console.log('[Main] Opening Steam store for appId:', appId)
+    await shell.openExternal(`steam://store/${appId}`)
+  })
+
+  // Open Steam store and track as pending claim
+  ipcMain.handle('open-steam-store-claim', async (_event, appId: string) => {
+    console.log('[Main] Opening Steam store for claim, appId:', appId)
+    store.set('pendingClaimAppId', appId)
+    await shell.openExternal(`steam://store/${appId}`)
+  })
+
+  // Check if a specific app is owned (Hybrid: API + Local Storage)
+  ipcMain.handle('check-game-owned', async (_event, appId: string) => {
+    // 1. Check local persistent store first
+    const localClaims = store.get('claimedAppIds') || []
+    if (localClaims.includes(appId)) {
+      console.log('[Main] Found in local claims:', appId)
+      return { success: true, owned: true }
+    }
+
+    // 2. Check Steam API
+    const auth = getAuthState()
+    if (!auth.isLoggedIn || !auth.user) {
+      return { success: false, owned: false }
+    }
+
+    const result = await fetchOwnedGames(auth.user.steamId)
+    if (!result.success) {
+      return { success: false, owned: false }
+    }
+
+    const owned = result.games.some(g => g.appId === appId)
+    console.log('[Main] Check game owned (API):', appId, '=', owned)
+
+    // If API says owned but not in local, maybe sync it? 
+    // Not strictly necessary as API is truth, but good for offline.
+    if (owned) {
+      const updatedClaims = [...new Set([...localClaims, appId])]
+      store.set('claimedAppIds', updatedClaims)
+    }
+
+    return { success: true, owned }
+  })
+
+
+
+  // Open URL in default browser
+  ipcMain.handle('open-url', async (_event, url: string) => {
+    console.log('[Main] Opening URL:', url)
+    await shell.openExternal(url)
   })
 
   // File dialogs

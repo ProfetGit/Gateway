@@ -5,6 +5,7 @@ import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
 import { GameCard } from '../game/GameCard'
 import { TrendingSection } from '../../features/trending'
+import { FreeDealsSection } from '../../features/free-deals'
 import type { Game } from '../../types/game'
 
 export function HomeView() {
@@ -55,6 +56,9 @@ export function HomeView() {
                         <div className="relative z-10 px-16 pb-12 space-y-12 bg-gradient-to-t from-void-pure via-void-pure/95 to-transparent -mt-24 pt-32">
                             {/* Steam Trending Row */}
                             <TrendingSection />
+
+                            {/* Free Deals Row - temporarily free Steam games */}
+                            <FreeDealsSection />
 
                             {/* Favorites Row */}
                             {favoriteGames.length > 0 && (

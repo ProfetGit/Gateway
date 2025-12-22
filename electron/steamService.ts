@@ -561,24 +561,7 @@ export function getAppName(steamPath: string, appId: string): string | null {
     return null
 }
 
-/**
- * Fetch game name from Steam Store API (public, no key needed)
- */
-async function fetchGameNameFromStore(appId: string): Promise<string | null> {
-    try {
-        const response = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}`)
-        const data = await response.json()
 
-        if (data?.[appId]?.success && data[appId]?.data?.name) {
-            const name = data[appId].data.name
-            appNameCache.set(appId, name)
-            return name
-        }
-    } catch (error) {
-        // Silently fail - we'll use fallback name
-    }
-    return null
-}
 
 /**
  * Update games with proper names from Steam

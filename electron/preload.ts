@@ -105,6 +105,21 @@ contextBridge.exposeInMainWorld('api', {
   // Trending games (Steam Store API)
   getTrendingGames: () => ipcRenderer.invoke('get-trending-games'),
 
+  // Free deals (GamerPower API - temporarily free Steam games)
+  getFreeDeals: () => ipcRenderer.invoke('get-free-deals'),
+
+  // Open Steam store page in Steam app
+  openSteamStore: (appId: string | number) => ipcRenderer.invoke('open-steam-store', String(appId)),
+
+  // Open Steam store and track as pending claim (for free games)
+  openSteamStoreClaim: (appId: string | number) => ipcRenderer.invoke('open-steam-store-claim', String(appId)),
+
+  // Check if user owns a specific game
+  checkGameOwned: (appId: string) => ipcRenderer.invoke('check-game-owned', appId),
+
+  // Open URL in default browser
+  openUrl: (url: string) => ipcRenderer.invoke('open-url', url),
+
   // File dialogs
   selectExecutable: (): Promise<string | null> => ipcRenderer.invoke('select-executable'),
   selectImage: (): Promise<string | null> => ipcRenderer.invoke('select-image'),
@@ -119,6 +134,13 @@ contextBridge.exposeInMainWorld('api', {
     const subscription = (_event: any, games: Game[]) => callback(games)
     ipcRenderer.on('games-updated', subscription)
     return () => ipcRenderer.removeListener('games-updated', subscription)
+  },
+
+  // Game claimed event (fired when window regains focus after claiming)
+  onGameClaimed: (callback: (data: { appId: string; owned: boolean }) => void) => {
+    const subscription = (_event: any, data: { appId: string; owned: boolean }) => callback(data)
+    ipcRenderer.on('game-claimed', subscription)
+    return () => ipcRenderer.removeListener('game-claimed', subscription)
   }
 })
 

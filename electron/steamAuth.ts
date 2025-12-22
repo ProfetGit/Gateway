@@ -292,7 +292,7 @@ export async function fetchOwnedGames(steamId: string): Promise<FetchGamesResult
     }
 
     try {
-        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${steamApiKey}&steamid=${steamId}&include_appinfo=1&include_played_free_games=1`
+        const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${steamApiKey}&steamid=${steamId}&include_appinfo=1&include_played_free_games=1&include_free_sub=1`
         console.log('[SteamAuth] Calling Steam API...')
 
         const response = await fetch(url)
