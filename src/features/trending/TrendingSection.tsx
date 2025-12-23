@@ -164,6 +164,17 @@ function TrendingCarousel({ games, onGameClick }: TrendingCarouselProps) {
     const [canScrollLeft, setCanScrollLeft] = React.useState(false)
     const [canScrollRight, setCanScrollRight] = React.useState(true)
 
+    // Deduplicate games by ID to prevent React key collisions
+    const uniqueGames = React.useMemo(() => {
+        const seen = new Map<number, TrendingGame>()
+        for (const game of games) {
+            if (!seen.has(game.id)) {
+                seen.set(game.id, game)
+            }
+        }
+        return Array.from(seen.values())
+    }, [games])
+
     const checkScroll = React.useCallback(() => {
         if (scrollRef.current) {
             const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
@@ -201,7 +212,7 @@ function TrendingCarousel({ games, onGameClick }: TrendingCarouselProps) {
                     WebkitMaskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`
                 }}
             >
-                {games.map((game, index) => (
+                {uniqueGames.map((game, index) => (
                     <StoreCard
                         key={game.id}
                         title={game.name}
