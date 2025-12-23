@@ -36,6 +36,16 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         store.set('games', games.filter(g => g.id !== id))
     })
 
+    // Uninstall game
+    ipcMain.handle('uninstall-game', async (_event, game: Game) => {
+        // Steam games
+        if (game.steamAppId) {
+            await shell.openExternal(`steam://uninstall/${game.steamAppId}`)
+            return { success: true }
+        }
+        return { success: false, error: 'Uninstall not supported for this game type' }
+    })
+
     // Launch game
     ipcMain.handle('launch-game', async (_event, game: Game) => {
         // Lutris games

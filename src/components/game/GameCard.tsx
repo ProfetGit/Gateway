@@ -1,6 +1,7 @@
 import { useState, useEffect, memo } from 'react'
-import { Play, Heart, Download } from 'lucide-react'
+import { Play, Download, Trash2, Info, Star, ExternalLink, StarOff } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
+import { useContextMenuStore } from '../../stores/contextMenuStore'
 import type { Game } from '../../types/game'
 
 /**
@@ -27,7 +28,8 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
 
     const [imgSrc, setImgSrc] = useState(getInitialSrc)
     const [imageError, setImageError] = useState(false)
-    const { openDetail, toggleFavorite } = useGameStore()
+    const { openDetail, toggleFavorite, deleteGame } = useGameStore()
+    const { open: openContextMenu } = useContextMenuStore()
 
     const handlePlay = async (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -80,6 +82,51 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
         <article
             className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(220,38,38,0.25)]"
             onClick={() => openDetail(game)}
+            onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                openContextMenu(e.clientX, e.clientY, [
+                    {
+                        label: 'Play',
+                        icon: <Play className="w-4 h-4" />,
+                        onClick: () => handlePlay(e)
+                    },
+                    {
+                        label: game.isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                        icon: game.isFavorite ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />,
+                        onClick: () => toggleFavorite(game.id)
+                    },
+                    {
+                        label: 'View Details',
+                        icon: <Info className="w-4 h-4" />,
+                        onClick: () => openDetail(game)
+                    },
+                    ...(game.steamAppId ? [{
+                        label: 'View in Steam Store',
+                        icon: <ExternalLink className="w-4 h-4" />,
+                        onClick: () => window.api?.openSteamStore(game.steamAppId!)
+                    }] : []),
+                    {
+                        label: game.isInstalled ? 'Uninstall' : 'Install',
+                        icon: <Download className="w-4 h-4" />,
+                        onClick: () => {
+                            if (game.isInstalled) {
+                                if (game.steamAppId) {
+                                    window.api?.uninstallGame(game)
+                                }
+                            } else {
+                                handleInstall(e)
+                            }
+                        }
+                    },
+                    {
+                        label: 'Remove from Library',
+                        icon: <Trash2 className="w-4 h-4" />,
+                        danger: true,
+                        onClick: () => deleteGame(game.id)
+                    }
+                ])
+            }}
         >
             {/* Corner bracket accents on hover */}
             <div className="absolute top-0 left-0 w-0 h-0 border-t-[3px] border-l-[3px] border-transparent group-hover:w-6 group-hover:h-6 group-hover:border-crimson-500 transition-all duration-300 z-40 pointer-events-none" />
@@ -122,7 +169,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                 onClick={handleFavorite}
                 className="absolute top-2.5 right-2.5 z-30 p-1.5 rounded-sm bg-black/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 hover:bg-black/60 transition-all duration-200"
             >
-                <Heart
+                <Star
                     className={`w-3.5 h-3.5 transition-colors ${game.isFavorite
                         ? 'text-crimson-500 fill-crimson-500'
                         : 'text-white/60 hover:text-white'
@@ -198,7 +245,6 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                         {/* Animated fill layer for uninstalled games */}
                         {!game.isInstalled && (
                             <g clipPath="url(#hexClip)">
-                                {/* Fill rectangle that rises on hover */}
                                 <rect
                                     x="0"
                                     y="87"

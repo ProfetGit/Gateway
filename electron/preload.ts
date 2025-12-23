@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('api', {
   updateGame: (id: string, updates: Partial<Game>): Promise<Game> => ipcRenderer.invoke('update-game', id, updates),
   deleteGame: (id: string): Promise<void> => ipcRenderer.invoke('delete-game', id),
   launchGame: (game: Game): Promise<void> => ipcRenderer.invoke('launch-game', game),
+  uninstallGame: (game: Game): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke('uninstall-game', game),
 
   // Steam integration (local files)
   syncSteam: (): Promise<Game[]> => ipcRenderer.invoke('sync-steam'),

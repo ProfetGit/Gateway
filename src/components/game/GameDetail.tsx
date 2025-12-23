@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     X,
     Play,
-    Heart,
+    Star,
     Trash2,
     Clock,
     Calendar,
@@ -391,7 +391,7 @@ export function GameDetail() {
                                                     onClick={() => toggleFavorite(selectedGame.id)}
                                                     className={`p-3 border border-white/10 hover:border-crimson-500/50 hover:bg-crimson-500/10 transition-all group ${selectedGame.isFavorite ? 'border-crimson-500 bg-crimson-500/10' : ''}`}
                                                 >
-                                                    <Heart className={`w-5 h-5 ${selectedGame.isFavorite ? 'text-crimson-500 fill-crimson-500' : 'text-white/40 group-hover:text-crimson-500'}`} />
+                                                    <Star className={`w-5 h-5 ${selectedGame.isFavorite ? 'text-crimson-500 fill-crimson-500' : 'text-white/40 group-hover:text-crimson-500'}`} />
                                                 </button>
                                                 <button className="p-3 border border-white/10 hover:border-white/30 hover:bg-white/5 transition-all text-white/40 hover:text-white">
                                                     <Share2 className="w-5 h-5" />

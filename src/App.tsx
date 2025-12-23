@@ -8,6 +8,7 @@ import { GameDetail } from './components/game/GameDetail'
 import { AddGameModal } from './components/game/AddGameModal'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { HomeView } from './components/home/HomeView'
+import { ContextMenu } from './components/shared/ContextMenu'
 import { useGameStore } from './stores/gameStore'
 
 function App() {
@@ -96,6 +97,7 @@ function App() {
       <GameDetail />
       <AddGameModal />
       <SettingsPanel />
+      <ContextMenu />
     </AppShell>
   )
 }

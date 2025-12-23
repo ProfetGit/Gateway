@@ -195,6 +195,7 @@ export interface ElectronAPI {
     updateGame: (id: string, updates: Partial<Game>) => Promise<Game>
     deleteGame: (id: string) => Promise<void>
     launchGame: (game: Game) => Promise<void>
+    uninstallGame: (game: Game) => Promise<{ success: boolean; error?: string }>
 
     // Steam integration (local files)
     syncSteam: () => Promise<Game[]>
@@ -224,6 +225,13 @@ export interface ElectronAPI {
 
     // Trending games
     getTrendingGames: () => Promise<import('./trending').FetchTrendingResult>
+    getFreeDeals: () => Promise<any>
+
+    // Steam Store Actions
+    openSteamStore: (appId: string | number) => Promise<void>
+    openSteamStoreClaim: (appId: string | number) => Promise<void>
+    checkGameOwned: (appId: string) => Promise<boolean>
+    openUrl: (url: string) => Promise<void>
 
     // File dialogs
     selectExecutable: () => Promise<string | null>
@@ -236,6 +244,7 @@ export interface ElectronAPI {
 
     // Events
     onGamesUpdated: (callback: (games: Game[]) => void) => () => void
+    onGameClaimed: (callback: (data: { appId: string; owned: boolean }) => void) => () => void
 }
 
 declare global {
