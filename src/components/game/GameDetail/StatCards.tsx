@@ -1,0 +1,54 @@
+import React from 'react'
+
+export function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between py-2 border-b border-void-border/20">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-white/30 flex items-center gap-1.5">
+                {icon}
+                {label}
+            </span>
+            <span className="text-xs font-mono text-white/60">{value}</span>
+        </div>
+    )
+}
+
+export function StatCard({ icon, label, value, highlight }: { icon: React.ReactNode; label: string; value: string; highlight?: 'emerald' | 'amber' }) {
+    return (
+        <div className="p-4 bg-void-surface/50 border border-void-border/30 rounded-lg relative overflow-hidden group hover:border-void-border/50 transition-colors">
+            {highlight && (
+                <div className={`absolute top-0 right-0 w-12 h-12 blur-2xl opacity-20 ${highlight === 'emerald' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            )}
+            <div className="flex items-center gap-2 mb-2">
+                {icon}
+                <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">{label}</span>
+            </div>
+            <div className={`text-xl font-display font-bold ${highlight === 'emerald' ? 'text-emerald-500' : highlight === 'amber' ? 'text-amber-500' : 'text-white'}`}>
+                {value}
+            </div>
+        </div>
+    )
+}
+
+export function RequirementsCard({ title, icon, color, html }: { title: string; icon: React.ReactNode; color: 'crimson' | 'emerald'; html: string }) {
+    return (
+        <div className="p-4 bg-void-surface/50 border border-void-border/30 rounded-lg">
+            <div className={`flex items-center gap-2 mb-3 ${color === 'crimson' ? 'text-crimson-500/80' : 'text-emerald-500/80'}`}>
+                {icon}
+                <span className="text-xs font-mono uppercase tracking-wider">{title}</span>
+            </div>
+            <div
+                className="text-[11px] text-white/50 leading-relaxed space-y-1 font-mono [&_strong]:text-white/70 [&_strong]:block [&_strong]:mt-2 [&_strong]:mb-0.5"
+                dangerouslySetInnerHTML={{ __html: html }}
+            />
+        </div>
+    )
+}
+
+export function EmptyState({ icon, message }: { icon: React.ReactNode; message: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center py-20 text-white/20">
+            <div className="mb-4 opacity-30">{icon}</div>
+            <span className="text-sm font-mono uppercase tracking-widest">{message}</span>
+        </div>
+    )
+}

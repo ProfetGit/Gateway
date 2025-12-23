@@ -130,10 +130,17 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         }
         // Steam games
         else if (game.steamAppId) {
-            if (needsShell) {
-                // For Steam, we launch steam command directly with env vars
-                // Gamescope wraps the steam process
-                const cmd = `${envPrefix}${gamescopeCmd}${gamemodePrefix}steam steam://rungameid/${game.steamAppId}`
+            // NOTE: Gamescope cannot wrap steam:// protocol launches because Steam is
+            // typically already running as a daemon. The steam:// URI just signals the
+            // existing Steam client, which doesn't spawn a child process under gamescope.
+            // For Steam games, users should configure gamescope via Steam's own launch options.
+            if (gamescopeCmd) {
+                console.warn('[Gateway] Gamescope is not compatible with steam:// protocol launches. Disabling gamescope for this Steam game. To use gamescope, configure it in Steam\'s game properties instead.')
+            }
+
+            if (envPrefix || gamemodePrefix) {
+                // We can still apply MangoHud and GameMode via env vars
+                const cmd = `${envPrefix}${gamemodePrefix}steam steam://rungameid/${game.steamAppId}`
                 exec(cmd, (error) => {
                     if (error) console.error('Failed to launch Steam game:', error)
                 })
