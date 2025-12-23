@@ -62,7 +62,6 @@ export function setupSteamApiHandlers() {
         // Check cache
 
         if (trendingCache && Date.now() - trendingCache.fetchedAt < TRENDING_CACHE_TTL) {
-            console.log('[Main] Returning cached trending data')
             return { success: true, data: trendingCache.data }
         }
 
@@ -176,7 +175,6 @@ export function setupSteamApiHandlers() {
         // Check cache
 
         if (freeDealsCache && Date.now() - freeDealsCache.fetchedAt < FREE_DEALS_CACHE_TTL) {
-            console.log('[Main] Returning cached free deals data')
             return { success: true, data: freeDealsCache.data }
         }
 
@@ -303,7 +301,6 @@ export function setupSteamApiHandlers() {
         // Check cache
         const cached = newsCache.get(appId)
         if (cached && Date.now() - cached.fetchedAt < NEWS_CACHE_TTL) {
-            console.log('[Main] Returning cached news for appId:', appId)
             return cached.data
         }
 
@@ -402,7 +399,6 @@ export function setupSteamApiHandlers() {
         // Check cache
         const cached = detailsCache.get(appId)
         if (cached && Date.now() - cached.fetchedAt < DETAILS_CACHE_TTL) {
-            console.log('[Main] Returning cached details for appId:', appId)
             return cached.data
         }
 
