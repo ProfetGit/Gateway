@@ -105,6 +105,41 @@ export function parseVdf(content: string): VdfObject {
     return result
 }
 
+/**
+ * Escapes a string for VDF format
+ */
+function escapeVdfString(str: string): string {
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\t/g, '\\t')
+}
+
+/**
+ * Serializes a VDF object back to string format
+ * Inverse of parseVdf - produces valid VDF that Steam can read
+ */
+export function serializeVdf(obj: VdfObject, indent: number = 0): string {
+    const tabs = '\t'.repeat(indent)
+    const lines: string[] = []
+
+    for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+            // Key-value pair
+            lines.push(`${tabs}"${escapeVdfString(key)}"\t\t"${escapeVdfString(value)}"`)
+        } else {
+            // Nested object
+            lines.push(`${tabs}"${escapeVdfString(key)}"`)
+            lines.push(`${tabs}{`)
+            lines.push(serializeVdf(value, indent + 1))
+            lines.push(`${tabs}}`)
+        }
+    }
+
+    return lines.join('\n')
+}
+
 // ═══════════════════════════════════════════════════════════
 // Steam Path Detection
 // ═══════════════════════════════════════════════════════════

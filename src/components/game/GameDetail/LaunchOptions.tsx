@@ -5,40 +5,72 @@ export function LaunchToggle({
     description,
     icon,
     enabled,
-    onToggle
+    onToggle,
+    disabled,
+    disabledTooltip
 }: {
     label: string
     description: string
     icon: React.ReactNode
     enabled: boolean
     onToggle: () => void
+    disabled?: boolean
+    disabledTooltip?: string
 }) {
     return (
-        <button
-            onClick={onToggle}
-            className="w-full flex items-center justify-between py-2 group hover:bg-white/[0.02] rounded-lg transition-colors -mx-1 px-1"
-        >
-            <div className="flex items-center gap-2.5">
-                <div className={`p-1.5 rounded-md transition-colors ${enabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-white/40 group-hover:text-white/60'}`}>
-                    {icon}
+        <div className="relative group/toggle">
+            <button
+                onClick={disabled ? undefined : onToggle}
+                disabled={disabled}
+                title={disabled ? disabledTooltip : undefined}
+                className={`w-full flex items-center justify-between py-2 group rounded-lg transition-colors -mx-1 px-1 ${disabled
+                        ? 'opacity-40 cursor-not-allowed'
+                        : 'hover:bg-white/[0.02]'
+                    }`}
+            >
+                <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-md transition-colors ${disabled
+                            ? 'bg-white/5 text-white/30'
+                            : enabled
+                                ? 'bg-emerald-500/20 text-emerald-400'
+                                : 'bg-white/5 text-white/40 group-hover:text-white/60'
+                        }`}>
+                        {icon}
+                    </div>
+                    <div className="flex flex-col items-start">
+                        <span className={`text-[11px] font-mono uppercase tracking-wider transition-colors ${disabled
+                                ? 'text-white/40'
+                                : enabled
+                                    ? 'text-white/90'
+                                    : 'text-white/70 group-hover:text-white/90'
+                            }`}>
+                            {label}
+                        </span>
+                        <span className="text-[9px] font-mono text-white/40">{description}</span>
+                    </div>
                 </div>
-                <div className="flex flex-col items-start">
-                    <span className={`text-[11px] font-mono uppercase tracking-wider transition-colors ${enabled ? 'text-white/90' : 'text-white/70 group-hover:text-white/90'}`}>
-                        {label}
-                    </span>
-                    <span className="text-[9px] font-mono text-white/40">{description}</span>
+                <div className={`relative w-9 h-5 rounded-full transition-all duration-300 ${disabled
+                        ? 'bg-void-surface/40 border-void-border/30'
+                        : enabled
+                            ? 'bg-emerald-500/30 border-emerald-500/60'
+                            : 'bg-void-surface/80 border-void-border/50'
+                    } border`}>
+                    <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-200 shadow-sm ${disabled
+                                ? 'bg-white/20 translate-x-0.5'
+                                : enabled
+                                    ? 'bg-emerald-500 translate-x-4'
+                                    : 'bg-white/30 translate-x-0.5'
+                            }`}
+                    />
                 </div>
-            </div>
-            <div className={`relative w-9 h-5 rounded-full transition-all duration-300 ${enabled
-                ? 'bg-emerald-500/30 border-emerald-500/60'
-                : 'bg-void-surface/80 border-void-border/50'
-                } border`}>
-                <div
-                    className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-200 shadow-sm ${enabled ? 'bg-emerald-500 translate-x-4' : 'bg-white/30 translate-x-0.5'
-                        }`}
-                />
-            </div>
-        </button>
+            </button>
+            {disabled && disabledTooltip && (
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-[9px] font-mono bg-void-pure/95 border border-void-border/50 rounded text-white/60 whitespace-nowrap opacity-0 group-hover/toggle:opacity-100 transition-opacity pointer-events-none z-50">
+                    {disabledTooltip}
+                </div>
+            )}
+        </div>
     )
 }
 

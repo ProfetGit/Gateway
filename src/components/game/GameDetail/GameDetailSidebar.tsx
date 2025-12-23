@@ -39,6 +39,9 @@ export function GameDetailSidebar({
 }: GameDetailSidebarProps) {
     const [gamescopeExpanded, setGamescopeExpanded] = useState(false)
 
+    // Steam games don't support launch options from Gateway
+    const isSteamGame = selectedGame.source === 'steam'
+
     return (
         <div className="relative w-[280px] shrink-0 bg-void-deep border-r border-void-border/30 flex flex-col">
             {/* Ambient bleed background */}
@@ -123,10 +126,12 @@ export function GameDetailSidebar({
                             description="Performance overlay"
                             icon={<Activity size={12} />}
                             enabled={selectedGame.mangoHudEnabled ?? false}
-                            onToggle={() => {
+                            disabled={isSteamGame}
+                            disabledTooltip="Use Steam's launch options"
+                            onToggle={async () => {
                                 const newValue = !selectedGame.mangoHudEnabled
                                 updateGame(selectedGame.id, { mangoHudEnabled: newValue })
-                                window.api?.updateGame(selectedGame.id, { mangoHudEnabled: newValue })
+                                await window.api?.updateGame(selectedGame.id, { mangoHudEnabled: newValue })
                             }}
                         />
 
@@ -136,10 +141,12 @@ export function GameDetailSidebar({
                             description="CPU governor optimization"
                             icon={<Zap size={12} />}
                             enabled={selectedGame.gamemodeEnabled ?? false}
-                            onToggle={() => {
+                            disabled={isSteamGame}
+                            disabledTooltip="Use Steam's launch options"
+                            onToggle={async () => {
                                 const newValue = !selectedGame.gamemodeEnabled
                                 updateGame(selectedGame.id, { gamemodeEnabled: newValue })
-                                window.api?.updateGame(selectedGame.id, { gamemodeEnabled: newValue })
+                                await window.api?.updateGame(selectedGame.id, { gamemodeEnabled: newValue })
                             }}
                         />
 
@@ -151,11 +158,13 @@ export function GameDetailSidebar({
                                     description="Nested compositor"
                                     icon={<Maximize2 size={12} />}
                                     enabled={selectedGame.gamescope?.enabled ?? false}
-                                    onToggle={() => {
+                                    disabled={isSteamGame}
+                                    disabledTooltip="Use Steam's launch options"
+                                    onToggle={async () => {
                                         const newValue = !selectedGame.gamescope?.enabled
                                         const newSettings = { ...selectedGame.gamescope, enabled: newValue }
                                         updateGame(selectedGame.id, { gamescope: newSettings })
-                                        window.api?.updateGame(selectedGame.id, { gamescope: newSettings })
+                                        await window.api?.updateGame(selectedGame.id, { gamescope: newSettings })
                                     }}
                                 />
                                 {selectedGame.gamescope?.enabled && (
