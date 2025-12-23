@@ -1,3 +1,31 @@
+// Gamescope configuration options
+export interface GamescopeSettings {
+    enabled: boolean
+    // Resolution
+    width?: number           // -w: game render width
+    height?: number          // -h: game render height
+    outputWidth?: number     // -W: output/upscale width
+    outputHeight?: number    // -H: output/upscale height
+    // Display mode
+    fullscreen?: boolean     // -f: fullscreen
+    borderless?: boolean     // -b: borderless window
+    // Upscaling
+    scaler?: 'auto' | 'integer' | 'fit' | 'fill' | 'stretch'  // -S
+    filter?: 'linear' | 'nearest' | 'fsr' | 'nis'  // -F
+    fsr?: boolean            // --fsr (legacy, use filter instead)
+    fsrSharpness?: number    // --fsr-sharpness (0-20, default 2)
+    nisSharpness?: number    // --nis-sharpness (0-20)
+    // Frame limiting
+    fpsLimit?: number        // -r: frame limit
+    unfocusedFpsLimit?: number // -o: unfocused fps limit
+    // Other options
+    exposeWayland?: boolean  // --expose-wayland
+    hdr?: boolean            // --hdr-enabled
+    forceGrabCursor?: boolean // --force-grab-cursor
+    adaptiveSync?: boolean   // --adaptive-sync
+    vrr?: boolean            // Alias for adaptive sync
+}
+
 export interface Game {
     id: string
     title: string
@@ -19,6 +47,11 @@ export interface Game {
     launchArgs?: string
     heroImageUrl?: string
     logoImageUrl?: string
+    // Launch options
+    mangoHudEnabled?: boolean
+    gamescope?: GamescopeSettings
+    gamemodeEnabled?: boolean  // Feral GameMode support
+    customEnvVars?: string     // Custom environment variables (VAR=value VAR2=value2)
 }
 
 export type FilterStatus = 'all' | 'installed'

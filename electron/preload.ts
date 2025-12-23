@@ -1,5 +1,28 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
+// Gamescope configuration options
+interface GamescopeSettings {
+  enabled: boolean
+  width?: number
+  height?: number
+  outputWidth?: number
+  outputHeight?: number
+  fullscreen?: boolean
+  borderless?: boolean
+  scaler?: 'auto' | 'integer' | 'fit' | 'fill' | 'stretch'
+  filter?: 'linear' | 'nearest' | 'fsr' | 'nis'
+  fsr?: boolean
+  fsrSharpness?: number
+  nisSharpness?: number
+  fpsLimit?: number
+  unfocusedFpsLimit?: number
+  exposeWayland?: boolean
+  hdr?: boolean
+  forceGrabCursor?: boolean
+  adaptiveSync?: boolean
+  vrr?: boolean
+}
+
 // Type definitions
 interface Game {
   id: string
@@ -21,6 +44,11 @@ interface Game {
   launchArgs?: string
   heroImageUrl?: string
   logoImageUrl?: string
+  // Launch options
+  mangoHudEnabled?: boolean
+  gamescope?: GamescopeSettings
+  gamemodeEnabled?: boolean
+  customEnvVars?: string
 }
 
 interface SteamStatus {
