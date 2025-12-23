@@ -32,12 +32,14 @@ export interface Game {
     steamAppId?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam'
+    source: 'manual' | 'steam' | 'lutris'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number
     notes?: string
     launchArgs?: string
+    heroImageUrl?: string
+    logoImageUrl?: string
 }
 
 interface StoreInterface {

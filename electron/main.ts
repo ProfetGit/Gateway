@@ -8,6 +8,7 @@ import { setSteamApiKey, initAuth } from './steamAuth'
 import { setupSteamApiHandlers } from './src/features/steam/steam-api'
 import { setupLibraryHandlers } from './src/features/library/library-ipc'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
+import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -109,6 +110,7 @@ app.whenReady().then(() => {
   setupSteamApiHandlers()
   setupLibraryHandlers(store, getMainWindow)
   setupSyncHandlers(store, getMainWindow)
+  setupLutrisHandlers(store, getMainWindow)
 
   createWindow()
 

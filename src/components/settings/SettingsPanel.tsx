@@ -45,14 +45,19 @@ export function SettingsPanel() {
     const handleSyncLibrary = async () => {
         setIsFetching(true)
         try {
+            // Sync Steam first
             const result = await window.api?.clearAndResync()
             if (result && !result.success) {
-                alert(result.error || 'Failed to sync library')
-            } else if (result && result.success) {
-                const allGames = await window.api?.getGames()
-                if (allGames) {
-                    setGames(allGames)
-                }
+                alert(result.error || 'Failed to sync Steam library')
+            }
+
+            // Then sync Lutris
+            await window.api?.syncLutris()
+
+            // Reload all games
+            const allGames = await window.api?.getGames()
+            if (allGames) {
+                setGames(allGames)
             }
         } catch (error) {
             console.error('Sync failed:', error)
@@ -239,8 +244,8 @@ export function SettingsPanel() {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <StatMetric label="Total Games" value={games.length} />
                                         <StatMetric label="INSTALLED" value={games.filter(g => g.isInstalled).length} color="crimson" />
-                                        <StatMetric label="FAVORITES" value={games.filter(g => g.isFavorite).length} />
-                                        <StatMetric label="PLATFORM" value="STEAM" />
+                                        <StatMetric label="STEAM" value={games.filter(g => g.source === 'steam').length} />
+                                        <StatMetric label="LUTRIS" value={games.filter(g => g.source === 'lutris').length} color="crimson" />
                                     </div>
                                 </section>
 

@@ -38,9 +38,16 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
 
     // Launch game
     ipcMain.handle('launch-game', async (_event, game: Game) => {
-        if (game.steamAppId) {
+        // Lutris games
+        if (game.lutrisId) {
+            await shell.openExternal(`lutris:rungameid/${game.lutrisId}`)
+        }
+        // Steam games
+        else if (game.steamAppId) {
             await shell.openExternal(`steam://rungameid/${game.steamAppId}`)
-        } else if (game.executablePath) {
+        }
+        // Manual executable
+        else if (game.executablePath) {
             const { exec } = await import('child_process')
             const args = game.launchArgs || ''
             exec(`"${game.executablePath}" ${args}`, (error) => {

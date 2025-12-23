@@ -86,15 +86,26 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
     }, [games.length, activeIndex])
 
     const getHeroUrl = (game: Game) => {
-        if (game.source === 'steam' && game.steamAppId) {
+        // Priority 1: Steam Hero (Highest quality, reliable) provided we have an App ID
+        if (game.steamAppId) {
             return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/library_hero.jpg`
         }
-        return game.coverUrl // Fallback
+        // Priority 2: Explicit Hero/Banner URL (e.g. from Lutris API)
+        if (game.heroImageUrl) {
+            return game.heroImageUrl
+        }
+        // Fallback: Vertical cover art
+        return game.coverUrl
     }
 
     const getLogoUrl = (game: Game) => {
-        if (game.source === 'steam' && game.steamAppId) {
+        // Priority 1: Steam Logo
+        if (game.steamAppId) {
             return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/logo.png`
+        }
+        // Priority 2: Explicit Logo URL
+        if (game.logoImageUrl) {
+            return game.logoImageUrl
         }
         return undefined
     }

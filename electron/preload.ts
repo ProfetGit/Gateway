@@ -8,13 +8,17 @@ interface Game {
   localCoverPath?: string
   executablePath?: string
   steamAppId?: string
+  lutrisId?: number
+  lutrisSlug?: string
   isInstalled: boolean
   isFavorite: boolean
-  source: 'manual' | 'steam'
+  source: 'manual' | 'steam' | 'lutris'
   playtime?: number
   lastPlayed?: string
   notes?: string
   launchArgs?: string
+  heroImageUrl?: string
+  logoImageUrl?: string
 }
 
 interface SteamStatus {
@@ -84,6 +88,10 @@ contextBridge.exposeInMainWorld('api', {
   installSteamGame: (appId: string): Promise<void> => ipcRenderer.invoke('install-steam-game', appId),
   clearAndResync: (): Promise<{ success: boolean; error?: string; totalGames?: number; installedGames?: number }> =>
     ipcRenderer.invoke('clear-and-resync'),
+
+  // Lutris integration
+  getLutrisStatus: () => ipcRenderer.invoke('get-lutris-status'),
+  syncLutris: (): Promise<Game[]> => ipcRenderer.invoke('sync-lutris'),
 
   // Steam authentication
   steamLogin: (): Promise<AuthState> => ipcRenderer.invoke('steam-login'),

@@ -5,18 +5,22 @@ export interface Game {
     localCoverPath?: string
     executablePath?: string
     steamAppId?: string
+    lutrisId?: number
+    lutrisSlug?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam'
+    source: 'manual' | 'steam' | 'lutris'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number // Bytes
     notes?: string
     launchArgs?: string
+    heroImageUrl?: string
+    logoImageUrl?: string
 }
 
 export type FilterStatus = 'all' | 'installed'
-export type FilterPlatform = 'all' | 'steam'
+export type FilterPlatform = 'all' | 'steam' | 'lutris'
 
 export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
 export type SortOrder = 'asc' | 'desc'
@@ -197,6 +201,10 @@ export interface ElectronAPI {
     getSteamStatus: () => Promise<SteamStatus>
     installSteamGame: (appId: string) => Promise<void>
     clearAndResync: () => Promise<{ success: boolean; error?: string; totalGames?: number; installedGames?: number }>
+
+    // Lutris integration
+    getLutrisStatus: () => Promise<{ installed: boolean; version: string | null; dataPath: string | null; gamesCount: number }>
+    syncLutris: () => Promise<Game[]>
 
     // Steam authentication
     steamLogin: () => Promise<AuthState>

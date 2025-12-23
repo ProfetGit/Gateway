@@ -11,6 +11,13 @@ export default defineConfig({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['better-sqlite3'],
+            },
+          },
+        },
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.
@@ -19,8 +26,9 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
+              external: ['better-sqlite3'],
               output: {
-                format: 'cjs',
+                format: 'cjs', // Force CJS output for better compat with electron main
                 entryFileNames: '[name].cjs',
               },
             },
