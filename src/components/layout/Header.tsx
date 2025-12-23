@@ -209,6 +209,7 @@ function PlatformDropdown({ currentPlatform, onPlatformChange }: { currentPlatfo
         { id: 'all', label: 'All Platforms' },
         { id: 'steam', label: 'Steam' },
         { id: 'lutris', label: 'Lutris' },
+        { id: 'heroic', label: 'Heroic' },
     ]
 
     useEffect(() => {
@@ -239,7 +240,7 @@ function PlatformDropdown({ currentPlatform, onPlatformChange }: { currentPlatfo
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-2 w-48 bg-void-surface border border-white/10 shadow-xl z-50 flex flex-col py-2"
+                        className="absolute top-full left-0 mt-2 w-48 bg-void-surface border-0 shadow-xl z-50 flex flex-col py-2"
                     >
                         {options.map((option) => (
                             <button

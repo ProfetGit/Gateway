@@ -9,6 +9,7 @@ import { setupSteamApiHandlers } from './src/features/steam/steam-api'
 import { setupLibraryHandlers } from './src/features/library/library-ipc'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
 import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
+import { setupHeroicHandlers } from './src/features/heroic/heroic-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -111,6 +112,7 @@ app.whenReady().then(() => {
   setupLibraryHandlers(store, getMainWindow)
   setupSyncHandlers(store, getMainWindow)
   setupLutrisHandlers(store, getMainWindow)
+  setupHeroicHandlers(store, getMainWindow)
 
   createWindow()
 

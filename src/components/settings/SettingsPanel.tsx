@@ -54,6 +54,9 @@ export function SettingsPanel() {
             // Then sync Lutris
             await window.api?.syncLutris()
 
+            // Then sync Heroic
+            await window.api?.syncHeroic()
+
             // Reload all games
             const allGames = await window.api?.getGames()
             if (allGames) {
@@ -241,11 +244,12 @@ export function SettingsPanel() {
                                 {/* DATABASE METRICS */}
                                 <section>
                                     <SectionHeader icon={<Database className="w-4 h-4" />} title="Library Stats" />
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                         <StatMetric label="Total Games" value={games.length} />
                                         <StatMetric label="INSTALLED" value={games.filter(g => g.isInstalled).length} color="crimson" />
                                         <StatMetric label="STEAM" value={games.filter(g => g.source === 'steam').length} />
-                                        <StatMetric label="LUTRIS" value={games.filter(g => g.source === 'lutris').length} color="crimson" />
+                                        <StatMetric label="LUTRIS" value={games.filter(g => g.source === 'lutris').length} />
+                                        <StatMetric label="HEROIC" value={games.filter(g => g.source === 'heroic').length} color="crimson" />
                                     </div>
                                 </section>
 

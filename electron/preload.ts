@@ -10,9 +10,11 @@ interface Game {
   steamAppId?: string
   lutrisId?: number
   lutrisSlug?: string
+  heroicAppName?: string
+  heroicRunner?: 'legendary' | 'gog' | 'sideload'
   isInstalled: boolean
   isFavorite: boolean
-  source: 'manual' | 'steam' | 'lutris'
+  source: 'manual' | 'steam' | 'lutris' | 'heroic'
   playtime?: number
   lastPlayed?: string
   notes?: string
@@ -93,6 +95,12 @@ contextBridge.exposeInMainWorld('api', {
   // Lutris integration
   getLutrisStatus: () => ipcRenderer.invoke('get-lutris-status'),
   syncLutris: (): Promise<Game[]> => ipcRenderer.invoke('sync-lutris'),
+
+  // Heroic integration
+  getHeroicStatus: () => ipcRenderer.invoke('get-heroic-status'),
+  syncHeroic: (): Promise<Game[]> => ipcRenderer.invoke('sync-heroic'),
+  installHeroicGame: (appName: string, runner?: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('install-heroic-game', appName, runner),
 
   // Steam authentication
   steamLogin: (): Promise<AuthState> => ipcRenderer.invoke('steam-login'),

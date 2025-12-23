@@ -218,6 +218,7 @@ export const useFilteredGames = () => {
             // 3. Platform Filter
             if (platform === 'steam' && game.source !== 'steam') return false
             if (platform === 'lutris' && game.source !== 'lutris') return false
+            if (platform === 'heroic' && game.source !== 'heroic') return false
 
             // 4. Favorites Filter
             if (onlyFavorites && !game.isFavorite) return false

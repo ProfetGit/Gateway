@@ -180,16 +180,30 @@ export function GameDetail() {
     }
 
     const handleInstall = async () => {
-        if (!selectedGame.steamAppId) return
-        setIsInstalling(true)
-        try {
-            await window.api?.installSteamGame(selectedGame.steamAppId)
-        } catch (error) {
-            console.error('Failed to start installation:', error)
-        } finally {
-            // Keep the installing state for visual feedback
-            // The actual install happens in Steam client
-            setTimeout(() => setIsInstalling(false), 2000)
+        // Support Steam games
+        if (selectedGame.steamAppId) {
+            setIsInstalling(true)
+            try {
+                await window.api?.installSteamGame(selectedGame.steamAppId)
+            } catch (error) {
+                console.error('Failed to start Steam installation:', error)
+            } finally {
+                setTimeout(() => setIsInstalling(false), 2000)
+            }
+            return
+        }
+
+        // Support Heroic games (Epic/GOG)
+        if (selectedGame.heroicAppName) {
+            setIsInstalling(true)
+            try {
+                await window.api?.installHeroicGame(selectedGame.heroicAppName, selectedGame.heroicRunner)
+            } catch (error) {
+                console.error('Failed to start Heroic installation:', error)
+            } finally {
+                setTimeout(() => setIsInstalling(false), 2000)
+            }
+            return
         }
     }
 
@@ -469,55 +483,23 @@ export function GameDetail() {
                                                         <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,currentColor_10px,currentColor_11px)] text-amber-500" />
                                                     </div>
 
-                                                    <div className="relative flex items-center justify-between gap-6">
-                                                        <div className="flex items-center gap-6">
-                                                            <div className="w-16 h-16 flex items-center justify-center border border-amber-500/30 bg-amber-500/10">
-                                                                <CloudDownload className="w-8 h-8 text-amber-400" />
-                                                            </div>
-                                                            <div>
-                                                                <h3 className="text-lg font-display font-bold italic text-white mb-1">
-                                                                    Ready to Download
-                                                                </h3>
-                                                                <p className="text-sm text-white/50 max-w-md">
-                                                                    {selectedGame.steamAppId
-                                                                        ? 'This game is in your Steam library. Click Install to download it through Steam.'
-                                                                        : 'Set an executable path to launch this game, or install it manually.'
-                                                                    }
-                                                                </p>
-                                                            </div>
+                                                    <div className="relative flex items-center gap-6">
+                                                        <div className="w-16 h-16 flex items-center justify-center border border-amber-500/30 bg-amber-500/10 shrink-0">
+                                                            <CloudDownload className="w-8 h-8 text-amber-400" />
                                                         </div>
-
-                                                        {selectedGame.steamAppId && (
-                                                            <motion.button
-                                                                onClick={handleInstall}
-                                                                disabled={isInstalling}
-                                                                className="
-                                                                    flex items-center gap-3 px-8 py-4
-                                                                    bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50
-                                                                    text-black font-display font-bold italic uppercase tracking-tight text-lg
-                                                                    transition-all duration-300
-                                                                "
-                                                                whileHover={{ scale: isInstalling ? 1 : 1.02 }}
-                                                                whileTap={{ scale: isInstalling ? 1 : 0.98 }}
-                                                            >
-                                                                {isInstalling ? (
-                                                                    <>
-                                                                        <motion.div
-                                                                            animate={{ rotate: 360 }}
-                                                                            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                                                        >
-                                                                            <Download className="w-5 h-5" />
-                                                                        </motion.div>
-                                                                        <span>Opening Steam...</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Download className="w-5 h-5" />
-                                                                        <span>Install</span>
-                                                                    </>
-                                                                )}
-                                                            </motion.button>
-                                                        )}
+                                                        <div>
+                                                            <h3 className="text-lg font-display font-bold italic text-white mb-1">
+                                                                Ready to Download
+                                                            </h3>
+                                                            <p className="text-sm text-white/50 max-w-lg">
+                                                                {selectedGame.steamAppId
+                                                                    ? 'This game is available in your Steam library. Use the Install button below to start the download.'
+                                                                    : selectedGame.heroicAppName
+                                                                        ? 'This game is in your Heroic library. Click Install to open Heroic, then find and install the game from there.'
+                                                                        : 'Set an executable path to launch this game, or install it manually from your game source.'
+                                                                }
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </motion.div>
 
@@ -777,13 +759,13 @@ export function GameDetail() {
                                         <span>LAUNCH</span>
                                         <Play className="w-6 h-6 fill-current group-hover:translate-x-1 transition-transform" />
                                     </motion.button>
-                                ) : selectedGame.steamAppId ? (
+                                ) : selectedGame.steamAppId || selectedGame.heroicAppName ? (
                                     <motion.button
                                         onClick={handleInstall}
                                         disabled={isInstalling}
                                         className="
                                             group relative flex items-center gap-4 px-10 py-4
-                                            bg-gradient-to-r from-amber-500 to-amber-400  
+                                            bg-gradient-to-r from-amber-500 to-amber-400
                                             hover:from-amber-400 hover:to-amber-300
                                             disabled:from-amber-500/50 disabled:to-amber-400/50
                                             text-black font-display font-black italic uppercase tracking-tighter text-2xl
@@ -795,25 +777,24 @@ export function GameDetail() {
                                         whileHover={{ scale: isInstalling ? 1 : 1.05 }}
                                         whileTap={{ scale: isInstalling ? 1 : 0.95 }}
                                     >
-                                        {isInstalling ? (
-                                            <>
-                                                <motion.div
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                                                >
-                                                    <Download className="w-6 h-6" />
-                                                </motion.div>
-                                                <span>OPENING...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>INSTALL</span>
+                                        <span>
+                                            {isInstalling
+                                                ? 'OPENING...'
+                                                : selectedGame.heroicAppName
+                                                    ? 'OPEN HEROIC'
+                                                    : 'INSTALL'
+                                            }
+                                        </span>
+                                        <div className="relative w-6 h-6 flex items-center justify-center">
+                                            {isInstalling ? (
+                                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                            ) : (
                                                 <Download className="w-6 h-6 group-hover:translate-y-0.5 transition-transform" />
-                                            </>
-                                        )}
+                                            )}
+                                        </div>
                                     </motion.button>
                                 ) : (
-                                    /* Non-Steam game that's not installed - disabled state */
+                                    /* Non-Steam/Heroic game that's not installed - disabled state */
                                     <div
                                         className="
                                             flex items-center gap-4 px-10 py-4

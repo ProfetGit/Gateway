@@ -7,15 +7,42 @@ export interface Game {
     steamAppId?: string
     lutrisId?: number
     lutrisSlug?: string
+    heroicAppName?: string
+    heroicRunner?: 'legendary' | 'gog' | 'sideload'
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'lutris'
+    source: 'manual' | 'steam' | 'lutris' | 'heroic'
     playtime?: number
     lastPlayed?: string
+    sizeOnDisk?: number
     notes?: string
     launchArgs?: string
     heroImageUrl?: string
     logoImageUrl?: string
+}
+
+// Heroic game data structure
+export interface HeroicGame {
+    appName: string
+    title: string
+    installPath?: string
+    executable?: string
+    platform: string
+    installSize: number
+    runner: 'legendary' | 'gog' | 'sideload'
+    isInstalled: boolean
+    coverUrl?: string
+    heroUrl?: string
+}
+
+export interface HeroicStatus {
+    installed: boolean
+    version: string | null
+    dataPath: string | null
+    gamesCount: number
+    epicCount: number
+    gogCount: number
+    sideloadCount: number
 }
 
 export interface SteamAuthData {

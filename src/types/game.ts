@@ -7,9 +7,11 @@ export interface Game {
     steamAppId?: string
     lutrisId?: number
     lutrisSlug?: string
+    heroicAppName?: string
+    heroicRunner?: 'legendary' | 'gog' | 'sideload'
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'lutris'
+    source: 'manual' | 'steam' | 'lutris' | 'heroic'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number // Bytes
@@ -20,7 +22,7 @@ export interface Game {
 }
 
 export type FilterStatus = 'all' | 'installed'
-export type FilterPlatform = 'all' | 'steam' | 'lutris'
+export type FilterPlatform = 'all' | 'steam' | 'lutris' | 'heroic'
 
 export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
 export type SortOrder = 'asc' | 'desc'
@@ -206,6 +208,11 @@ export interface ElectronAPI {
     // Lutris integration
     getLutrisStatus: () => Promise<{ installed: boolean; version: string | null; dataPath: string | null; gamesCount: number }>
     syncLutris: () => Promise<Game[]>
+
+    // Heroic integration
+    getHeroicStatus: () => Promise<{ installed: boolean; version: string | null; dataPath: string | null; gamesCount: number; epicCount: number; gogCount: number; sideloadCount: number }>
+    syncHeroic: () => Promise<Game[]>
+    installHeroicGame: (appName: string, runner?: string) => Promise<{ success: boolean; error?: string }>
 
     // Steam authentication
     steamLogin: () => Promise<AuthState>
