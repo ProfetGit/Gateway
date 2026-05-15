@@ -196,13 +196,31 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                             </h1>
                         )}
 
-                        <div className="flex items-center gap-6 mb-8 font-mono text-xs tracking-[0.2em] text-crimson-500/80 uppercase">
-                            <span className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse" />
-                                {activeGame.playtime ? `${Math.round(activeGame.playtime / 60)} hours played` : 'Never played'}
+                        <div
+                            className="flex items-baseline gap-5 mb-8"
+                            style={{ filter: 'drop-shadow(0 2px 6px oklch(0.08 0.005 25 / 0.9))' }}
+                        >
+                            <div className="flex items-baseline gap-2.5">
+                                <span className="self-center w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse shadow-[0_0_8px_oklch(0.52_0.23_25/0.9)]" />
+                                {activeGame.playtime ? (
+                                    <>
+                                        <span className="font-display font-black text-3xl text-white leading-none tracking-tight">
+                                            {Math.round(activeGame.playtime / 60)}
+                                        </span>
+                                        <span className="text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-white/85">
+                                            hours played
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-xs font-mono font-bold uppercase tracking-[0.22em] text-white/85">
+                                        Never played
+                                    </span>
+                                )}
+                            </div>
+                            <span className="font-mono text-base font-bold text-white/30 leading-none">///</span>
+                            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-white/75">
+                                {activeGame.source}
                             </span>
-                            <span className="opacity-50">///</span>
-                            <span>{activeGame.source}</span>
                         </div>
 
                         <div className="flex items-center gap-8">
@@ -239,12 +257,12 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                         LAUNCH
                                     </motion.span>
                                     <motion.div
-                                        className="flex items-center gap-2 text-[10px] font-mono tracking-[0.3em] text-crimson-500 uppercase font-bold mt-1"
+                                        className="flex items-center gap-2 text-[11px] font-mono tracking-[0.22em] text-crimson-400 uppercase font-bold mt-1.5"
                                         variants={{
-                                            idle: { x: 0, opacity: 0.6 },
+                                            idle: { x: 0, opacity: 0.75 },
                                             hover: { x: 12, opacity: 1 }
                                         }}
-                                        transition={{ duration: 0.1, ease: "easeOut" }}
+                                        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                                     >
                                         <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-ping" />
                                         Ready to play
@@ -254,10 +272,10 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
 
                             <motion.button
                                 onClick={() => onOpenDetail(activeGame)}
-                                className="group flex items-center gap-2 px-6 py-3 border-l border-white/20 hover:border-crimson-500/50 hover:bg-white/5 transition-all"
+                                className="group flex items-center gap-2.5 pl-5 pr-2 py-3 border-l border-white/15 hover:border-crimson-500/60 hover:bg-white/[0.03] transition-colors duration-100"
                             >
-                                <span className="uppercase tracking-widest text-sm font-bold text-white/60 group-hover:text-white transition-colors">Details</span>
-                                <Info className="w-4 h-4 text-white/40 group-hover:text-crimson-500 transition-colors" />
+                                <span className="font-display font-bold uppercase tracking-[0.18em] text-sm text-white/80 group-hover:text-white transition-colors">Details</span>
+                                <Info className="w-4 h-4 text-white/35 group-hover:text-crimson-500 transition-colors" />
                             </motion.button>
                         </div>
                     </motion.div>
