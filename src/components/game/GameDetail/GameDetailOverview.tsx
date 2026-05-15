@@ -71,7 +71,7 @@ export function GameDetailOverview({
                         <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">About</span>
                     </div>
                     <p
-                        className="text-sm text-white/70 leading-relaxed"
+                        className="select-text text-sm text-white/70 leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: gameDetails.details.shortDescription }}
                     />
 

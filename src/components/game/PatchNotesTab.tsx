@@ -158,7 +158,7 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
             {/* Header */}
             <div className="p-5 pb-3 border-b border-void-border">
                 <div className="flex items-start justify-between gap-4 mb-3">
-                    <h3 className="text-base font-display font-bold text-white leading-tight line-clamp-2 group-hover:text-crimson-400 transition-colors">
+                    <h3 className="select-text text-base font-display font-bold text-white leading-tight line-clamp-2 group-hover:text-crimson-400 transition-colors">
                         {item.title}
                     </h3>
                     <a
@@ -195,7 +195,7 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
 
             {/* Content */}
             <div className="p-5 pt-4">
-                <p className="text-sm text-white/50 leading-relaxed whitespace-pre-line">
+                <p className="select-text text-sm text-white/50 leading-relaxed whitespace-pre-line">
                     {displayContent}
                 </p>
 

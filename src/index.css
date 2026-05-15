@@ -113,10 +113,48 @@
   body {
     @apply bg-void-pure text-text-primary font-display m-0 p-0 overflow-hidden;
     min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
   }
 
   #root {
     @apply h-screen w-screen overflow-hidden;
+  }
+
+  /* Pointer on every interactive element unless disabled. Covers <button>,
+     role="button", <a href>, <summary>, <label[for]>, and the .clickable
+     opt-in for plain divs that handle clicks. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled),
+  .clickable {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Keep selection where it's actually useful: typed input + opt-in content. */
+  input,
+  textarea,
+  [contenteditable="true"],
+  .select-text {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+  }
+
+  /* Inputs already get cursor: text above; buttons inside .select-text regions
+     should keep pointer. */
+  .select-text button:not(:disabled),
+  .select-text a[href] {
+    cursor: pointer;
   }
 
   ::selection {

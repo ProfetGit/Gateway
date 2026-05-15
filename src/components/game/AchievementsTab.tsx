@@ -201,7 +201,7 @@ function AchievementCard({ achievement, index }: { achievement: Achievement; ind
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 select-text">
                 <h4 className={`
                     font-display font-bold text-sm leading-tight mb-1 truncate
                     ${achievement.achieved ? 'text-white' : 'text-white/50'}

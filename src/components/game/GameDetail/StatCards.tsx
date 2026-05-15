@@ -37,7 +37,7 @@ export function RequirementsCard({ title, icon, color, html }: { title: string; 
                 <span className="text-xs font-mono uppercase tracking-wider">{title}</span>
             </div>
             <div
-                className="text-[11px] text-white/50 leading-relaxed space-y-1 font-mono [&_strong]:text-white/70 [&_strong]:block [&_strong]:mt-2 [&_strong]:mb-0.5"
+                className="select-text text-[11px] text-white/50 leading-relaxed space-y-1 font-mono [&_strong]:text-white/70 [&_strong]:block [&_strong]:mt-2 [&_strong]:mb-0.5"
                 dangerouslySetInnerHTML={{ __html: html }}
             />
         </div>
