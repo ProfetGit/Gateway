@@ -201,7 +201,6 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                             style={{ filter: 'drop-shadow(0 2px 6px oklch(0.08 0.005 25 / 0.9))' }}
                         >
                             <div className="flex items-baseline gap-2.5">
-                                <span className="self-center w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse shadow-[0_0_8px_oklch(0.52_0.23_25/0.9)]" />
                                 {activeGame.playtime ? (
                                     <>
                                         <span className="font-display font-black text-3xl text-white leading-none tracking-tight">
