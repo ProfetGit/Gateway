@@ -8,6 +8,10 @@ Gateway surfaces your Steam library alongside live catalog data (trending, free-
 
 ---
 
+## Demo
+
+![Gateway demo — hero cycle, hover states, library browse](docs/demo.gif)
+
 ## Screenshots
 
 ![Home view — cinematic hero carousel with launch CTA, recently-played strip, and trending row](docs/screenshots/home.png)
