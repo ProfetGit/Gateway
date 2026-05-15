@@ -5,10 +5,9 @@ import { AchievementHuntCard } from '../../components/shared/AchievementHuntCard
 import { useGameStore } from '../../stores/gameStore'
 import { useAchievementsStore } from '../../stores/achievementsStore'
 
-// Min progress to qualify. 50% keeps the section from surfacing trivially-low
-// games. Upper bound is "not yet 100% done" — checked via unlocked < total so
-// rounding can't push a near-complete game out of the band.
-const MIN_PCT = 50
+// Show the top N closest-to-finishing games. Upper bound is "not yet 100%
+// done" — checked via unlocked < total so rounding can't push a near-complete
+// game out. No lower threshold so the grid reliably fills 4 cards.
 const TOP_N = 4
 
 export function AchievementHuntsSection() {
@@ -50,7 +49,6 @@ export function AchievementHuntsSection() {
                 const entry = progressMap[game.steamAppId!]
                 if (!entry || entry.total === 0) return null
                 if (entry.unlocked >= entry.total) return null
-                if (entry.percentage < MIN_PCT) return null
                 return { game, ...entry }
             })
             .filter((x): x is NonNullable<typeof x> => x !== null)
@@ -117,9 +115,6 @@ export function AchievementHuntsSection() {
                     className="group shrink-0 flex items-center gap-2 px-3 py-1.5 text-[10px] font-mono font-black uppercase tracking-[0.18em] text-white/60 border border-white/15 rounded-sm hover:text-crimson-300 hover:border-crimson-500/60 hover:bg-crimson-500/5 transition-[color,border-color,background-color] duration-200 ease-out"
                 >
                     View all
-                    <span className="text-white/30 group-hover:text-crimson-400/70 transition-colors">
-                        {qualifyingGames.length}
-                    </span>
                     <ArrowUpRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </button>
             </div>
