@@ -18,6 +18,7 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string     // Custom environment variables (VAR=value VAR2=value2)
+    appType?: 'game' | 'dlc' | 'application' | 'music' | 'demo' | 'mod' // Resolved by background classifier
 }
 
 export type FilterStatus = 'all' | 'installed'
@@ -30,6 +31,7 @@ export interface FilterState {
     status: FilterStatus
     platform: FilterPlatform
     onlyFavorites: boolean
+    hideDlc: boolean
     search: string
     sortBy: SortOption
     sortOrder: SortOrder
@@ -74,6 +76,7 @@ export interface GameStore {
     setFilterStatus: (status: FilterStatus) => void
     setFilterPlatform: (platform: FilterPlatform) => void
     toggleOnlyFavorites: () => void
+    toggleHideDlc: () => void
     setSearchQuery: (query: string) => void
     setSort: (sortBy: SortOption, sortOrder: SortOrder) => void
     resetFilters: () => void

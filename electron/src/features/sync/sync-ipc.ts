@@ -158,11 +158,12 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         win?.webContents.send('games-updated', finalGames)
         mirrorAllCovers(store, win)
 
-        // Background-resolve any games STILL named "Game ${appId}" after bulk
-        // resolution. These are appIds missing from Steam's GetAppList feed
-        // (DLC/region-locked/recently-added games). Fetched one-at-a-time
-        // with throttling — never blocks the sync return path.
+        // Background-resolve any games STILL named "Game ${appId}" after bulk resolution.
         resolveStragglersInBackground(store, win)
+
+        // Background-classify app types (game/dlc/application/etc.) for unclassified entries.
+        // Throttled, capped at 200/session — takes a few syncs to cover a large library.
+        resolveAppTypesInBackground(store, win)
 
         return { success: true, count: finalGames.length }
     }
@@ -247,6 +248,81 @@ function resolveStragglersInBackground(store: JsonStore, win: BrowserWindow | nu
     })()
 }
 
+
+// ─── Background app-type classifier ─────────────────────────────────────────
+//
+// Fetches Steam store type (game/dlc/application/etc.) for unclassified entries.
+// Runs after sync, throttled at one call per 1.5s, capped at 200 per session.
+// Only notifies the renderer when a non-game type is confirmed — this is the
+// signal that triggers the filter to hide that entry.
+
+const classifiedThisSession = new Set<string>()
+let typeClassifierRunning = false
+const TYPE_CAP = 200
+const TYPE_DELAY_MS = 1500
+
+function resolveAppTypesInBackground(store: JsonStore, win: BrowserWindow | null) {
+    if (typeClassifierRunning) return
+    typeClassifierRunning = true
+
+    void (async () => {
+        try {
+            const games = store.get('games')
+            const unclassified = games.filter(g =>
+                g.source === 'steam' &&
+                g.steamAppId &&
+                !g.appType &&
+                !classifiedThisSession.has(g.steamAppId!)
+            ).slice(0, TYPE_CAP)
+
+            if (unclassified.length === 0) return
+            console.log('[Main] Background type-classifying', unclassified.length, 'Steam entries...')
+
+            let classified = 0
+            for (const game of unclassified) {
+                classifiedThisSession.add(game.steamAppId!)
+                try {
+                    const url = `https://store.steampowered.com/api/appdetails?appids=${game.steamAppId}&filters=basic`
+                    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+
+                    if (res.status === 429) {
+                        console.warn('[Main] Rate-limited during type classification, stopping at', classified, 'classified.')
+                        break
+                    }
+                    if (!res.ok) continue
+
+                    const data = await res.json() as Record<string, { success: boolean; data?: { type?: string } }>
+                    const entry = data[game.steamAppId!]
+
+                    if (entry?.success && entry.data?.type) {
+                        const appType = entry.data.type
+                        const current = store.get('games')
+                        const updated = current.map(g =>
+                            g.id === game.id ? { ...g, appType } : g
+                        )
+                        store.set('games', updated)
+                        classified++
+
+                        // Notify renderer only for non-games — that's when the filter changes
+                        if (appType !== 'game') {
+                            win?.webContents.send('games-updated', updated)
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Main] Type classification failed for', game.steamAppId, err)
+                }
+
+                await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS))
+            }
+
+            console.log('[Main] ✓ Type classification batch done.', classified, 'entries classified.')
+        } catch (err) {
+            console.error('[Main] Type classifier crashed:', err)
+        } finally {
+            typeClassifierRunning = false
+        }
+    })()
+}
 
 export function setupSyncHandlers(store: JsonStore, getMainWindow: () => BrowserWindow | null) {
     // ═══════════════════════════════════════════════════════════

@@ -30,6 +30,7 @@ export const useGameStore = create<GameStore>((set, get) => {
             status: 'all',
             platform: 'all',
             onlyFavorites: false,
+            hideDlc: true,
             search: '',
             sortBy: 'alphabetical',
             sortOrder: 'asc'
@@ -81,6 +82,11 @@ export const useGameStore = create<GameStore>((set, get) => {
             currentView: 'library'
         })),
 
+        toggleHideDlc: () => set((state) => ({
+            filters: { ...state.filters, hideDlc: !state.filters.hideDlc },
+            currentView: 'library'
+        })),
+
         setSearchQuery: (search) => set((state) => ({
             filters: { ...state.filters, search }
         })),
@@ -94,6 +100,7 @@ export const useGameStore = create<GameStore>((set, get) => {
                 status: 'all',
                 platform: 'all',
                 onlyFavorites: false,
+                hideDlc: true,
                 search: '',
                 sortBy: 'alphabetical',
                 sortOrder: 'asc'

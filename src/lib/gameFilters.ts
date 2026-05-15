@@ -1,7 +1,9 @@
 import type { Game, FilterState } from '../types/game'
 
+const NON_GAME_TYPES = new Set(['dlc', 'application', 'music', 'demo', 'mod'])
+
 export function filterAndSortGames(games: Game[], filters: FilterState): Game[] {
-    const { status, platform, onlyFavorites, search, sortBy, sortOrder } = filters
+    const { status, platform, onlyFavorites, hideDlc, search, sortBy, sortOrder } = filters
 
     const filtered = games.filter((game) => {
         if (search) {
@@ -12,6 +14,8 @@ export function filterAndSortGames(games: Game[], filters: FilterState): Game[] 
         if (status === 'installed' && !game.isInstalled) return false
         if (platform === 'steam' && game.source !== 'steam') return false
         if (onlyFavorites && !game.isFavorite) return false
+        // Only hide when type is positively identified as non-game — unclassified entries stay visible
+        if (hideDlc && game.appType && NON_GAME_TYPES.has(game.appType)) return false
 
         return true
     })

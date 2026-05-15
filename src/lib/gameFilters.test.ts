@@ -6,6 +6,7 @@ const DEFAULT_FILTERS: FilterState = {
     status: 'all',
     platform: 'all',
     onlyFavorites: false,
+    hideDlc: false,
     search: '',
     sortBy: 'alphabetical',
     sortOrder: 'asc',
@@ -172,6 +173,32 @@ describe('filterAndSortGames', () => {
             const result = filterAndSortGames(games, { ...DEFAULT_FILTERS, sortBy: 'lastPlayed', sortOrder: 'desc' })
             expect(result[0].id).toBe('2')
             expect(result[1].id).toBe('1')
+        })
+    })
+
+    describe('hideDlc filter', () => {
+        it('hides classified non-game entries when hideDlc is true', () => {
+            const games = [
+                makeGame({ id: '1', title: 'Cyberpunk 2077', source: 'steam' }),
+                makeGame({ id: '2', title: 'Phantom Liberty', source: 'steam', appType: 'dlc' }),
+                makeGame({ id: '3', title: 'OST Pack', source: 'steam', appType: 'music' }),
+            ]
+            const result = filterAndSortGames(games, { ...DEFAULT_FILTERS, hideDlc: true })
+            expect(result).toHaveLength(1)
+            expect(result[0].id).toBe('1')
+        })
+
+        it('keeps unclassified entries visible when hideDlc is true', () => {
+            const games = [makeGame({ id: '1', title: 'Unknown Entry', source: 'steam' })]
+            expect(filterAndSortGames(games, { ...DEFAULT_FILTERS, hideDlc: true })).toHaveLength(1)
+        })
+
+        it('shows all entries including DLC when hideDlc is false', () => {
+            const games = [
+                makeGame({ id: '1', title: 'Game', source: 'steam' }),
+                makeGame({ id: '2', title: 'DLC', source: 'steam', appType: 'dlc' }),
+            ]
+            expect(filterAndSortGames(games, { ...DEFAULT_FILTERS, hideDlc: false })).toHaveLength(2)
         })
     })
 

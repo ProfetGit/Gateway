@@ -49,12 +49,17 @@ export function GameDetail() {
     }, [selectedGame, isDeleting, deleteGame, closeDetail])
 
     const handleImageError = useCallback(() => {
-        if (!selectedGame?.steamAppId || !imgSrc) return
-        if (imgSrc.includes('library_600x900_2x.jpg')) {
+        if (!imgSrc) return
+        if (selectedGame?.steamAppId && imgSrc.includes('library_600x900_2x.jpg')) {
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_600x900.jpg`)
+        } else if (bannerSrc && imgSrc !== bannerSrc) {
+            // Cover CDN exhausted — use banner as portrait fallback
+            setImgSrc(bannerSrc)
+        } else {
+            setImgSrc(undefined)
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedGame?.steamAppId, imgSrc])
+    }, [selectedGame?.steamAppId, imgSrc, bannerSrc])
 
     const handleBannerError = useCallback(() => {
         if (!selectedGame?.steamAppId || !bannerSrc) {
@@ -139,9 +144,9 @@ export function GameDetail() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.12, duration: 0.3 }}
                         >
-                            {imgSrc ? (
+                            {(imgSrc ?? bannerSrc) ? (
                                 <img
-                                    src={imgSrc}
+                                    src={imgSrc ?? bannerSrc}
                                     className="w-full h-full object-cover pointer-events-auto"
                                     onError={handleImageError}
                                     alt={selectedGame.title}

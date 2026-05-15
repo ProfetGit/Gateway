@@ -10,6 +10,7 @@ export function Header() {
         filters,
         setFilterStatus,
         toggleOnlyFavorites,
+        toggleHideDlc,
         setSearchQuery,
         setSort,
         openAddModal
@@ -67,6 +68,21 @@ export function Header() {
                         >
                             <Star className={clsx("w-4 h-4", filters.onlyFavorites && "fill-current")} />
                             <span>FAVORITES</span>
+                        </button>
+
+                        {/* Divider */}
+                        <div className="w-px h-6 bg-white/10 mx-4 rotate-12" />
+
+                        {/* Games only toggle — hides DLC, software, music, demos */}
+                        <button
+                            onClick={toggleHideDlc}
+                            title={filters.hideDlc ? 'Showing games only — click to include DLC & software' : 'Showing all entries — click to hide DLC & software'}
+                            className={clsx(
+                                "flex items-center gap-2 px-4 py-2 text-sm font-display font-bold italic tracking-wider transition-all duration-100 uppercase",
+                                !filters.hideDlc ? "text-ember-400" : "text-white/40 hover:text-white"
+                            )}
+                        >
+                            <span>GAMES ONLY</span>
                         </button>
 
                         {/* Divider */}

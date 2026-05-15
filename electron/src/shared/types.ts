@@ -16,6 +16,7 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string
+    appType?: string
 }
 
 export interface SteamAuthData {
