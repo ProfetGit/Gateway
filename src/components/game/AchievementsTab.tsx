@@ -42,14 +42,14 @@ export function AchievementsTab({ data, isLoading }: AchievementsTabProps) {
                     <AlertCircle className="w-8 h-8 text-crimson-500" />
                 </div>
                 <h3 className="text-xl font-display font-bold italic text-white/80 mb-2">
-                    CANNOT LOAD ACHIEVEMENTS
+                    Couldn't load achievements
                 </h3>
                 <p className="text-sm text-white/40 max-w-md">
                     {data.error}
                 </p>
                 {data.errorCode === 'PROFILE_PRIVATE' && (
                     <p className="text-xs text-white/30 mt-4">
-                        Set your Steam profile and game details to Public
+                        Set your Steam profile to public
                     </p>
                 )}
             </motion.div>
@@ -68,10 +68,10 @@ export function AchievementsTab({ data, isLoading }: AchievementsTabProps) {
                     <Trophy className="w-8 h-8 text-white/20" />
                 </div>
                 <h3 className="text-xl font-display font-bold italic text-white/60 mb-2">
-                    NO ACHIEVEMENTS
+                    No achievements
                 </h3>
                 <p className="text-sm text-white/30">
-                    This game doesn't have Steam achievements
+                    This game doesn't have any
                 </p>
             </motion.div>
         )
@@ -157,7 +157,7 @@ function AchievementCard({ achievement, index }: { achievement: Achievement; ind
             className={`
                 relative group flex gap-4 p-4 border transition-all duration-300
                 ${achievement.achieved
-                    ? 'bg-void-surface border-crimson-500/30 hover:border-crimson-500/60 hover:shadow-[0_0_20px_rgba(255,58,58,0.15)]'
+                    ? 'bg-void-surface border-crimson-500/30 hover:border-crimson-500/60 hover:shadow-[0_0_20px_oklch(0.58_0.245_25/0.15)]'
                     : 'bg-void-pure border-void-border hover:border-white/20'
                 }
             `}
@@ -227,7 +227,7 @@ function AchievementCard({ achievement, index }: { achievement: Achievement; ind
             {/* Status indicator */}
             <div className="absolute top-3 right-3">
                 {achievement.achieved ? (
-                    <div className="w-2 h-2 rounded-full bg-crimson-500 shadow-[0_0_8px_rgba(255,58,58,0.6)]" />
+                    <div className="w-2 h-2 rounded-full bg-crimson-500 shadow-[0_0_8px_oklch(0.58_0.245_25/0.6)]" />
                 ) : (
                     <Lock className="w-3 h-3 text-white/20" />
                 )}

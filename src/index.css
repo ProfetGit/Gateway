@@ -1,12 +1,100 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Chakra+Petch:wght@300;400;500;600;700&family=Red+Hat+Mono:wght@400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════
-   CRIMSON VOID - Base Layer
-   OLED-optimized dark theme with true blacks
+   THEME — Tailwind v4 CSS-first config.
+   All palette tokens are flat OKLCH (no <alpha-value>) — v4 wires
+   alpha modifiers (e.g. `bg-crimson-500/40`) through color-mix()
+   automatically, so the placeholder isn't needed.
+   ═══════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Tinted black/white — `text-white` and `bg-black` resolve to these,
+     not pure #fff / #000. */
+  --color-white: oklch(0.98 0.003 25);
+  --color-black: oklch(0.08 0.005 25);
+
+  /* Void scale — OLED-optimized darks, hue locked at 25. */
+  --color-void-pure:     oklch(0.08 0.005 25);
+  --color-void-deep:     oklch(0.12 0.005 25);
+  --color-void-surface:  oklch(0.16 0.005 25);
+  --color-void-elevated: oklch(0.20 0.006 25);
+  --color-void-border:   oklch(0.26 0.008 25);
+
+  /* Crimson scale — primary brand. */
+  --color-crimson-50:  oklch(0.97 0.020 25);
+  --color-crimson-100: oklch(0.93 0.040 25);
+  --color-crimson-200: oklch(0.86 0.080 25);
+  --color-crimson-300: oklch(0.76 0.140 25);
+  --color-crimson-400: oklch(0.66 0.200 25);
+  --color-crimson-500: oklch(0.58 0.245 25);
+  --color-crimson-600: oklch(0.52 0.230 25);
+  --color-crimson-700: oklch(0.45 0.200 25);
+  --color-crimson-800: oklch(0.39 0.165 25);
+  --color-crimson-900: oklch(0.33 0.130 25);
+  --color-crimson-950: oklch(0.22 0.090 25);
+
+  /* Ember — pre-baked translucent variants for glow recipes. */
+  --color-ember-glow:  oklch(0.58 0.245 25 / 0.15);
+  --color-ember-pulse: oklch(0.58 0.245 25 / 0.08);
+  --color-ember-trace: oklch(0.58 0.245 25 / 0.03);
+
+  /* Text */
+  --color-text-primary:   oklch(0.98 0.003 25);
+  --color-text-secondary: oklch(0.72 0.005 25);
+  --color-text-muted:     oklch(0.48 0.006 25);
+  --color-text-ghost:     oklch(0.30 0.008 25);
+
+  /* Fonts */
+  --font-mono:    'Red Hat Mono', ui-monospace, monospace;
+  --font-display: 'Chakra Petch', system-ui, sans-serif;
+  --font-etched:  'Archivo Black', Impact, sans-serif;
+  --default-font-family: var(--font-display);
+
+  /* Shadows */
+  --shadow-crimson-glow:    0 0 20px oklch(0.58 0.245 25 / 0.30), 0 0 40px oklch(0.58 0.245 25 / 0.10);
+  --shadow-crimson-intense: 0 0 30px oklch(0.58 0.245 25 / 0.50), 0 0 60px oklch(0.58 0.245 25 / 0.20);
+  --shadow-void-lift:       0 10px 40px oklch(0.08 0.005 25 / 0.80);
+  --shadow-void-float:      0 20px 60px oklch(0.08 0.005 25 / 0.90);
+
+  /* Easing curves */
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-expo:   cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Backdrop blur */
+  --backdrop-blur-void: 20px;
+
+  /* Animations — `animate-foo` resolves via these. */
+  --animate-pulse-slow:    pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-heartbeat:     heartbeat 2s ease-in-out infinite;
+  --animate-glitch:        glitch 0.3s ease-in-out;
+  --animate-materialize:   materialize 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-dematerialize: dematerialize 0.3s cubic-bezier(0.7, 0, 0.84, 0);
+  --animate-float:         float 6s ease-in-out infinite;
+  --animate-charge:        charge 0.15s ease-out;
+  --animate-release:       release 0.2s ease-out;
+  --animate-rift-open:     rift-open 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-rift-close:    rift-close 0.3s cubic-bezier(0.7, 0, 0.84, 0);
+  --animate-border-pulse:  border-pulse 2s ease-in-out infinite;
+}
+
+/* v4 changed the default border color from gray-200 to currentColor.
+   This preserves the v3 look so existing borders don't all turn red. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-void-border);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Base layer
    ═══════════════════════════════════════════════════════════ */
 
 @layer base {
@@ -31,7 +119,6 @@
     @apply h-screen w-screen overflow-hidden;
   }
 
-  /* Selection styling */
   ::selection {
     @apply bg-crimson-600/40 text-white;
   }
@@ -40,7 +127,6 @@
     @apply bg-crimson-600/40 text-white;
   }
 
-  /* Custom scrollbar - nearly invisible but functional */
   ::-webkit-scrollbar {
     @apply w-2 h-2;
   }
@@ -63,12 +149,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Component Layer - Reusable Patterns
+   Component layer
    ═══════════════════════════════════════════════════════════ */
 
 @layer components {
 
-  /* Glitch effect for focus states */
   .glitch-border {
     position: relative;
   }
@@ -78,7 +163,7 @@
     content: '';
     position: absolute;
     inset: -2px;
-    border: 1px solid theme('colors.crimson.500');
+    border: 1px solid var(--color-crimson-500);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s;
@@ -94,22 +179,20 @@
     opacity: 0.5;
   }
 
-  /* Crimson glow effect */
   .crimson-glow {
     box-shadow:
-      0 0 20px theme('colors.ember.glow'),
-      0 0 40px theme('colors.ember.pulse'),
-      inset 0 0 20px theme('colors.ember.trace');
+      0 0 20px var(--color-ember-glow),
+      0 0 40px var(--color-ember-pulse),
+      inset 0 0 20px var(--color-ember-trace);
   }
 
   .crimson-glow-intense {
     box-shadow:
-      0 0 30px theme('colors.crimson.500' / 0.4),
-      0 0 60px theme('colors.crimson.500' / 0.2),
-      0 0 100px theme('colors.crimson.500' / 0.1);
+      0 0 30px oklch(0.58 0.245 25 / 0.4),
+      0 0 60px oklch(0.58 0.245 25 / 0.2),
+      0 0 100px oklch(0.58 0.245 25 / 0.1);
   }
 
-  /* Void card styling */
   .void-card {
     @apply bg-void-surface border border-void-border rounded-lg;
     @apply transition-all duration-300 ease-out-expo;
@@ -120,7 +203,6 @@
     @apply shadow-crimson-glow;
   }
 
-  /* Draggable region for title bar */
   .drag-region {
     -webkit-app-region: drag;
     app-region: drag;
@@ -131,15 +213,13 @@
     app-region: no-drag;
   }
 
-  /* Etched text effect */
   .text-etched {
     @apply font-etched uppercase tracking-wider;
     text-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.05),
-      0 -1px 0 rgba(0, 0, 0, 0.8);
+      0 1px 0 oklch(0.98 0.003 25 / 0.05),
+      0 -1px 0 oklch(0.08 0.005 25 / 0.8);
   }
 
-  /* Scanline overlay effect */
   .scanlines::after {
     content: '';
     position: absolute;
@@ -147,12 +227,11 @@
     background: repeating-linear-gradient(0deg,
         transparent,
         transparent 2px,
-        rgba(0, 0, 0, 0.03) 2px,
-        rgba(0, 0, 0, 0.03) 4px);
+        oklch(0 0 0 / 0.03) 2px,
+        oklch(0 0 0 / 0.03) 4px);
     pointer-events: none;
   }
 
-  /* Heartbeat hover effect for cards */
   .heartbeat-hover {
     @apply transition-all duration-300;
   }
@@ -161,7 +240,6 @@
     animation: heartbeat 2s ease-in-out infinite;
   }
 
-  /* Button charge-release effect */
   .btn-charge {
     @apply transition-transform duration-150;
   }
@@ -176,12 +254,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Utility Layer - One-off utilities
+   Utility layer
    ═══════════════════════════════════════════════════════════ */
 
 @layer utilities {
 
-  /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -191,7 +268,6 @@
     display: none;
   }
 
-  /* Mask gradients for fade effects */
   .mask-fade-b {
     mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
@@ -202,131 +278,124 @@
     -webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
   }
 
-  /* GPU acceleration hints */
   .gpu-accelerated {
     transform: translateZ(0);
     will-change: transform, opacity;
     backface-visibility: hidden;
   }
 
-  /* Cover art gradient dissolve mask - fades edge into void */
   .cover-dissolve {
-    mask-image: linear-gradient(to right, #000 55%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to right, oklch(0 0 0) 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, oklch(0 0 0) 55%, transparent 100%);
   }
 
-  /* Ambient bleed - blurred cover extends behind details panel */
   .ambient-bleed {
     filter: blur(80px) brightness(0.25) saturate(1.3);
     transform: scale(1.3);
     opacity: 0.7;
   }
+
+  .bg-scanlines {
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, oklch(0 0 0 / 0.10) 2px, oklch(0 0 0 / 0.10) 4px);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Keyframes for glitch border effect
+   Keyframes
    ═══════════════════════════════════════════════════════════ */
 
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 oklch(0.58 0.245 25 / 0); }
+  15%      { transform: scale(1.02); box-shadow: 0 0 20px oklch(0.58 0.245 25 / 0.2); }
+  30%      { transform: scale(1);    box-shadow: 0 0 0 oklch(0.58 0.245 25 / 0); }
+  45%      { transform: scale(1.01); box-shadow: 0 0 15px oklch(0.58 0.245 25 / 0.15); }
+}
+
+@keyframes glitch {
+  0%   { transform: translate(0); }
+  20%  { transform: translate(-2px, 2px); }
+  40%  { transform: translate(-2px, -2px); }
+  60%  { transform: translate(2px, 2px); }
+  80%  { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes materialize {
+  0%   { opacity: 0; transform: scale(0.9) translateY(10px); filter: blur(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0);       filter: blur(0); }
+}
+
+@keyframes dematerialize {
+  0%   { opacity: 1; transform: scale(1);    filter: blur(0); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(5px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+@keyframes charge {
+  0%   { transform: scale(1); }
+  100% { transform: scale(0.95); }
+}
+
+@keyframes release {
+  0%   { transform: scale(0.95); }
+  50%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes rift-open {
+  0%   { opacity: 0; transform: scale(0.8); clip-path: circle(0% at 50% 50%); }
+  100% { opacity: 1; transform: scale(1);   clip-path: circle(150% at 50% 50%); }
+}
+
+@keyframes rift-close {
+  0%   { opacity: 1; transform: scale(1);   clip-path: circle(150% at 50% 50%); }
+  100% { opacity: 0; transform: scale(0.9); clip-path: circle(0% at 50% 50%); }
+}
+
+@keyframes border-pulse {
+  0%, 100% { border-color: oklch(0.58 0.245 25 / 0.3); }
+  50%      { border-color: oklch(0.58 0.245 25 / 0.6); }
+}
+
 @keyframes glitch-border-1 {
-  0% {
-    transform: translate(0);
-    opacity: 0;
-  }
-
-  20% {
-    transform: translate(-2px, 2px);
-    opacity: 1;
-  }
-
-  40% {
-    transform: translate(-2px, -2px);
-    opacity: 1;
-  }
-
-  60% {
-    transform: translate(2px, 2px);
-    opacity: 1;
-  }
-
-  80% {
-    transform: translate(2px, -2px);
-    opacity: 1;
-  }
-
-  100% {
-    transform: translate(0);
-    opacity: 1;
-  }
+  0%   { transform: translate(0);         opacity: 0; }
+  20%  { transform: translate(-2px, 2px); opacity: 1; }
+  40%  { transform: translate(-2px, -2px); opacity: 1; }
+  60%  { transform: translate(2px, 2px);  opacity: 1; }
+  80%  { transform: translate(2px, -2px); opacity: 1; }
+  100% { transform: translate(0);         opacity: 1; }
 }
 
 @keyframes glitch-border-2 {
-  0% {
-    transform: translate(0);
-    opacity: 0;
-  }
-
-  20% {
-    transform: translate(2px, -2px);
-    opacity: 0.5;
-  }
-
-  40% {
-    transform: translate(2px, 2px);
-    opacity: 0.5;
-  }
-
-  60% {
-    transform: translate(-2px, -2px);
-    opacity: 0.5;
-  }
-
-  80% {
-    transform: translate(-2px, 2px);
-    opacity: 0.5;
-  }
-
-  100% {
-    transform: translate(0);
-    opacity: 0.5;
-  }
+  0%   { transform: translate(0);         opacity: 0; }
+  20%  { transform: translate(2px, -2px); opacity: 0.5; }
+  40%  { transform: translate(2px, 2px);  opacity: 0.5; }
+  60%  { transform: translate(-2px, -2px); opacity: 0.5; }
+  80%  { transform: translate(-2px, 2px); opacity: 0.5; }
+  100% { transform: translate(0);         opacity: 0.5; }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Framer Motion animation helpers
-   ═══════════════════════════════════════════════════════════ */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .motion-reduce * {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Shimmer animation for skeleton loaders
-   ═══════════════════════════════════════════════════════════ */
-
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Library entrance animation
-   ═══════════════════════════════════════════════════════════ */
-
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

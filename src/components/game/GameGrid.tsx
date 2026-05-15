@@ -1,7 +1,7 @@
 import { VirtuosoGrid } from 'react-virtuoso'
 import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
-import { useFilteredGames } from '../../stores/gameStore'
+import { useFilteredGames, useGameStore } from '../../stores/gameStore'
 import { Gamepad2 } from 'lucide-react'
 import { forwardRef, memo } from 'react'
 import type { Game } from '../../types/game'
@@ -39,6 +39,8 @@ export function GameGrid() {
 }
 
 const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
+    const openSetupWizard = useGameStore((s) => s.openSetupWizard)
+
     return (
         <motion.div
             ref={ref}
@@ -51,7 +53,7 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
             <div className="relative w-32 h-32 mb-8 flex items-center justify-center">
                 <div className="absolute inset-0 border border-crimson-900/30 rotate-45" />
                 <div className="absolute inset-4 border border-crimson-900/50 -rotate-12" />
-                <Gamepad2 className="w-16 h-16 text-crimson-600/50 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]" />
+                <Gamepad2 className="w-16 h-16 text-crimson-600/50 drop-shadow-[0_0_15px_oklch(0.52_0.23_25/0.5)]" />
                 {/* Glitch artifacts */}
                 <div className="absolute top-0 right-0 w-2 h-2 bg-crimson-500" />
                 <div className="absolute bottom-0 left-0 w-2 h-2 bg-crimson-500" />
@@ -61,9 +63,12 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
             <h2 className="text-3xl font-display font-black italic tracking-tighter text-white uppercase mb-2">
                 No games found
             </h2>
-            <p className="text-sm font-mono text-crimson-500/60 uppercase tracking-widest border border-crimson-900/30 px-3 py-1">
+            <button
+                onClick={openSetupWizard}
+                className="relative z-10 text-sm font-mono text-crimson-500/80 uppercase tracking-widest border border-crimson-900/50 hover:border-crimson-500 hover:text-crimson-300 hover:bg-crimson-500/5 px-3 py-1 transition-[color,border-color,background-color] duration-200"
+            >
                 Sync Library Now
-            </p>
+            </button>
 
             {/* Particle decoration */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">

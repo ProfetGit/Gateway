@@ -14,8 +14,8 @@ export function AppShell({ children }: AppShellProps) {
                 <div className="flex items-center gap-3 no-drag">
                     <motion.div
                         className="w-6 h-6 rounded bg-crimson-600 flex items-center justify-center"
-                        whileHover={{ scale: 1.1, boxShadow: '0 0 20px rgba(255, 58, 58, 0.5)' }}
-                        transition={{ duration: 0.2 }}
+                        whileHover={{ scale: 1.1, boxShadow: '0 0 20px oklch(0.58 0.245 25 / 0.5)' }}
+                        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                     >
                         <span className="text-xs font-bold text-white">G</span>
                     </motion.div>

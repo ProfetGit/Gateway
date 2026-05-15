@@ -2,6 +2,8 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { Gift, Sparkles, Clock, Check } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
+import { CarouselNav } from '../../components/shared/CarouselNav'
+import { useHorizontalScroller } from '../../components/shared/useHorizontalScroller'
 import type { FreeDeal, FreeDealsData } from '../../types/freeDeals'
 
 interface FreeDealsResult {
@@ -90,48 +92,16 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
             className="relative"
         >
-            {/* Section Header */}
-            <div className="flex items-center justify-between mb-2 group/header">
-                <div className="flex items-center gap-4">
-                    {/* Animated gift icon */}
-                    <div className="relative">
-                        <motion.div
-                            animate={{
-                                scale: [1, 1.15, 1],
-                                rotate: [0, -8, 8, 0]
-                            }}
-                            transition={{
-                                duration: 2.5,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                            className="relative z-10"
-                        >
-                            <Gift className="w-5 h-5 text-emerald-400" />
-                        </motion.div>
-                        <div className="absolute inset-0 bg-emerald-500/50 blur-md animate-pulse" />
-                    </div>
-
-                    <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
-                        Free to Keep
-                        <span className="text-xs font-mono font-medium tracking-[0.1em] text-emerald-400/80 px-2 py-0.5 border border-emerald-500/30 rounded flex items-center gap-1.5 bg-emerald-500/10">
-                            <Sparkles className="w-3 h-3" />
-                            LIMITED
-                        </span>
-                    </h2>
-                </div>
-
-                {/* Decorative line */}
-                <div className="flex-1 h-px bg-gradient-to-r from-emerald-900/40 via-green-900/20 to-transparent ml-8" />
-
-                <Gift className="w-5 h-5 text-emerald-500/40 group-hover/header:text-emerald-500 transition-colors duration-300" />
-            </div>
-
-            {/* Content */}
             {isLoading ? (
-                <FreeDealsSkeleton />
+                <>
+                    <FreeDealsHeader showNav={false} />
+                    <FreeDealsSkeleton />
+                </>
             ) : error ? (
-                <FreeDealsError message={error} onRetry={fetchFreeDeals} />
+                <>
+                    <FreeDealsHeader showNav={false} />
+                    <FreeDealsError message={error} onRetry={fetchFreeDeals} />
+                </>
             ) : data ? (
                 <FreeDealsCarousel
                     deals={data.deals}
@@ -144,6 +114,62 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
     )
 }
 
+interface FreeDealsHeaderProps {
+    showNav: boolean
+    canScrollLeft?: boolean
+    canScrollRight?: boolean
+    onScrollLeft?: () => void
+    onScrollRight?: () => void
+}
+
+function FreeDealsHeader({ showNav, canScrollLeft, canScrollRight, onScrollLeft, onScrollRight }: FreeDealsHeaderProps) {
+    return (
+        <div className="flex items-center justify-between mb-2 group/header">
+            <div className="flex items-center gap-4">
+                {/* Animated gift icon */}
+                <div className="relative">
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.15, 1],
+                            rotate: [0, -8, 8, 0]
+                        }}
+                        transition={{
+                            duration: 2.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                        className="relative z-10"
+                    >
+                        <Gift className="w-5 h-5 text-emerald-400" />
+                    </motion.div>
+                    <div className="absolute inset-0 bg-emerald-500/50 blur-md animate-pulse" />
+                </div>
+
+                <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
+                    Free to Keep
+                    <span className="text-xs font-mono font-medium tracking-[0.1em] text-emerald-400/80 px-2 py-0.5 border border-emerald-500/30 rounded flex items-center gap-1.5 bg-emerald-500/10">
+                        <Sparkles className="w-3 h-3" />
+                        LIMITED
+                    </span>
+                </h2>
+            </div>
+
+            {/* Decorative line */}
+            <div className="flex-1 h-px bg-gradient-to-r from-emerald-900/40 via-green-900/20 to-transparent mx-8" />
+
+            {showNav ? (
+                <CarouselNav
+                    canScrollLeft={canScrollLeft ?? false}
+                    canScrollRight={canScrollRight ?? false}
+                    onScrollLeft={onScrollLeft ?? (() => { })}
+                    onScrollRight={onScrollRight ?? (() => { })}
+                    accent="emerald"
+                />
+            ) : null}
+        </div>
+    )
+}
+
 function FreeDealsSkeleton() {
     return (
         <div className="flex gap-4 overflow-hidden">
@@ -153,7 +179,7 @@ function FreeDealsSkeleton() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex-shrink-0 w-[280px] aspect-[460/215] rounded-lg bg-void-surface overflow-hidden relative"
+                    className="shrink-0 w-[280px] aspect-[460/215] rounded-lg bg-void-surface overflow-hidden relative"
                 >
                     {/* Shimmer effect */}
                     <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -200,34 +226,7 @@ interface FreeDealsCarouselProps {
 }
 
 function FreeDealsCarousel({ deals, claimedIds, onDealClick, onGameClick }: FreeDealsCarouselProps) {
-    const scrollRef = React.useRef<HTMLDivElement>(null)
-    const [canScrollLeft, setCanScrollLeft] = React.useState(false)
-    const [canScrollRight, setCanScrollRight] = React.useState(true)
-
-    const checkScroll = React.useCallback(() => {
-        if (scrollRef.current) {
-            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
-            const firstCard = scrollRef.current.children[0] as HTMLElement
-            const startOffset = firstCard?.offsetLeft || 0
-
-            setCanScrollLeft(scrollLeft > startOffset + 5)
-            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
-        }
-    }, [])
-
-    React.useEffect(() => {
-        const el = scrollRef.current
-        if (el) {
-            el.addEventListener('scroll', checkScroll)
-            const timer = setTimeout(checkScroll, 100)
-            window.addEventListener('resize', checkScroll)
-            return () => {
-                el.removeEventListener('scroll', checkScroll)
-                window.removeEventListener('resize', checkScroll)
-                clearTimeout(timer)
-            }
-        }
-    }, [checkScroll])
+    const { scrollRef, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScroller()
 
     // Calculate time remaining
     const getTimeRemaining = (endDate: string) => {
@@ -245,18 +244,25 @@ function FreeDealsCarousel({ deals, claimedIds, onDealClick, onGameClick }: Free
     }
 
     return (
-        <div className="relative w-full z-10 group/portal">
-            <div
-                ref={scrollRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide py-4 -mx-10 w-[calc(100%+5rem)] px-10 scroll-px-10"
-                style={{
-                    scrollBehavior: 'auto',
-                    overscrollBehaviorX: 'contain',
-                    maskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`,
-                    WebkitMaskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`
-                }}
-            >
-                {deals.map((deal, index) => {
+        <>
+            <FreeDealsHeader
+                showNav
+                canScrollLeft={canScrollLeft}
+                canScrollRight={canScrollRight}
+                onScrollLeft={() => scrollByPage('left')}
+                onScrollRight={() => scrollByPage('right')}
+            />
+            <div className="relative w-full z-10 group/portal">
+                <div
+                    ref={scrollRef}
+                    className="flex gap-4 overflow-x-auto scrollbar-hide py-4 -mx-10 w-[calc(100%+5rem)] px-10 scroll-px-10 snap-x snap-mandatory"
+                    style={{
+                        overscrollBehaviorX: 'contain',
+                        maskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`,
+                        WebkitMaskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`
+                    }}
+                >
+                    {deals.map((deal, index) => {
                     const isClaimed = deal.steamAppId ? claimedIds.has(deal.steamAppId) : false
 
                     return (
@@ -311,7 +317,8 @@ function FreeDealsCarousel({ deals, claimedIds, onDealClick, onGameClick }: Free
                         />
                     )
                 })}
+                </div>
             </div>
-        </div>
+        </>
     )
 }

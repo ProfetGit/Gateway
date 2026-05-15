@@ -87,6 +87,8 @@ export interface StoreData {
     games: Game[]
     settings: {
         steamPath: string
+        steamApiKey?: string
+        hasCompletedSetup?: boolean
     }
     steamAuth?: SteamAuthData
     claimedAppIds?: string[]

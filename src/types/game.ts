@@ -93,6 +93,8 @@ export interface GameStore {
     isDetailOpen: boolean
     isSettingsOpen: boolean
     isAddModalOpen: boolean
+    isHuntsDrawerOpen: boolean
+    isSetupWizardOpen: boolean
 
     // Actions
     setView: (view: ViewType) => void
@@ -117,6 +119,10 @@ export interface GameStore {
     closeSettings: () => void
     openAddModal: () => void
     closeAddModal: () => void
+    openHuntsDrawer: () => void
+    closeHuntsDrawer: () => void
+    openSetupWizard: () => void
+    closeSetupWizard: () => void
 }
 
 // Steam status type
@@ -276,6 +282,17 @@ export interface ElectronAPI {
     // File dialogs
     selectExecutable: () => Promise<string | null>
     selectImage: () => Promise<string | null>
+
+    // Setup wizard / app config
+    getSetupState: () => Promise<{
+        hasCompletedSetup: boolean
+        hasApiKey: boolean
+        isSteamLoggedIn: boolean
+        hasGames: boolean
+    }>
+    markSetupComplete: () => Promise<void>
+    setSteamApiKey: (key: string) => Promise<{ success: boolean; hasKey: boolean }>
+    getSteamApiKey: () => Promise<string>
 
     // Window controls
     minimizeWindow: () => void

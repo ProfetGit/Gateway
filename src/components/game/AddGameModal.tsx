@@ -137,7 +137,7 @@ export function AddGameModal() {
                                             type="text"
                                             value={coverUrl}
                                             onChange={(e) => setCoverUrl(e.target.value)}
-                                            placeholder="Image URL or select file"
+                                            placeholder="Image link or pick a file"
                                             className="
                         flex-1 px-4 py-2.5
                         bg-void-surface border border-void-border rounded-lg
@@ -161,14 +161,14 @@ export function AddGameModal() {
                                 {/* Executable */}
                                 <div>
                                     <label className="block text-xs font-mono text-text-muted uppercase tracking-wider mb-2">
-                                        Executable Path
+                                        Game File
                                     </label>
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
                                             value={executablePath}
                                             onChange={(e) => setExecutablePath(e.target.value)}
-                                            placeholder="Path to game executable"
+                                            placeholder="Where the game lives on your computer"
                                             className="
                         flex-1 px-4 py-2.5
                         bg-void-surface border border-void-border rounded-lg

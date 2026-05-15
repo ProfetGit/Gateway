@@ -5,6 +5,7 @@ import { useGameStore } from '../../stores/gameStore'
 import { useUIStore } from '../../stores/uiStore'
 import { TrendingSection } from '../../features/trending'
 import { FreeDealsSection } from '../../features/free-deals'
+import { AchievementHuntsSection } from '../../features/achievement-hunts'
 import type { Game } from '../../types/game'
 
 export function HomeView() {
@@ -57,6 +58,9 @@ export function HomeView() {
                                     if (game) openDetail(game)
                                 }}
                             />
+
+                            {/* Achievement Hunts - player-state, auto-hides if no qualifying games */}
+                            <AchievementHuntsSection />
                         </div>
                     </motion.div>
                 ) : (
@@ -138,7 +142,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
 
                     {/* TEXTURE OVERLAYS */}
                     <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat brightness-100 contrast-150" />
-                    <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#000_3px)] opacity-[0.05] pointer-events-none" />
+                    <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0)_3px)] opacity-[0.05] pointer-events-none" />
                 </motion.div>
             </AnimatePresence>
 
@@ -184,10 +188,10 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                             <img
                                 src={getLogoUrl(activeGame)}
                                 alt={activeGame.title}
-                                className="h-32 md:h-44 object-contain mb-6 filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                                className="h-32 md:h-44 object-contain mb-6 filter drop-shadow-[0_10px_10px_oklch(0.08_0.005_25/0.5)]"
                             />
                         ) : (
-                            <h1 className="text-5xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 mb-4 tracking-tighter drop-shadow-2xl italic uppercase transform -skew-x-6">
+                            <h1 className="text-5xl md:text-8xl font-display font-black text-white mb-4 tracking-tighter drop-shadow-2xl italic uppercase transform -skew-x-6">
                                 {activeGame.title}
                             </h1>
                         )}
@@ -195,10 +199,10 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                         <div className="flex items-center gap-6 mb-8 font-mono text-xs tracking-[0.2em] text-crimson-500/80 uppercase">
                             <span className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse" />
-                                {activeGame.playtime ? `${Math.round(activeGame.playtime / 60)}H LOGGED` : 'NEW ENTRY'}
+                                {activeGame.playtime ? `${Math.round(activeGame.playtime / 60)} hours played` : 'Never played'}
                             </span>
                             <span className="opacity-50">///</span>
-                            <span>SOURCE: {activeGame.source}</span>
+                            <span>{activeGame.source}</span>
                         </div>
 
                         <div className="flex items-center gap-8">
@@ -211,13 +215,13 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                             >
                                 {/* The Bolt (Icon) */}
                                 <motion.div
-                                    className="relative flex items-center justify-center w-14 h-14 bg-crimson-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.3)] z-10 rounded-sm"
+                                    className="relative flex items-center justify-center w-14 h-14 bg-crimson-600 text-white shadow-[0_0_30px_oklch(0.52_0.23_25/0.3)] z-10 rounded-sm"
                                     variants={{
-                                        idle: { x: 0, scale: 1 },
-                                        hover: { x: 8, scale: 1, backgroundColor: "#ffffff", color: "#dc2626", boxShadow: "0 0 50px rgba(255,255,255,0.4)" },
-                                        tap: { scale: 0.95, transition: { duration: 0.05 } }
+                                        idle:  { x: 0, scale: 1 },
+                                        hover: { x: 8, scale: 1, backgroundColor: "oklch(0.98 0.003 25)", color: "oklch(0.52 0.23 25)", boxShadow: "0 0 50px oklch(0.98 0.003 25 / 0.4)" },
+                                        tap:   { scale: 0.95, transition: { duration: 0.05 } }
                                     }}
-                                    transition={{ type: "spring", stiffness: 500, damping: 35, mass: 1 }}
+                                    transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                                 >
                                     <Play className="w-6 h-6 fill-current" />
                                 </motion.div>
@@ -227,10 +231,10 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                     <motion.span
                                         className="uppercase tracking-tighter text-4xl font-black italic leading-none text-white"
                                         variants={{
-                                            idle: { x: 0, skewX: 0, opacity: 0.9 },
-                                            hover: { x: 12, skewX: -12, opacity: 1, textShadow: "4px 4px 0px rgba(220,38,38,0.5)" }
+                                            idle:  { x: 0, skewX: 0, opacity: 0.9 },
+                                            hover: { x: 12, skewX: -12, opacity: 1, textShadow: "4px 4px 0px oklch(0.52 0.23 25 / 0.5)" }
                                         }}
-                                        transition={{ type: "spring", stiffness: 500, damping: 35, mass: 1 }}
+                                        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                                     >
                                         LAUNCH
                                     </motion.span>
@@ -279,7 +283,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
 
                             {/* Active scanline overlay */}
                             {i === activeIndex && (
-                                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(220,38,38,0.2)_3px)] pointer-events-none" />
+                                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0.52_0.23_25/0.2)_3px)] pointer-events-none" />
                             )}
                         </motion.div>
 
@@ -300,10 +304,11 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                     className="absolute -bottom-4 left-0 right-0 h-0.5 bg-crimson-500/50"
                                 >
                                     <motion.div
-                                        className="h-full bg-crimson-500 shadow-[0_0_10px_#ef4444]"
-                                        initial={{ width: 0 }}
-                                        animate={{ width: "100%" }}
+                                        className="h-full bg-crimson-500 shadow-[0_0_10px_oklch(0.62_0.235_25)] origin-left"
+                                        initial={{ scaleX: 0 }}
+                                        animate={{ scaleX: 1 }}
                                         transition={{ duration: 10, ease: "linear" }}
+                                        style={{ width: '100%' }}
                                     />
                                 </motion.div>
                             </motion.div>
@@ -324,7 +329,7 @@ function EmptyVoid() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,58,58,0.05)_0%,transparent_70%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,oklch(0.58_0.245_25/0.05)_0%,transparent_70%)]" />
             <motion.h2
                 className="text-4xl md:text-6xl font-display font-black text-white tracking-tighter italic mb-4"
                 initial={{ y: 20 }}

@@ -43,7 +43,7 @@ export function PatchNotesTab({ data, isLoading }: PatchNotesTabProps) {
                     <AlertCircle className="w-8 h-8 text-crimson-500" />
                 </div>
                 <h3 className="text-xl font-display font-bold italic text-white/80 mb-2">
-                    CANNOT LOAD NEWS
+                    Couldn't load news
                 </h3>
                 <p className="text-sm text-white/40 max-w-md">
                     {data.error}
@@ -64,10 +64,10 @@ export function PatchNotesTab({ data, isLoading }: PatchNotesTabProps) {
                     <Newspaper className="w-8 h-8 text-white/20" />
                 </div>
                 <h3 className="text-xl font-display font-bold italic text-white/60 mb-2">
-                    NO NEWS FOUND
+                    No news yet
                 </h3>
                 <p className="text-sm text-white/30">
-                    This game has no recent news or patch notes
+                    Nothing new from this game
                 </p>
             </motion.div>
         )
@@ -84,7 +84,7 @@ export function PatchNotesTab({ data, isLoading }: PatchNotesTabProps) {
                 <div className="flex items-center gap-3">
                     <Newspaper className="w-5 h-5 text-crimson-500" />
                     <span className="text-sm font-mono text-white/60 uppercase tracking-wider">
-                        Latest Updates
+                        Latest News
                     </span>
                 </div>
                 <span className="text-xs font-mono text-white/30">

@@ -11,7 +11,7 @@ import {
     installIconVariants,
     installTextVariants,
     installSubtextVariants,
-    springTransition,
+    hoverTransition,
     fastTransition
 } from './animations'
 
@@ -106,9 +106,9 @@ export function GameDetailHero({
                             {/* The Bolt (Icon) */}
                             <motion.div
                                 className="relative flex items-center justify-center w-12 h-12 bg-crimson-600 text-white rounded-md z-10 will-change-transform"
-                                style={{ boxShadow: '0 0 25px rgba(220, 38, 38, 0.4)' }}
+                                style={{ boxShadow: '0 0 25px oklch(0.52 0.23 25 / 0.4)' }}
                                 variants={launchBoltVariants}
-                                transition={springTransition}
+                                transition={hoverTransition}
                             >
                                 <motion.div variants={launchIconVariants}>
                                     <Play size={22} className="fill-current ml-0.5" />
@@ -120,7 +120,7 @@ export function GameDetailHero({
                                 <motion.span
                                     className="uppercase tracking-tighter text-2xl font-display font-black italic leading-none text-white will-change-transform"
                                     variants={launchTextVariants}
-                                    transition={springTransition}
+                                    transition={hoverTransition}
                                 >
                                     Launch
                                 </motion.span>
@@ -146,9 +146,9 @@ export function GameDetailHero({
                             {/* The Bolt (Icon) — Ghost style for install */}
                             <motion.div
                                 className="relative flex items-center justify-center w-12 h-12 border-2 border-white/30 text-white rounded-md z-10 backdrop-blur-sm will-change-transform"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                                style={{ backgroundColor: 'oklch(0.98 0.003 25 / 0.05)' }}
                                 variants={installBoltVariants}
-                                transition={springTransition}
+                                transition={hoverTransition}
                             >
                                 {isInstalling ? (
                                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -164,7 +164,7 @@ export function GameDetailHero({
                                 <motion.span
                                     className="uppercase tracking-tighter text-2xl font-display font-black italic leading-none text-white will-change-transform"
                                     variants={installTextVariants}
-                                    transition={springTransition}
+                                    transition={hoverTransition}
                                 >
                                     {isInstalling ? 'Installing' : 'Install'}
                                 </motion.span>

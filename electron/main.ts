@@ -1,15 +1,16 @@
-import { app, BrowserWindow, protocol, net } from 'electron'
+import { app, BrowserWindow, protocol, net, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { JsonStore } from './src/shared/store'
 import { mirrorAllCovers } from './src/shared/utils'
 import { STEAM_API_KEY } from './src/shared/constants'
-import { setSteamApiKey, initAuth } from './steamAuth'
+import { setSteamApiKey, initAuth, refreshSessionOnStartup } from './steamAuth'
 import { setupSteamApiHandlers } from './src/features/steam/steam-api'
 import { setupLibraryHandlers } from './src/features/library/library-ipc'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
 import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
 import { setupHeroicHandlers } from './src/features/heroic/heroic-ipc'
+import { setupSetupHandlers } from './src/features/setup/setup-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -35,24 +36,26 @@ function createWindow() {
     transparent: false,
     backgroundColor: '#000000',
     titleBarStyle: 'hidden',
+    title: 'Gateway',
     icon: path.join(process.env.VITE_PUBLIC!, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'), // Preload path assumes typical Electron build
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      devTools: true, // Enable DevTools
+      devTools: true,
     },
   })
+
+  // Keep OS title stable — page <title> changes won't override.
+  win.on('page-title-updated', (e) => e.preventDefault())
 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', 'Gateway initialized')
   })
 
-  // Open DevTools in development mode
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
-    win.webContents.openDevTools() // Auto-open DevTools
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
@@ -67,10 +70,8 @@ app.on('browser-window-focus', async () => {
 
 // App lifecycle
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-    win = null
-  }
+  app.quit()
+  win = null
 })
 
 app.on('activate', () => {
@@ -96,13 +97,23 @@ app.whenReady().then(() => {
     return new Response('Not Found', { status: 404 })
   })
 
-  // Initialize Steam auth with persistent storage
-  if (STEAM_API_KEY) {
-    setSteamApiKey(STEAM_API_KEY)
+  // Resolve Steam API key. Priority: env var > user-saved key in store.
+  // Env var is for developers / power users; store is the normal user path
+  // populated via Setup wizard or Settings panel.
+  const storedKey = store.get('settings')?.steamApiKey
+  const effectiveKey = STEAM_API_KEY || storedKey || ''
+  if (effectiveKey) {
+    setSteamApiKey(effectiveKey)
   }
   initAuth({
     get: (key) => store.get(key),
     set: (key, value) => store.set(key, value),
+  })
+
+  // Validate persisted session cookies in the background. If they expired,
+  // the auth state will be cleared so the wizard can re-prompt.
+  refreshSessionOnStartup().catch((err) => {
+    console.warn('[Main] Session validation skipped:', err)
   })
 
   // Setup Feature Modules
@@ -113,6 +124,16 @@ app.whenReady().then(() => {
   setupSyncHandlers(store, getMainWindow)
   setupLutrisHandlers(store, getMainWindow)
   setupHeroicHandlers(store, getMainWindow)
+  setupSetupHandlers(store)
+
+  // Window controls — title-bar buttons in the renderer use these.
+  ipcMain.on('minimize-window', () => win?.minimize())
+  ipcMain.on('maximize-window', () => {
+    if (!win) return
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+  })
+  ipcMain.on('close-window', () => win?.close())
 
   createWindow()
 

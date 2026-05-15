@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execSync } from 'node:child_process'
 import { v4 as uuidv4 } from 'uuid'
 
 // ═══════════════════════════════════════════════════════════
@@ -141,43 +142,78 @@ export function serializeVdf(obj: VdfObject, indent: number = 0): string {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Steam Path Detection
+// Steam Path Detection (cross-platform)
 // ═══════════════════════════════════════════════════════════
 
-const STEAM_PATHS = [
-    // Standard Linux paths
-    path.join(process.env.HOME || '', '.steam/steam'),
-    path.join(process.env.HOME || '', '.steam/debian-installation'),
-    path.join(process.env.HOME || '', '.local/share/Steam'),
-    // Flatpak
-    path.join(process.env.HOME || '', '.var/app/com.valvesoftware.Steam/.steam/steam'),
-    path.join(process.env.HOME || '', '.var/app/com.valvesoftware.Steam/.local/share/Steam'),
-    // Snap
-    path.join(process.env.HOME || '', 'snap/steam/common/.steam/steam'),
-    // System-wide
-    '/usr/share/steam',
-    '/usr/local/share/steam',
-]
+function getCandidateSteamPaths(): string[] {
+    const home = process.env.HOME || process.env.USERPROFILE || ''
+
+    if (process.platform === 'win32') {
+        const paths: string[] = []
+
+        // 1. Registry — authoritative on Windows. Read HKCU\Software\Valve\Steam\SteamPath
+        try {
+            const out = execSync('reg query "HKCU\\Software\\Valve\\Steam" /v SteamPath', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+            const match = out.match(/SteamPath\s+REG_SZ\s+(.+?)\s*$/m)
+            if (match && match[1]) {
+                paths.push(match[1].replace(/\//g, '\\').trim())
+            }
+        } catch {
+            // Registry key missing — fall through to common paths
+        }
+
+        // 2. Common install locations
+        const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)'
+        const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
+        paths.push(path.join(programFilesX86, 'Steam'))
+        paths.push(path.join(programFiles, 'Steam'))
+
+        return paths
+    }
+
+    if (process.platform === 'darwin') {
+        return [
+            path.join(home, 'Library/Application Support/Steam'),
+        ]
+    }
+
+    // Linux + others
+    return [
+        path.join(home, '.steam/steam'),
+        path.join(home, '.steam/debian-installation'),
+        path.join(home, '.local/share/Steam'),
+        // Flatpak
+        path.join(home, '.var/app/com.valvesoftware.Steam/.steam/steam'),
+        path.join(home, '.var/app/com.valvesoftware.Steam/.local/share/Steam'),
+        // Snap
+        path.join(home, 'snap/steam/common/.steam/steam'),
+        // System-wide
+        '/usr/share/steam',
+        '/usr/local/share/steam',
+    ]
+}
 
 /**
- * Find the Steam installation directory
+ * Find the Steam installation directory by probing platform-appropriate paths.
+ * On Windows, prefers the SteamPath registry value over hardcoded locations.
  */
 export function findSteamInstallation(): string | null {
-    for (const steamPath of STEAM_PATHS) {
+    const candidates = getCandidateSteamPaths()
+    for (const steamPath of candidates) {
         try {
-            // Resolve symlinks
             const resolved = fs.existsSync(steamPath)
                 ? fs.realpathSync(steamPath)
                 : null
 
             if (resolved && fs.existsSync(path.join(resolved, 'steamapps'))) {
+                console.log('[SteamService] Found Steam at:', resolved)
                 return resolved
             }
         } catch {
-            // Path doesn't exist or can't be resolved
             continue
         }
     }
+    console.warn('[SteamService] No Steam installation found. Candidates checked:', candidates)
     return null
 }
 
@@ -530,55 +566,32 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
 }
 
 // ═══════════════════════════════════════════════════════════
-// Game Name Resolution (from Steam API and local cache)
+// Game Name Resolution (local-only)
 // ═══════════════════════════════════════════════════════════
+//
+// Primary name resolution now happens via /actions/GetOwnedApps in
+// steam-session-api.ts. This module only does local-file name lookup as
+// a contributor to the initial sync — getAllGames() needs SOMETHING to
+// write before the network fetch fills in real names.
+//
+// appNameCache is populated lazily by getAppName() reading workshop ACF
+// files. Most owned games won't have a workshop ACF and will fall through
+// to "Game ${appId}" placeholder, which the upstream session sync replaces.
 
-// Cache for app names
 const appNameCache = new Map<string, string>()
-let steamAppListLoaded = false
-let steamAppListLoading = false
 
 /**
- * Load the Steam app list (contains all game names)
- * This is a large file (~40MB) but is the most reliable source
- */
-async function loadSteamAppList(): Promise<void> {
-    if (steamAppListLoaded || steamAppListLoading) return
-
-    steamAppListLoading = true
-    console.log('[SteamService] Downloading Steam app list...')
-
-    try {
-        const response = await fetch('https://api.steampowered.com/ISteamApps/GetAppList/v2/')
-        const data = await response.json()
-
-        if (data?.applist?.apps) {
-            for (const app of data.applist.apps) {
-                if (app.appid && app.name) {
-                    appNameCache.set(String(app.appid), app.name)
-                }
-            }
-            console.log('[SteamService] ✓ Loaded', appNameCache.size, 'app names from Steam')
-            steamAppListLoaded = true
-        }
-    } catch (error) {
-        console.error('[SteamService] Failed to load Steam app list:', error)
-    } finally {
-        steamAppListLoading = false
-    }
-}
-
-/**
- * Get game name from cache or local files
+ * Look up an app name from local Steam files. Currently checks workshop
+ * appworkshop_*.acf files (only present for games the user has subscribed
+ * to workshop content for). Returns null for most apps — that's expected;
+ * the placeholder gets replaced by the session sync upstream.
  */
 export function getAppName(steamPath: string, appId: string): string | null {
     if (appNameCache.has(appId)) {
         return appNameCache.get(appId) || null
     }
 
-    // Try to read from workshop/appworkshop_*.acf which has the name
     const libraryPaths = getLibraryFolders(steamPath)
-
     for (const libPath of libraryPaths) {
         const workshopPath = path.join(libPath, 'steamapps/workshop', `appworkshop_${appId}.acf`)
         if (fs.existsSync(workshopPath)) {
@@ -598,40 +611,6 @@ export function getAppName(steamPath: string, appId: string): string | null {
     return null
 }
 
-
-
-/**
- * Update games with proper names from Steam
- */
-export async function resolveGameNames(games: Game[], store: StoreInterface): Promise<void> {
-    // First, try to load the full app list (fastest for bulk lookups)
-    await loadSteamAppList()
-
-    const gamesToUpdate: Game[] = []
-
-    for (const game of games) {
-        if (game.title.startsWith('Game ') && game.steamAppId) {
-            const cachedName = appNameCache.get(game.steamAppId)
-            if (cachedName) {
-                gamesToUpdate.push({ ...game, title: cachedName })
-            }
-        }
-    }
-
-    if (gamesToUpdate.length > 0) {
-        console.log('[SteamService] Updating', gamesToUpdate.length, 'game names from Steam app list')
-
-        const allGames = store.get('games')
-        const updatedGames = allGames.map(g => {
-            const updated = gamesToUpdate.find(u => u.id === g.id)
-            return updated || g
-        })
-
-        store.set('games', updatedGames)
-        console.log('[SteamService] ✓ Game names updated')
-    }
-}
-
 // ═══════════════════════════════════════════════════════════
 // Main Steam Service
 // ═══════════════════════════════════════════════════════════
@@ -648,8 +627,7 @@ export class SteamService {
      * Initialize the Steam service
      */
     initialize(): SteamStatus {
-        console.log('[SteamService] Initializing Steam service...')
-        console.log('[SteamService] Searching for Steam in paths:', STEAM_PATHS)
+        console.log('[SteamService] Initializing Steam service on', process.platform)
 
         this.steamPath = findSteamInstallation()
 

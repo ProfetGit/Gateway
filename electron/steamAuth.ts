@@ -1,19 +1,34 @@
-import http from 'node:http'
-import { URL } from 'node:url'
-import { shell } from 'electron'
-
 // ═══════════════════════════════════════════════════════════
-// Steam OpenID Authentication with Persistent Storage
+// Steam Authentication
 // ═══════════════════════════════════════════════════════════
+//
+// Primary path: embedded BrowserWindow + persistent session cookies.
+//   - Login: opens steamSession.loginWithBrowser()
+//   - Owned games / achievements: fetched via session cookies, no API key
+//
+// Fallback path: Steam Web Developer API Key.
+//   - Used when the session is absent, expired, or the call fails
+//   - Required for users with strictly-private profiles who don't want to log
+//     in through the embedded browser
+//
+// This mirrors Playnite's auth model.
 
-const CALLBACK_PORT = 27893
-const CALLBACK_URL = `http://localhost:${CALLBACK_PORT}/auth/steam/callback`
-const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login'
+import {
+    loginWithBrowser,
+    resolveCurrentUser,
+    validateSession,
+    clearSession,
+    SteamSessionUser,
+} from './steamSession'
+import {
+    fetchOwnedGamesViaSession,
+    fetchAchievementsViaSession,
+} from './src/features/steam/steam-session-api'
 
-// Steam Web API key (set via environment or config)
+// ─── Module state ───────────────────────────────────────────
+
 let steamApiKey: string | null = null
 
-// Store interface for persistence
 interface AuthStore {
     get: (key: 'steamAuth') => AuthState | undefined
     set: (key: 'steamAuth', value: AuthState) => void
@@ -38,325 +53,130 @@ let authState: AuthState = {
     user: null,
 }
 
-let authServer: http.Server | null = null
-let authResolve: ((steamId: string) => void) | null = null
-let authReject: ((error: Error) => void) | null = null
+// ─── Init / lifecycle ───────────────────────────────────────
 
-/**
- * Initialize auth with persistent storage
- */
 export function initAuth(store: AuthStore): void {
     authStore = store
-    // Load saved auth state
     const savedAuth = store.get('steamAuth')
     if (savedAuth && savedAuth.isLoggedIn && savedAuth.user) {
         authState = savedAuth
-        console.log('[SteamAuth] Restored session for:', savedAuth.user.username)
+        console.log('[SteamAuth] Restored cached auth state for:', savedAuth.user.username)
     }
 }
 
 /**
- * Set the Steam API key (should be called on app startup)
+ * Re-validate session at startup. If the persisted cookies are still valid,
+ * refresh the user record from Steam. If not, clear the auth state.
+ * Called once from main.ts after initAuth.
  */
-export function setSteamApiKey(key: string): void {
-    steamApiKey = key
-    console.log('[SteamAuth] API key configured')
+export async function refreshSessionOnStartup(): Promise<void> {
+    if (!authState.isLoggedIn) return
+    const result = await validateSession()
+    if (!result.valid) {
+        console.log('[SteamAuth] Cached session is no longer valid — clearing auth state')
+        authState = { isLoggedIn: false, user: null }
+        saveAuthState()
+        return
+    }
+    // Optionally refresh user data (avatar may have changed)
+    if (result.steamId) {
+        const fresh = await resolveCurrentUser(result.steamId)
+        authState = { isLoggedIn: true, user: fresh }
+        saveAuthState()
+    }
 }
 
-/**
- * Get current auth state
- */
+export function setSteamApiKey(key: string): void {
+    steamApiKey = key && key.trim() ? key.trim() : null
+    if (steamApiKey) {
+        console.log('[SteamAuth] API key configured (fallback path enabled)')
+    } else {
+        console.log('[SteamAuth] API key cleared')
+    }
+}
+
 export function getAuthState(): AuthState {
     return authState
 }
 
-/**
- * Save auth state to persistent storage
- */
+export function hasApiKey(): boolean {
+    return !!steamApiKey
+}
+
 function saveAuthState(): void {
-    if (authStore) {
-        authStore.set('steamAuth', authState)
-    }
+    if (authStore) authStore.set('steamAuth', authState)
 }
 
-/**
- * Build Steam OpenID login URL
- */
-function buildOpenIdUrl(): string {
-    const params = new URLSearchParams({
-        'openid.ns': 'http://specs.openid.net/auth/2.0',
-        'openid.mode': 'checkid_setup',
-        'openid.return_to': CALLBACK_URL,
-        'openid.realm': `http://localhost:${CALLBACK_PORT}`,
-        'openid.identity': 'http://specs.openid.net/auth/2.0/identifier_select',
-        'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
-    })
-    return `${STEAM_OPENID_URL}?${params.toString()}`
-}
+// ─── Login / Logout ─────────────────────────────────────────
 
-/**
- * Start local callback server
- */
-function startCallbackServer(): Promise<string> {
-    return new Promise((resolve, reject) => {
-        authResolve = resolve
-        authReject = reject
-
-        authServer = http.createServer((req, res) => {
-            const url = new URL(req.url || '', `http://localhost:${CALLBACK_PORT}`)
-
-            if (url.pathname === '/auth/steam/callback') {
-                // Extract Steam ID from OpenID response
-                const claimedId = url.searchParams.get('openid.claimed_id')
-
-                if (claimedId) {
-                    // Steam ID is the last part of the claimed_id URL
-                    // Format: https://steamcommunity.com/openid/id/76561198XXXXXXXXX
-                    const match = claimedId.match(/\/id\/(\d+)$/)
-
-                    if (match) {
-                        const steamId = match[1]
-                        console.log('[SteamAuth] ✓ Steam ID received:', steamId)
-
-                        // Send success page
-                        res.writeHead(200, { 'Content-Type': 'text/html' })
-                        res.end(`
-                            <!DOCTYPE html>
-                            <html>
-                            <head>
-                                <title>Gateway - Steam Login</title>
-                                <style>
-                                    body {
-                                        background: #0a0a0a;
-                                        color: #fff;
-                                        font-family: system-ui, -apple-system, sans-serif;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        height: 100vh;
-                                        margin: 0;
-                                        text-align: center;
-                                    }
-                                    .container {
-                                        padding: 2rem;
-                                    }
-                                    h1 { color: #4ade80; margin-bottom: 1rem; }
-                                    p { color: #888; }
-                                </style>
-                            </head>
-                            <body>
-                                <div class="container">
-                                    <h1>✓ Logged in successfully!</h1>
-                                    <p>You can close this window and return to Gateway.</p>
-                                    <script>setTimeout(() => window.close(), 2000);</script>
-                                </div>
-                            </body>
-                            </html>
-                        `)
-
-                        authResolve?.(steamId)
-                        stopCallbackServer()
-                    } else {
-                        reject(new Error('Invalid Steam ID in response'))
-                    }
-                } else {
-                    // Check if user cancelled
-                    const mode = url.searchParams.get('openid.mode')
-                    if (mode === 'cancel') {
-                        res.writeHead(200, { 'Content-Type': 'text/html' })
-                        res.end(`
-                            <!DOCTYPE html>
-                            <html>
-                            <head>
-                                <title>Gateway - Login Cancelled</title>
-                                <style>
-                                    body {
-                                        background: #0a0a0a;
-                                        color: #fff;
-                                        font-family: system-ui, sans-serif;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        height: 100vh;
-                                        margin: 0;
-                                    }
-                                </style>
-                            </head>
-                            <body>
-                                <p>Login cancelled. You can close this window.</p>
-                                <script>setTimeout(() => window.close(), 2000);</script>
-                            </body>
-                            </html>
-                        `)
-                        authReject?.(new Error('Login cancelled by user'))
-                        stopCallbackServer()
-                    } else {
-                        res.writeHead(400)
-                        res.end('Invalid response')
-                    }
-                }
-            } else {
-                res.writeHead(404)
-                res.end('Not found')
-            }
-        })
-
-        authServer.listen(CALLBACK_PORT, () => {
-            console.log('[SteamAuth] Callback server started on port', CALLBACK_PORT)
-        })
-
-        authServer.on('error', (err) => {
-            console.error('[SteamAuth] Server error:', err)
-            reject(err)
-        })
-
-        // Timeout after 5 minutes
-        setTimeout(() => {
-            if (authServer) {
-                authReject?.(new Error('Login timeout'))
-                stopCallbackServer()
-            }
-        }, 5 * 60 * 1000)
-    })
-}
-
-/**
- * Stop callback server
- */
-function stopCallbackServer(): void {
-    if (authServer) {
-        authServer.close()
-        authServer = null
-        authResolve = null
-        authReject = null
-        console.log('[SteamAuth] Callback server stopped')
-    }
-}
-
-/**
- * Fetch user profile from Steam API
- */
-async function fetchUserProfile(steamId: string): Promise<SteamUser | null> {
-    if (!steamApiKey) {
-        console.warn('[SteamAuth] No API key configured, using basic info')
-        return {
-            steamId,
-            username: `Steam User ${steamId.slice(-4)}`,
-            avatarUrl: '',
-            profileUrl: `https://steamcommunity.com/profiles/${steamId}`,
-        }
-    }
-
+export async function loginWithSteam(): Promise<AuthState> {
+    console.log('[SteamAuth] Starting embedded-browser login...')
     try {
-        const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${steamApiKey}&steamids=${steamId}`
-        const response = await fetch(url)
-        const data = await response.json()
-
-        if (data?.response?.players?.[0]) {
-            const player = data.response.players[0]
-            return {
-                steamId,
-                username: player.personaname,
-                avatarUrl: player.avatarfull,
-                profileUrl: player.profileurl,
-            }
-        }
-    } catch (error) {
-        console.error('[SteamAuth] Failed to fetch profile:', error)
+        const user: SteamSessionUser = await loginWithBrowser()
+        authState = { isLoggedIn: true, user }
+        saveAuthState()
+        console.log('[SteamAuth] ✓ Logged in as:', user.username)
+        return authState
+    } catch (err) {
+        console.error('[SteamAuth] Login failed:', err)
+        throw err
     }
-
-    return null
 }
+
+export async function logout(): Promise<void> {
+    await clearSession()
+    authState = { isLoggedIn: false, user: null }
+    saveAuthState()
+    console.log('[SteamAuth] Logged out + session cleared')
+}
+
+// ─── Owned games (session → API key fallback) ───────────────
 
 export interface FetchGamesResult {
     success: boolean
     games: Array<{ appId: string; name: string; playtime: number; lastPlayed?: number }>
     error?: string
-    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'API_ERROR' | 'NETWORK_ERROR' | 'RATE_LIMITED'
+    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'API_ERROR' | 'NETWORK_ERROR' | 'RATE_LIMITED' | 'NO_AUTH'
 }
 
-/**
- * Fetch owned games from Steam API with robust error handling
- */
 export async function fetchOwnedGames(steamId: string): Promise<FetchGamesResult> {
-    console.log('[SteamAuth] fetchOwnedGames called for Steam ID:', steamId)
+    console.log('[SteamAuth] fetchOwnedGames — trying session path first')
 
+    // Try session path first
+    const sessionResult = await fetchOwnedGamesViaSession(steamId)
+    if (sessionResult.success && sessionResult.games.length > 0) {
+        console.log('[SteamAuth] ✓ Session path returned', sessionResult.games.length, 'games')
+        return { success: true, games: sessionResult.games }
+    }
+    console.log('[SteamAuth] Session path unavailable:', sessionResult.error, '— falling back to API key')
+
+    // Fallback: Steam Web API key
     if (!steamApiKey) {
-        console.warn('[SteamAuth] No API key configured')
         return {
             success: false,
             games: [],
-            error: 'Steam API key is not configured',
-            errorCode: 'NO_API_KEY',
+            error: 'No active Steam session and no Web API key configured. Sign in to Steam, or add an API key in Settings.',
+            errorCode: 'NO_AUTH',
         }
     }
+    return fetchOwnedGamesViaApiKey(steamId)
+}
 
+async function fetchOwnedGamesViaApiKey(steamId: string): Promise<FetchGamesResult> {
     try {
-        // Removed include_free_sub=1 to avoid bloating library with unplayed free licenses/tools
         const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${steamApiKey}&steamid=${steamId}&include_appinfo=1&include_played_free_games=1`
-        console.log('[SteamAuth] Calling Steam API...')
-
         const response = await fetch(url)
-        console.log('[SteamAuth] API response status:', response.status)
-
-        // ... (error handling remains same, skipping for brevity in this tool call if possible, but I must replace the WHOLE block I targeted)
-        // Wait, replace_file_content requires exact target match. I should target just the URL line and the filter block separately if possible, or one big block.
-        // I will use a larger block to be safe.
 
         if (!response.ok) {
-            // ... error handling ...
-            // Actually, I'll just target the URL line first.
-        }
-
-        // Check for HTTP errors
-        if (!response.ok) {
-            console.error('[SteamAuth] API returned error status:', response.status, response.statusText)
-
-            if (response.status === 401) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Invalid Steam API key',
-                    errorCode: 'API_ERROR',
-                }
-            }
-            if (response.status === 403) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Access forbidden. Check API key permissions.',
-                    errorCode: 'API_ERROR',
-                }
-            }
-            if (response.status === 429) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Steam API rate limit exceeded. Please try again later.',
-                    errorCode: 'RATE_LIMITED',
-                }
-            }
-            if (response.status === 500 || response.status === 503) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Steam servers are currently unavailable. Please try again later.',
-                    errorCode: 'API_ERROR',
-                }
-            }
-
-            return {
-                success: false,
-                games: [],
-                error: `Steam API error: ${response.status} ${response.statusText}`,
-                errorCode: 'API_ERROR',
-            }
+            if (response.status === 401) return apiKeyError('Invalid Steam API key', 'API_ERROR')
+            if (response.status === 403) return apiKeyError('Access forbidden. Check API key permissions.', 'API_ERROR')
+            if (response.status === 429) return apiKeyError('Steam API rate limit exceeded. Try again later.', 'RATE_LIMITED')
+            if (response.status >= 500) return apiKeyError('Steam servers are currently unavailable.', 'API_ERROR')
+            return apiKeyError(`Steam API error: ${response.status} ${response.statusText}`, 'API_ERROR')
         }
 
         const data = await response.json()
-        console.log('[SteamAuth] API response data:', JSON.stringify(data).slice(0, 200) + '...')
 
-        // Check if response has games
         if (data?.response?.games && Array.isArray(data.response.games)) {
             const games = data.response.games.map((game: any) => ({
                 appId: String(game.appid),
@@ -365,182 +185,55 @@ export async function fetchOwnedGames(steamId: string): Promise<FetchGamesResult
                 lastPlayed: game.rtime_last_played || undefined,
             }))
 
-            // Log a few examples for debugging
-            const gamesWithPlayTime = games.filter((g: any) => g.lastPlayed && g.lastPlayed > 0)
-            console.log('[SteamAuth] Games with lastPlayed data:', gamesWithPlayTime.length, 'out of', games.length)
-            if (gamesWithPlayTime.length > 0) {
-                console.log('[SteamAuth] Example:', gamesWithPlayTime[0].name, 'lastPlayed:', new Date(gamesWithPlayTime[0].lastPlayed * 1000).toISOString())
-            }
-
-            // Filter out unwanted software (Dedicated Servers, SDKs, etc)
             const UNWANTED_KEYWORDS = [
-                'Dedicated Server',
-                'SDK',
-                'Redistributable',
-                'Shared Resources',
-                'Test Server',
-                'Beta',
-                'Demo',
-                'Trial',
-                'Prototype',
-                'Soundtrack',
-                'Artbook',
-                'Benchmark',
-                'Editor',
-                'Server', // Aggressive: "Server" might kill "Server Tycoon", but usually it's "X Server". Risk accepted per user request to reduce count.
-                'Client', // e.g. "Dota 2 Test Client"
-                'macOS',
-                'Linux', // sometimes separate linux builds show up
-                'Windows', // sometimes separate windows builds show up
-                'Software',
-                'Application',
+                'Dedicated Server', 'SDK', 'Redistributable', 'Shared Resources',
+                'Test Server', 'Beta', 'Demo', 'Trial', 'Prototype', 'Soundtrack',
+                'Artbook', 'Benchmark', 'Editor', 'Server', 'Client', 'macOS',
+                'Linux', 'Windows', 'Software', 'Application',
             ]
-
             const UNWANTED_APP_NAMES = [
-                'OBS Studio',
-                'Wallpaper Engine',
-                'Sounpad',
-                'ShareX',
-                'Blender',
-                'Spacewar', // Common dev tool
-                'SteamCMD',
-                'Tabletop Simulator Dedicated Server', // Specific hard cases
-                'Source SDK Base 2013 Singleplayer',
-                'Source SDK Base 2013 Multiplayer',
-                'Source SDK Base 2007',
-                'Source SDK Base 2006',
-                'Valve Hammer Editor',
-                'FaceRig',
-                'Aseprite',
-                'Adobe Substance 3D Painter',
-                '3DMark',
-                'PCMark 10',
-                'Cinebench',
-                'RPG Maker MV',
-                'RPG Maker MZ',
-                'Pixel Game Maker MV',
-                'GameMaker Studio 2',
-                'Vorpx',
-                'RetroArch', // It's an emulator frontend, usually considered software/tool not a game itself in this context? Maybe keep? User wants Games count. RetroArch is "Software" on Steam.
+                'OBS Studio', 'Wallpaper Engine', 'Sounpad', 'ShareX', 'Blender',
+                'Spacewar', 'SteamCMD', 'Tabletop Simulator Dedicated Server',
+                'Source SDK Base 2013 Singleplayer', 'Source SDK Base 2013 Multiplayer',
+                'Source SDK Base 2007', 'Source SDK Base 2006', 'Valve Hammer Editor',
+                'FaceRig', 'Aseprite', 'Adobe Substance 3D Painter', '3DMark', 'PCMark 10',
+                'Cinebench', 'RPG Maker MV', 'RPG Maker MZ', 'Pixel Game Maker MV',
+                'GameMaker Studio 2', 'Vorpx', 'RetroArch',
             ]
 
-            const filteredGames = games.filter((game: any) => {
-                const name = game.name || ''
-                // Exact match exclusions (common tools)
+            const filtered = games.filter((g: any) => {
+                const name = g.name || ''
                 if (name === 'Steamworks Common Redistributables') return false
                 if (name === 'SteamVR') return false
-
-                // Specific App Name Blocklist
                 if (UNWANTED_APP_NAMES.includes(name)) return false
-
-                // Keep if name doesn't contain any unwanted keywords
-                return !UNWANTED_KEYWORDS.some(keyword => name.includes(keyword))
+                return !UNWANTED_KEYWORDS.some((kw) => name.includes(kw))
             })
 
-            console.log('[SteamAuth] ✓ Fetched', games.length, 'owned items, kept', filteredGames.length, 'games after filtering')
-
-
-            if (filteredGames.length === 0) {
-                return {
-                    success: true,
-                    games: [],
-                    error: 'No games found. Your game library might be empty or contains only hidden items.',
-                }
-            }
-
-            return { success: true, games: filteredGames }
+            return filtered.length > 0
+                ? { success: true, games: filtered }
+                : { success: true, games: [], error: 'No games found in library' }
         }
 
-        // Empty response object - likely means profile/game details are private
         if (data?.response && Object.keys(data.response).length === 0) {
-            console.warn('[SteamAuth] API returned empty response - profile likely private')
-            return {
-                success: false,
-                games: [],
-                error: 'Could not access your game library. Please check that your Steam profile AND "Game details" are set to Public in Steam Privacy Settings.',
-                errorCode: 'PROFILE_PRIVATE',
-            }
+            return apiKeyError(
+                'Steam profile is private. Either set Profile + Game details to Public, or sign in via the Setup wizard.',
+                'PROFILE_PRIVATE'
+            )
         }
-
-        console.warn('[SteamAuth] Unexpected API response format:', data)
-        return {
-            success: false,
-            games: [],
-            error: 'Unexpected response from Steam API',
-            errorCode: 'API_ERROR',
-        }
-
-    } catch (error) {
-        console.error('[SteamAuth] Network error fetching owned games:', error)
-        return {
-            success: false,
-            games: [],
-            error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            errorCode: 'NETWORK_ERROR',
-        }
+        return apiKeyError('Unexpected response from Steam API', 'API_ERROR')
+    } catch (err) {
+        return apiKeyError(
+            `Network error: ${err instanceof Error ? err.message : 'Unknown'}`,
+            'NETWORK_ERROR'
+        )
     }
 }
 
-
-/**
- * Start Steam OAuth login flow
- */
-export async function loginWithSteam(): Promise<AuthState> {
-    console.log('[SteamAuth] Starting Steam login flow...')
-
-    try {
-        // Start callback server
-        const steamIdPromise = startCallbackServer()
-
-        // Open Steam login page in browser
-        const loginUrl = buildOpenIdUrl()
-        console.log('[SteamAuth] Opening Steam login page...')
-        await shell.openExternal(loginUrl)
-
-        // Wait for callback
-        const steamId = await steamIdPromise
-
-        // Fetch user profile
-        const user = await fetchUserProfile(steamId)
-
-        if (user) {
-            authState = {
-                isLoggedIn: true,
-                user,
-            }
-            saveAuthState() // Persist to storage
-            console.log('[SteamAuth] ✓ Logged in as:', user.username)
-        }
-
-        return authState
-    } catch (error) {
-        console.error('[SteamAuth] Login failed:', error)
-        throw error
-    }
+function apiKeyError(error: string, errorCode: FetchGamesResult['errorCode']): FetchGamesResult {
+    return { success: false, games: [], error, errorCode }
 }
 
-/**
- * Logout
- */
-export function logout(): void {
-    authState = {
-        isLoggedIn: false,
-        user: null,
-    }
-    saveAuthState() // Persist to storage
-    console.log('[SteamAuth] Logged out')
-}
-
-/**
- * Get Steam API key status
- */
-export function hasApiKey(): boolean {
-    return !!steamApiKey
-}
-
-// ═══════════════════════════════════════════════════════════
-// Steam Achievements
-// ═══════════════════════════════════════════════════════════
+// ─── Achievements (session → API key fallback) ──────────────
 
 export interface Achievement {
     apiname: string
@@ -559,38 +252,44 @@ export interface FetchAchievementsResult {
     unlockedCount: number
     gameName?: string
     error?: string
-    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR'
+    errorCode?: 'NO_API_KEY' | 'PROFILE_PRIVATE' | 'NO_ACHIEVEMENTS' | 'API_ERROR' | 'NETWORK_ERROR' | 'NO_AUTH'
 }
 
-/**
- * Fetch player achievements for a specific game
- * Combines GetPlayerAchievements (unlock status) with GetSchemaForGame (names, icons)
- */
 export async function fetchPlayerAchievements(
     steamId: string,
     appId: string
 ): Promise<FetchAchievementsResult> {
-    console.log('[SteamAuth] fetchPlayerAchievements called for appId:', appId)
-
-    if (!steamApiKey) {
-        return {
-            success: false,
-            achievements: [],
-            totalAchievements: 0,
-            unlockedCount: 0,
-            error: 'Steam API key is not configured',
-            errorCode: 'NO_API_KEY',
-        }
+    // Try session-based community XML feed first.
+    const sessionResult = await fetchAchievementsViaSession(steamId, appId)
+    // Treat NO_ACHIEVEMENTS as a definitive answer — don't fall back, the game just has none.
+    if (sessionResult.success || sessionResult.errorCode === 'NO_ACHIEVEMENTS') {
+        return sessionResult as FetchAchievementsResult
     }
 
+    // Session failed for an auth reason → try API key
+    if (steamApiKey) {
+        return fetchAchievementsViaApiKey(steamId, appId)
+    }
+    return {
+        success: false,
+        achievements: [],
+        totalAchievements: 0,
+        unlockedCount: 0,
+        error: sessionResult.error ?? 'Achievement data unavailable',
+        errorCode: sessionResult.errorCode === 'PROFILE_PRIVATE' ? 'PROFILE_PRIVATE' : 'NO_AUTH',
+    }
+}
+
+async function fetchAchievementsViaApiKey(
+    steamId: string,
+    appId: string
+): Promise<FetchAchievementsResult> {
     try {
-        // Fetch both endpoints in parallel
         const [playerResponse, schemaResponse] = await Promise.all([
             fetch(`https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key=${steamApiKey}&steamid=${steamId}&appid=${appId}&l=english`),
-            fetch(`https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${steamApiKey}&appid=${appId}&l=english`)
+            fetch(`https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${steamApiKey}&appid=${appId}&l=english`),
         ])
 
-        // Check for player achievements errors
         if (!playerResponse.ok) {
             if (playerResponse.status === 403) {
                 return {
@@ -615,9 +314,7 @@ export async function fetchPlayerAchievements(
         const playerData = await playerResponse.json()
         const schemaData = await schemaResponse.json()
 
-        // Check if game has achievements
         if (!playerData?.playerstats?.achievements) {
-            // Could be private profile or game without achievements
             if (playerData?.playerstats?.error) {
                 return {
                     success: false,
@@ -638,7 +335,6 @@ export async function fetchPlayerAchievements(
             }
         }
 
-        // Build a map of achievement schema (icons, descriptions)
         const schemaMap = new Map<string, { name: string; description: string; icon: string; icongray: string }>()
         if (schemaData?.game?.availableGameStats?.achievements) {
             for (const ach of schemaData.game.availableGameStats.achievements) {
@@ -651,14 +347,8 @@ export async function fetchPlayerAchievements(
             }
         }
 
-        // Merge player achievements with schema
         const achievements: Achievement[] = playerData.playerstats.achievements.map((ach: any) => {
-            const schema = schemaMap.get(ach.apiname) || {
-                name: ach.apiname,
-                description: '',
-                icon: '',
-                icongray: '',
-            }
+            const schema = schemaMap.get(ach.apiname) || { name: ach.apiname, description: '', icon: '', icongray: '' }
             return {
                 apiname: ach.apiname,
                 name: schema.name,
@@ -670,7 +360,6 @@ export async function fetchPlayerAchievements(
             }
         })
 
-        // Sort: unlocked first (by unlock time desc), then locked alphabetically
         achievements.sort((a, b) => {
             if (a.achieved && !b.achieved) return -1
             if (!a.achieved && b.achieved) return 1
@@ -678,26 +367,20 @@ export async function fetchPlayerAchievements(
             return a.name.localeCompare(b.name)
         })
 
-        const unlockedCount = achievements.filter(a => a.achieved).length
-
-        console.log('[SteamAuth] ✓ Fetched', achievements.length, 'achievements,', unlockedCount, 'unlocked')
-
         return {
             success: true,
             achievements,
             totalAchievements: achievements.length,
-            unlockedCount,
+            unlockedCount: achievements.filter((a) => a.achieved).length,
             gameName: playerData.playerstats.gameName,
         }
-
-    } catch (error) {
-        console.error('[SteamAuth] Network error fetching achievements:', error)
+    } catch (err) {
         return {
             success: false,
             achievements: [],
             totalAchievements: 0,
             unlockedCount: 0,
-            error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            error: `Network error: ${err instanceof Error ? err.message : 'Unknown error'}`,
             errorCode: 'NETWORK_ERROR',
         }
     }

@@ -80,7 +80,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
 
     return (
         <article
-            className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(220,38,38,0.25)]"
+            className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_oklch(0.52_0.23_25/0.25)]"
             onClick={() => openDetail(game)}
             onContextMenu={(e) => {
                 e.preventDefault()
@@ -128,9 +128,9 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                 ])
             }}
         >
-            {/* Corner bracket accents on hover */}
-            <div className="absolute top-0 left-0 w-0 h-0 border-t-[3px] border-l-[3px] border-transparent group-hover:w-6 group-hover:h-6 group-hover:border-crimson-500 transition-all duration-300 z-40 pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-0 h-0 border-b-[3px] border-r-[3px] border-transparent group-hover:w-6 group-hover:h-6 group-hover:border-crimson-500 transition-all duration-300 z-40 pointer-events-none" />
+            {/* Corner bracket accents on hover — GPU-only (opacity+scale, no layout animation) */}
+            <div className="absolute top-0 left-0 w-6 h-6 border-t-[3px] border-l-[3px] border-crimson-500 origin-top-left opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo z-40 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[3px] border-r-[3px] border-crimson-500 origin-bottom-right opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo z-40 pointer-events-none" />
 
             {/* Base layer — cover or fallback */}
             <div className="absolute inset-0 overflow-hidden">
@@ -159,7 +159,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300 pointer-events-none" />
 
             {/* Scanline overlay */}
-            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_3px)] opacity-0 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none" />
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.03)_3px)] opacity-0 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none" />
 
             {/* Hover glow effect from bottom */}
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t from-crimson-500/15 via-transparent to-transparent" />
@@ -180,7 +180,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
             {/* Installed indicator */}
             {game.isInstalled && (
                 <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_oklch(0.72_0.17_165/0.8)]" />
                 </div>
             )}
 
@@ -205,27 +205,27 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                         className="absolute inset-0 w-full h-full overflow-visible"
                         style={{
                             filter: game.isInstalled
-                                ? 'drop-shadow(0 0 20px rgba(220, 38, 38, 0.7))'
-                                : 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))'
+                                ? 'drop-shadow(0 0 20px oklch(0.52 0.23 25 / 0.7))'
+                                : 'drop-shadow(0 4px 12px oklch(0.08 0.005 25 / 0.5))'
                         }}
                     >
                         <defs>
                             {/* Installed gradient */}
                             <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#dc2626" />
-                                <stop offset="100%" stopColor="#991b1b" />
+                                <stop offset="0%" stopColor="oklch(0.52 0.23 25)" />
+                                <stop offset="100%" stopColor="oklch(0.39 0.165 25)" />
                             </linearGradient>
 
                             {/* Uninstalled ghost background */}
                             <linearGradient id="hexGradientGhost" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="rgba(40, 40, 45, 0.95)" />
-                                <stop offset="100%" stopColor="rgba(25, 25, 30, 0.95)" />
+                                <stop offset="0%" stopColor="oklch(0.22 0.005 25 / 0.95)" />
+                                <stop offset="100%" stopColor="oklch(0.16 0.005 25 / 0.95)" />
                             </linearGradient>
 
                             {/* Fill gradient for download animation */}
                             <linearGradient id="hexFillGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                                <stop offset="0%" stopColor="#dc2626" />
-                                <stop offset="100%" stopColor="#ef4444" />
+                                <stop offset="0%" stopColor="oklch(0.52 0.23 25)" />
+                                <stop offset="100%" stopColor="oklch(0.62 0.235 25)" />
                             </linearGradient>
 
                             {/* Hexagon clip path for the fill animation */}
@@ -238,7 +238,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                         <polygon
                             points="50,0 100,25 100,62 50,87 0,62 0,25"
                             fill={game.isInstalled ? 'url(#hexGradient)' : 'url(#hexGradientGhost)'}
-                            stroke={game.isInstalled ? 'none' : 'rgba(255,255,255,0.3)'}
+                            stroke={game.isInstalled ? 'none' : 'oklch(0.98 0.003 25 / 0.3)'}
                             strokeWidth={game.isInstalled ? 0 : 2}
                         />
 
@@ -261,7 +261,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                             <polygon
                                 points="50,0 100,25 100,62 50,87 0,62 0,25"
                                 fill="none"
-                                stroke="rgba(255,255,255,0.3)"
+                                stroke="oklch(0.98 0.003 25 / 0.3)"
                                 strokeWidth="2"
                                 className="transition-all duration-500 group-hover/hex:stroke-white/50"
                             />
@@ -284,7 +284,7 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
                 <h3
                     className="font-display font-bold text-sm text-white leading-tight group-hover:text-crimson-200 transition-colors duration-300"
                     style={{
-                        textShadow: '0 2px 10px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,0.9)',
+                        textShadow: '0 2px 10px oklch(0.08 0.005 25), 0 1px 3px oklch(0.08 0.005 25 / 0.9)',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',

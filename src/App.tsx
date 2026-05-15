@@ -9,10 +9,12 @@ import { AddGameModal } from './components/game/AddGameModal'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { HomeView } from './components/home/HomeView'
 import { ContextMenu } from './components/shared/ContextMenu'
+import { AchievementHuntsDrawer } from './features/achievement-hunts'
+import { SetupWizard } from './components/setup/SetupWizard'
 import { useGameStore } from './stores/gameStore'
 
 function App() {
-  const { setGames, currentView } = useGameStore()
+  const { setGames, currentView, openSetupWizard } = useGameStore()
   const [displayedView, setDisplayedView] = useState(currentView)
   const [isTransitioning, setIsTransitioning] = useState(false)
 
@@ -30,6 +32,19 @@ function App() {
     }
     loadGames()
   }, [setGames])
+
+  // Auto-open the setup wizard on first launch only. After the user dismisses
+  // it (skip or complete), hasCompletedSetup persists so it never auto-opens
+  // again. Re-openable from Settings → Steam Web API Key section.
+  useEffect(() => {
+    const checkFirstRun = async () => {
+      const state = await window.api?.getSetupState()
+      if (state && !state.hasCompletedSetup) {
+        openSetupWizard()
+      }
+    }
+    checkFirstRun()
+  }, [openSetupWizard])
 
   // Handle view transition with fade
   useEffect(() => {
@@ -97,6 +112,8 @@ function App() {
       <GameDetail />
       <AddGameModal />
       <SettingsPanel />
+      <AchievementHuntsDrawer />
+      <SetupWizard />
       <ContextMenu />
     </AppShell>
   )

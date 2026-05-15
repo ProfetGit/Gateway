@@ -92,7 +92,7 @@ export function GameDetailSidebar({
                     {/* Installed indicator */}
                     {selectedGame.isInstalled && (
                         <div className="absolute top-2 left-2 z-30 flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-sm rounded">
-                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_oklch(0.72_0.17_165/0.8)]" />
                             <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-400">Installed</span>
                         </div>
                     )}
@@ -102,8 +102,8 @@ export function GameDetailSidebar({
             {/* Quick Info */}
             <div className="flex-1 px-4 pb-4 z-10 space-y-3 overflow-y-auto scrollbar-hide">
                 <div className="space-y-2">
-                    <InfoRow label="Platform" value={selectedGame.source?.toUpperCase() || 'LOCAL'} icon={<Monitor size={12} />} />
-                    <InfoRow label="Status" value={selectedGame.isInstalled ? 'Ready' : 'Not Installed'} />
+                    <InfoRow label="From" value={selectedGame.source ? selectedGame.source.charAt(0).toUpperCase() + selectedGame.source.slice(1) : 'Local'} icon={<Monitor size={12} />} />
+                    <InfoRow label="Status" value={selectedGame.isInstalled ? 'Ready to play' : 'Not installed'} />
                     {selectedGame.sizeOnDisk && (
                         <InfoRow label="Size" value={`${(selectedGame.sizeOnDisk / 1073741824).toFixed(1)} GB`} />
                     )}
@@ -123,11 +123,11 @@ export function GameDetailSidebar({
                         {/* MangoHud Toggle */}
                         <LaunchToggle
                             label="MangoHud"
-                            description="Performance overlay"
+                            description="Show FPS and stats while playing"
                             icon={<Activity size={12} />}
                             enabled={selectedGame.mangoHudEnabled ?? false}
                             disabled={isSteamGame}
-                            disabledTooltip="Use Steam's launch options"
+                            disabledTooltip="Change this in Steam"
                             onToggle={async () => {
                                 const newValue = !selectedGame.mangoHudEnabled
                                 updateGame(selectedGame.id, { mangoHudEnabled: newValue })
@@ -138,11 +138,11 @@ export function GameDetailSidebar({
                         {/* GameMode Toggle */}
                         <LaunchToggle
                             label="GameMode"
-                            description="CPU governor optimization"
+                            description="Faster performance while playing"
                             icon={<Zap size={12} />}
                             enabled={selectedGame.gamemodeEnabled ?? false}
                             disabled={isSteamGame}
-                            disabledTooltip="Use Steam's launch options"
+                            disabledTooltip="Change this in Steam"
                             onToggle={async () => {
                                 const newValue = !selectedGame.gamemodeEnabled
                                 updateGame(selectedGame.id, { gamemodeEnabled: newValue })
@@ -155,11 +155,11 @@ export function GameDetailSidebar({
                             <div className="flex items-center gap-2">
                                 <LaunchToggle
                                     label="Gamescope"
-                                    description="Nested compositor"
+                                    description="Custom window scaling"
                                     icon={<Maximize2 size={12} />}
                                     enabled={selectedGame.gamescope?.enabled ?? false}
                                     disabled={isSteamGame}
-                                    disabledTooltip="Use Steam's launch options"
+                                    disabledTooltip="Change this in Steam"
                                     onToggle={async () => {
                                         const newValue = !selectedGame.gamescope?.enabled
                                         const newSettings = { ...selectedGame.gamescope, enabled: newValue }

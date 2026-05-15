@@ -22,22 +22,22 @@ export interface StoreCardProps {
 const accentColors = {
     amber: {
         border: 'hover:border-amber-500/50',
-        shadow: 'hover:shadow-[0_8px_30px_rgba(245,158,11,0.3)]',
-        corners: 'group-hover:border-amber-400',
+        shadow: 'hover:shadow-[0_8px_30px_oklch(0.78_0.17_75/0.3)]',
+        corners: 'border-amber-400',
         text: 'group-hover:text-amber-200',
         glow: 'from-amber-500/10',
     },
     emerald: {
         border: 'hover:border-emerald-500/50',
-        shadow: 'hover:shadow-[0_8px_30px_rgba(16,185,129,0.3)]',
-        corners: 'group-hover:border-emerald-400',
+        shadow: 'hover:shadow-[0_8px_30px_oklch(0.72_0.17_165/0.3)]',
+        corners: 'border-emerald-400',
         text: 'group-hover:text-emerald-200',
         glow: 'from-emerald-500/10',
     },
     crimson: {
         border: 'hover:border-crimson-500/50',
-        shadow: 'hover:shadow-[0_8px_30px_rgba(220,38,38,0.3)]',
-        corners: 'group-hover:border-crimson-400',
+        shadow: 'hover:shadow-[0_8px_30px_oklch(0.52_0.23_25/0.3)]',
+        corners: 'border-crimson-400',
         text: 'group-hover:text-crimson-200',
         glow: 'from-crimson-500/10',
     },
@@ -67,13 +67,13 @@ export function StoreCard({
                 duration: 0.5,
                 ease: [0.16, 1, 0.3, 1]
             }}
-            className="flex-shrink-0 snap-start relative z-0 hover:z-20"
+            className="shrink-0 snap-start scroll-ml-10 relative z-0 hover:z-20"
         >
             <motion.button
                 onClick={onClick}
                 whileHover={{ scale: 1.05, y: -8 }}
                 whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                 className={`group relative rounded-lg overflow-hidden bg-void-surface border border-void-border/30 shadow-lg focus:outline-none ${colors.border} ${colors.shadow} ${isClaimed ? 'ring-1 ring-emerald-500/40' : ''}`}
                 style={{ width, aspectRatio: '460 / 215' }}
             >
@@ -94,12 +94,12 @@ export function StoreCard({
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
 
-                {/* Corner accents on hover */}
-                <div className={`absolute top-0 left-0 w-0 h-0 border-t-[3px] border-l-[3px] border-transparent group-hover:w-8 group-hover:h-8 ${colors.corners} transition-all duration-300`} />
-                <div className={`absolute bottom-0 right-0 w-0 h-0 border-b-[3px] border-r-[3px] border-transparent group-hover:w-8 group-hover:h-8 ${colors.corners} transition-all duration-300`} />
+                {/* Corner accents on hover — GPU-only (opacity+scale, no layout animation) */}
+                <div className={`absolute top-0 left-0 w-8 h-8 border-t-[3px] border-l-[3px] ${colors.corners} origin-top-left opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo`} />
+                <div className={`absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] ${colors.corners} origin-bottom-right opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo`} />
 
                 {/* Scanlines */}
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(0,0,0,0.03)_3px)] pointer-events-none opacity-50" />
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.03)_3px)] pointer-events-none opacity-50" />
 
                 {/* Free Game States - Shimmer for unclaimed, Static glow for claimed */}
                 {accentColor === 'emerald' && !isClaimed && (
@@ -108,7 +108,7 @@ export function StoreCard({
                         <div
                             className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite]"
                             style={{
-                                background: 'linear-gradient(90deg, transparent 0%, rgba(16,185,129,0.15) 50%, transparent 100%)',
+                                background: 'linear-gradient(90deg, transparent 0%, oklch(0.72 0.17 165 / 0.15) 50%, transparent 100%)',
                             }}
                         />
                     </div>
@@ -121,14 +121,14 @@ export function StoreCard({
                         <div
                             className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
                             style={{
-                                background: 'linear-gradient(180deg, rgba(16,185,129,0.25) 0%, transparent 100%)',
+                                background: 'linear-gradient(180deg, oklch(0.72 0.17 165 / 0.25) 0%, transparent 100%)',
                             }}
                         />
                         {/* Corner accent glow */}
                         <div
                             className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
                             style={{
-                                background: 'radial-gradient(circle at top left, rgba(16,185,129,0.3) 0%, transparent 70%)',
+                                background: 'radial-gradient(circle at top left, oklch(0.72 0.17 165 / 0.3) 0%, transparent 70%)',
                             }}
                         />
                         {/* Subtle border enhancement */}
@@ -161,7 +161,7 @@ export function StoreCard({
                     <h3
                         className={`text-white text-sm font-bold leading-snug max-w-[65%] text-left ${colors.text} transition-colors`}
                         style={{
-                            textShadow: '0 2px 12px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.8)',
+                            textShadow: '0 2px 12px oklch(0.08 0.005 25), 0 1px 4px oklch(0.08 0.005 25 / 0.9), 0 0 20px oklch(0.08 0.005 25 / 0.8)',
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
@@ -176,7 +176,7 @@ export function StoreCard({
                 {bottomLeft && (
                     <div
                         className="absolute bottom-3 right-3 pointer-events-none"
-                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                        style={{ textShadow: '0 2px 8px oklch(0.08 0.005 25 / 0.9)' }}
                     >
                         {bottomLeft}
                     </div>

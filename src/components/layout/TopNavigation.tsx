@@ -56,7 +56,7 @@ export function TopNavigation() {
                             <span className={clsx(
                                 "block text-3xl font-display font-black italic tracking-tighter transition-all duration-500 uppercase mix-blend-screen",
                                 isActive
-                                    ? "text-crimson-500 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] scale-105"
+                                    ? "text-crimson-500 drop-shadow-[0_0_15px_oklch(0.52_0.23_25/0.8)] scale-105"
                                     : "text-white/30 group-hover:text-white/80",
                                 isScrolled && currentView === 'home' && "skew-x-12" // Counter-skew text
                             )}>
@@ -67,7 +67,7 @@ export function TopNavigation() {
                             {isActive && (
                                 <motion.div
                                     layoutId="nav-underline"
-                                    className="absolute left-0 right-0 -bottom-1 h-0.5 bg-crimson-500 shadow-[0_0_20px_rgb(220,38,38)]"
+                                    className="absolute left-0 right-0 -bottom-1 h-0.5 bg-crimson-500 shadow-[0_0_20px_oklch(0.52_0.23_25)]"
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 >
                                     <div className="absolute inset-0 bg-crimson-400 blur-[4px]" />

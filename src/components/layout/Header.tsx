@@ -34,7 +34,7 @@ export function Header() {
                     {/* Status Display */}
                     <div className="flex items-center gap-3 text-xs font-mono tracking-[0.2em] text-white/30 uppercase pl-1">
                         <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse" />
-                        <span>STATUS: {gameCount} {gameCount === 1 ? 'GAME' : 'GAMES'}</span>
+                        <span>{gameCount} {gameCount === 1 ? 'Game' : 'Games'}</span>
                     </div>
 
                     {/* Filter Tabs */}
@@ -102,7 +102,7 @@ export function Header() {
                         <Search className="absolute left-0 bottom-3 w-4 h-4 text-white/40 group-focus-within/search:text-crimson-500 transition-colors" />
                         <input
                             type="text"
-                            placeholder="SEARCH..."
+                            placeholder="Search..."
                             value={filters.search}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-8 pr-10 py-2 bg-transparent border-none outline-none text-lg font-display font-bold italic tracking-wider text-white placeholder:text-white/20 uppercase focus:outline-none focus:ring-0 focus:border-none"

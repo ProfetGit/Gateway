@@ -1,7 +1,11 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Flame } from 'lucide-react'
+import { TrendingUp, Flame, Library } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
+import { CarouselNav } from '../../components/shared/CarouselNav'
+import { useHorizontalScroller } from '../../components/shared/useHorizontalScroller'
+import { useGameStore } from '../../stores/gameStore'
+import type { Game } from '../../types/game'
 import type { TrendingGame, TrendingData } from '../../types/trending'
 
 interface TrendingSectionProps {
@@ -51,51 +55,17 @@ export function TrendingSection({ onGameClick }: TrendingSectionProps) {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
             className="relative"
         >
-            {/* Section Header */}
-            <div className="flex items-center justify-between mb-2 group/header">
-                <div className="flex items-center gap-4">
-                    {/* Animated fire icon */}
-                    <div className="relative">
-                        <motion.div
-                            animate={{
-                                scale: [1, 1.1, 1],
-                                rotate: [0, -5, 5, 0]
-                            }}
-                            transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                            className="relative z-10"
-                        >
-                            <Flame className="w-5 h-5 text-orange-500" />
-                        </motion.div>
-                        <div className="absolute inset-0 bg-orange-500/50 blur-md animate-pulse" />
-                    </div>
-
-                    <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
-                        Trending
-                        <span className="text-xs font-mono font-medium tracking-[0.1em] text-amber-500/80 px-2 py-0.5 border border-amber-500/30 rounded flex items-center gap-1.5">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                            </span>
-                            LIVE
-                        </span>
-                    </h2>
-                </div>
-
-                {/* Decorative line */}
-                <div className="flex-1 h-px bg-gradient-to-r from-orange-900/40 via-amber-900/20 to-transparent ml-8" />
-
-                <TrendingUp className="w-5 h-5 text-orange-500/40 group-hover/header:text-orange-500 transition-colors duration-300" />
-            </div>
-
             {/* Content */}
             {isLoading ? (
-                <TrendingSkeleton />
+                <>
+                    <TrendingHeader showNav={false} />
+                    <TrendingSkeleton />
+                </>
             ) : error ? (
-                <TrendingError message={error} onRetry={fetchTrending} />
+                <>
+                    <TrendingHeader showNav={false} />
+                    <TrendingError message={error} onRetry={fetchTrending} />
+                </>
             ) : data ? (
                 <TrendingCarousel
                     games={data.games}
@@ -103,6 +73,67 @@ export function TrendingSection({ onGameClick }: TrendingSectionProps) {
                 />
             ) : null}
         </motion.section>
+    )
+}
+
+interface TrendingHeaderProps {
+    showNav: boolean
+    canScrollLeft?: boolean
+    canScrollRight?: boolean
+    onScrollLeft?: () => void
+    onScrollRight?: () => void
+}
+
+function TrendingHeader({ showNav, canScrollLeft, canScrollRight, onScrollLeft, onScrollRight }: TrendingHeaderProps) {
+    return (
+        <div className="flex items-center justify-between mb-2 group/header">
+            <div className="flex items-center gap-4">
+                {/* Animated fire icon */}
+                <div className="relative">
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.1, 1],
+                            rotate: [0, -5, 5, 0]
+                        }}
+                        transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                        }}
+                        className="relative z-10"
+                    >
+                        <Flame className="w-5 h-5 text-orange-500" />
+                    </motion.div>
+                    <div className="absolute inset-0 bg-orange-500/50 blur-md animate-pulse" />
+                </div>
+
+                <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
+                    Trending
+                    <span className="text-xs font-mono font-medium tracking-[0.1em] text-amber-500/80 px-2 py-0.5 border border-amber-500/30 rounded flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        LIVE
+                    </span>
+                </h2>
+            </div>
+
+            {/* Decorative line */}
+            <div className="flex-1 h-px bg-gradient-to-r from-orange-900/40 via-amber-900/20 to-transparent mx-8" />
+
+            {showNav ? (
+                <CarouselNav
+                    canScrollLeft={canScrollLeft ?? false}
+                    canScrollRight={canScrollRight ?? false}
+                    onScrollLeft={onScrollLeft ?? (() => { })}
+                    onScrollRight={onScrollRight ?? (() => { })}
+                    accent="amber"
+                />
+            ) : (
+                <TrendingUp className="w-5 h-5 text-orange-500/40" />
+            )}
+        </div>
     )
 }
 
@@ -115,7 +146,7 @@ function TrendingSkeleton() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex-shrink-0 w-[280px] aspect-[460/215] rounded-lg bg-void-surface overflow-hidden relative"
+                    className="shrink-0 w-[280px] aspect-[460/215] rounded-lg bg-void-surface overflow-hidden relative"
                 >
                     {/* Shimmer effect */}
                     <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -160,9 +191,19 @@ interface TrendingCarouselProps {
 }
 
 function TrendingCarousel({ games, onGameClick }: TrendingCarouselProps) {
-    const scrollRef = React.useRef<HTMLDivElement>(null)
-    const [canScrollLeft, setCanScrollLeft] = React.useState(false)
-    const [canScrollRight, setCanScrollRight] = React.useState(true)
+    const { scrollRef, canScrollLeft, canScrollRight, scrollByPage } = useHorizontalScroller()
+    const libraryGames = useGameStore((s) => s.games)
+    const openDetail = useGameStore((s) => s.openDetail)
+
+    // Map of steamAppId -> local library Game, for O(1) ownership lookup.
+    // Rebuilt when library changes (e.g. sync completes, manual add).
+    const ownedByAppId = React.useMemo(() => {
+        const map = new Map<string, Game>()
+        for (const g of libraryGames) {
+            if (g.steamAppId) map.set(g.steamAppId, g)
+        }
+        return map
+    }, [libraryGames])
 
     // Deduplicate games by ID to prevent React key collisions
     const uniqueGames = React.useMemo(() => {
@@ -175,82 +216,85 @@ function TrendingCarousel({ games, onGameClick }: TrendingCarouselProps) {
         return Array.from(seen.values())
     }, [games])
 
-    const checkScroll = React.useCallback(() => {
-        if (scrollRef.current) {
-            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
-            const firstCard = scrollRef.current.children[0] as HTMLElement
-            const startOffset = firstCard?.offsetLeft || 0
-
-            setCanScrollLeft(scrollLeft > startOffset + 5)
-            setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
-        }
-    }, [])
-
-    React.useEffect(() => {
-        const el = scrollRef.current
-        if (el) {
-            el.addEventListener('scroll', checkScroll)
-            const timer = setTimeout(checkScroll, 100)
-            window.addEventListener('resize', checkScroll)
-            return () => {
-                el.removeEventListener('scroll', checkScroll)
-                window.removeEventListener('resize', checkScroll)
-                clearTimeout(timer)
-            }
-        }
-    }, [checkScroll])
-
     return (
-        <div className="relative w-full z-10 group/portal">
-            <div
-                ref={scrollRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide py-4 -mx-10 w-[calc(100%+5rem)] px-10 scroll-px-10"
-                style={{
-                    scrollBehavior: 'auto',
-                    overscrollBehaviorX: 'contain',
-                    maskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`,
-                    WebkitMaskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`
-                }}
-            >
-                {uniqueGames.map((game, index) => (
-                    <StoreCard
-                        key={game.id}
-                        title={game.name}
-                        image={game.headerImage}
-                        index={index}
-                        onClick={() => onGameClick(game.id)}
-                        accentColor="amber"
-                        width={280}
-                        topLeftBadge={
-                            <span className="text-[10px] font-mono font-bold text-amber-400 bg-black/70 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1">
-                                <Flame className="w-3 h-3" />
-                                #{index + 1}
-                            </span>
-                        }
-                        topRightBadge={
-                            (game.discountPercent ?? 0) > 0 ? (
-                                <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded shadow-lg shadow-green-500/30">
-                                    -{game.discountPercent}%
-                                </span>
-                            ) : null
-                        }
-                        bottomLeft={
-                            game.finalPrice && (
-                                <div className="flex items-center gap-2">
-                                    {game.originalPrice && (game.discountPercent ?? 0) > 0 && (
-                                        <span className="text-[11px] text-text-muted line-through opacity-70">
-                                            {game.originalPrice}
-                                        </span>
-                                    )}
-                                    <span className={`text-xs font-mono font-bold ${game.finalPrice === 'Free' ? 'text-emerald-400' : 'text-white'}`}>
-                                        {game.finalPrice}
+        <>
+            <TrendingHeader
+                showNav
+                canScrollLeft={canScrollLeft}
+                canScrollRight={canScrollRight}
+                onScrollLeft={() => scrollByPage('left')}
+                onScrollRight={() => scrollByPage('right')}
+            />
+            <div className="relative w-full z-10 group/portal">
+                <div
+                    ref={scrollRef}
+                    className="flex gap-4 overflow-x-auto scrollbar-hide py-4 -mx-10 w-[calc(100%+5rem)] px-10 scroll-px-10 snap-x snap-mandatory"
+                    style={{
+                        overscrollBehaviorX: 'contain',
+                        maskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`,
+                        WebkitMaskImage: `linear-gradient(to right, ${canScrollLeft ? 'transparent' : 'black'} 0%, black 10%, black 90%, ${canScrollRight ? 'transparent' : 'black'} 100%)`
+                    }}
+                >
+                    {uniqueGames.map((game, index) => {
+                        const ownedGame = ownedByAppId.get(String(game.id))
+                        const hasDiscount = (game.discountPercent ?? 0) > 0
+
+                        return (
+                            <StoreCard
+                                key={game.id}
+                                title={game.name}
+                                image={game.headerImage}
+                                index={index}
+                                onClick={() => {
+                                    if (ownedGame) {
+                                        openDetail(ownedGame)
+                                    } else {
+                                        onGameClick(game.id)
+                                    }
+                                }}
+                                accentColor="amber"
+                                width={280}
+                                topLeftBadge={
+                                    <span className="text-[10px] font-mono font-bold text-amber-400 bg-black/70 backdrop-blur-sm px-2 py-1 rounded flex items-center gap-1">
+                                        <Flame className="w-3 h-3" />
+                                        #{index + 1}
                                     </span>
-                                </div>
-                            )
-                        }
-                    />
-                ))}
+                                }
+                                topRightBadge={
+                                    ownedGame ? (
+                                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-black/70 backdrop-blur-sm border border-white/25 text-white text-[10px] font-mono font-black uppercase tracking-widest rounded shadow-[0_2px_10px_oklch(0_0_0/0.6)]">
+                                            <Library className="w-3 h-3" />
+                                            Owned
+                                        </span>
+                                    ) : hasDiscount ? (
+                                        <span className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded shadow-lg shadow-green-500/30">
+                                            -{game.discountPercent}%
+                                        </span>
+                                    ) : null
+                                }
+                                bottomLeft={
+                                    ownedGame ? (
+                                        <span className="text-[10px] font-mono font-bold text-white/90 uppercase tracking-wider">
+                                            {ownedGame.isInstalled ? 'In library · Installed' : 'In library'}
+                                        </span>
+                                    ) : game.finalPrice ? (
+                                        <div className="flex items-center gap-2">
+                                            {game.originalPrice && hasDiscount && (
+                                                <span className="text-[11px] text-text-muted line-through opacity-70">
+                                                    {game.originalPrice}
+                                                </span>
+                                            )}
+                                            <span className={`text-xs font-mono font-bold ${game.finalPrice === 'Free' ? 'text-emerald-400' : 'text-white'}`}>
+                                                {game.finalPrice}
+                                            </span>
+                                        </div>
+                                    ) : null
+                                }
+                            />
+                        )
+                    })}
+                </div>
             </div>
-        </div>
+        </>
     )
 }

@@ -33,6 +33,8 @@ export const useGameStore = create<GameStore>((set, get) => {
         isDetailOpen: false,
         isSettingsOpen: false,
         isAddModalOpen: false,
+        isHuntsDrawerOpen: false,
+        isSetupWizardOpen: false,
 
         setView: (view) => set({ currentView: view }),
 
@@ -192,6 +194,25 @@ export const useGameStore = create<GameStore>((set, get) => {
         },
 
         closeAddModal: () => set({ isAddModalOpen: false }),
+
+        openHuntsDrawer: () => set({
+            isHuntsDrawerOpen: true,
+            isDetailOpen: false,
+            isSettingsOpen: false,
+            isAddModalOpen: false,
+        }),
+
+        closeHuntsDrawer: () => set({ isHuntsDrawerOpen: false }),
+
+        openSetupWizard: () => set({
+            isSetupWizardOpen: true,
+            isDetailOpen: false,
+            isSettingsOpen: false,
+            isAddModalOpen: false,
+            isHuntsDrawerOpen: false,
+        }),
+
+        closeSetupWizard: () => set({ isSetupWizardOpen: false }),
     }
 })
 

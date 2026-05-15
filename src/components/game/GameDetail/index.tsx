@@ -109,7 +109,7 @@ export function GameDetail() {
     const formattedSize = useMemo(() => {
         return selectedGame?.sizeOnDisk
             ? `${(selectedGame.sizeOnDisk / 1073741824).toFixed(1)} GB`
-            : 'Download now'
+            : 'Get it now'
     }, [selectedGame?.sizeOnDisk])
 
 
@@ -197,7 +197,9 @@ export function GameDetail() {
                                             {tab === 'overview' && <Gamepad2 size={14} />}
                                             {tab === 'achievements' && <Trophy size={14} />}
                                             {tab === 'patchnotes' && <Newspaper size={14} />}
-                                            <span className="text-xs font-display font-bold uppercase tracking-wider">{tab}</span>
+                                            <span className="text-xs font-display font-bold uppercase tracking-wider">
+                                                {tab === 'patchnotes' ? 'News' : tab}
+                                            </span>
 
                                             {activeTab === tab && (
                                                 <motion.div
@@ -234,7 +236,7 @@ export function GameDetail() {
                                             {selectedGame.steamAppId ? (
                                                 <AchievementsTab data={achievementsData} isLoading={achievementsLoading} />
                                             ) : (
-                                                <EmptyState icon={<Trophy size={32} />} message="Achievements not available for this game" />
+                                                <EmptyState icon={<Trophy size={32} />} message="No achievements for this game" />
                                             )}
                                         </motion.div>
                                     )}
@@ -249,7 +251,7 @@ export function GameDetail() {
                                             {selectedGame.steamAppId ? (
                                                 <PatchNotesTab data={newsData} isLoading={newsLoading} />
                                             ) : (
-                                                <EmptyState icon={<Newspaper size={32} />} message="News feed not available for this game" />
+                                                <EmptyState icon={<Newspaper size={32} />} message="No news for this game" />
                                             )}
                                         </motion.div>
                                     )}

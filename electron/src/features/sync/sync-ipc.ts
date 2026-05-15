@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { JsonStore } from '../../shared/store'
 import { mirrorAllCovers } from '../../shared/utils'
 import { fetchSteamStoreDetails } from '../steam/steam-api'
-import { steamService } from '../../../steamService'
+import { steamService } from '../steam/steam-service'
 import {
     loginWithSteam,
     logout,
@@ -47,66 +47,47 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         }
     }
 
-    // 3. Merge Local Claims & Resolve Missing Names
+    // 3. Per-game fallback for stragglers — claims not in API, games with
+    // missing names. With the new /actions/GetOwnedApps endpoint as primary,
+    // this should hit ~0 games for typical syncs. Hard-capped to avoid Steam
+    // Store API rate limits (200/5min) if something does fall through.
+    const PER_GAME_FETCH_CAP = 10
     const localClaims = store.get('claimedAppIds') || []
-    const missingAppIds = new Set<string>()
-
-    // Identify claims missing from API list
     const ownedAppIds = new Set(apiGames.map(g => g.appId))
+    const stragglerIds = new Set<string>()
+
     for (const claimId of localClaims) {
-        if (!ownedAppIds.has(claimId)) {
-            missingAppIds.add(claimId)
-        }
+        if (!ownedAppIds.has(claimId)) stragglerIds.add(claimId)
     }
-
-    // Identify games with placeholder names "Game [ID]" from API
     for (const game of apiGames) {
-        if (game.name === `Game ${game.appId}` || !game.name) {
-            missingAppIds.add(game.appId)
-        }
+        if (!game.name || game.name === `Game ${game.appId}`) stragglerIds.add(game.appId)
     }
 
-    if (missingAppIds.size > 0) {
-        const idsToFetch = Array.from(missingAppIds)
-        console.log('[Main] Fetching details for', idsToFetch.length, 'games (claims + missing names)')
+    if (stragglerIds.size > 0) {
+        const idsToFetch = Array.from(stragglerIds).slice(0, PER_GAME_FETCH_CAP)
+        if (stragglerIds.size > PER_GAME_FETCH_CAP) {
+            console.warn('[Main] Capping per-game name fetches at', PER_GAME_FETCH_CAP, '(', stragglerIds.size - PER_GAME_FETCH_CAP, 'games left for background resolver)')
+        } else {
+            console.log('[Main] Per-game fallback for', idsToFetch.length, 'stragglers')
+        }
 
-        // Fetch details in batches if needed (fetchSteamStoreDetails handles some batching naturally?)
-        // Logic inside fetchSteamStoreDetails should handle arrays.
         const details = await fetchSteamStoreDetails(idsToFetch)
         const detailsMap = new Map(details.map((d: any) => [String(d.appId), d]))
 
-        // Update API Games with resolved names
         for (const game of apiGames) {
-            if (detailsMap.has(game.appId)) {
-                const detail = detailsMap.get(game.appId)
-                if (detail && detail.name) {
-                    game.name = detail.name
-                }
-            }
+            const detail = detailsMap.get(game.appId)
+            if (detail?.name) game.name = detail.name
         }
 
-        // Add missing claims to list
+        // Add local claims that weren't in the API list
         const fetchedIds = new Set(details.map((g: any) => String(g.appId)))
-
         for (const id of idsToFetch) {
-            // Only add if it was a LOCAL CLAIM (not just a rename fix) AND not already in API list
             if (localClaims.includes(id) && !ownedAppIds.has(id)) {
                 if (fetchedIds.has(id)) {
                     const detail = detailsMap.get(id)
-                    apiGames.push({
-                        appId: id,
-                        name: detail.name,
-                        playtime: 0,
-                        lastPlayed: undefined
-                    })
+                    apiGames.push({ appId: id, name: detail.name, playtime: 0, lastPlayed: undefined })
                 } else {
-                    // Still failed to fetch, use placeholder
-                    apiGames.push({
-                        appId: id,
-                        name: `Claimed Game (${id})`,
-                        playtime: 0,
-                        lastPlayed: undefined
-                    })
+                    apiGames.push({ appId: id, name: `Claimed Game (${id})`, playtime: 0, lastPlayed: undefined })
                 }
             }
         }
@@ -132,10 +113,19 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
                     existing.title = apiGame.name
                 }
 
-                // Update stats
-                existing.playtime = apiGame.playtime
+                // Playtime: take the max of existing (from local VDF scan) and
+                // incoming (from session/API). Never downgrade — the session
+                // path returns 0 for any game not enriched by the community
+                // games XML feed (privacy blocks the feed for many users).
+                // Overwriting with 0 would erase real VDF-sourced playtime.
+                existing.playtime = Math.max(existing.playtime ?? 0, apiGame.playtime ?? 0)
+
+                // Last played: prefer the more recent timestamp from any source.
                 if (apiGame.lastPlayed) {
-                    existing.lastPlayed = new Date(apiGame.lastPlayed * 1000).toISOString()
+                    const apiIso = new Date(apiGame.lastPlayed * 1000).toISOString()
+                    if (!existing.lastPlayed || apiIso > existing.lastPlayed) {
+                        existing.lastPlayed = apiIso
+                    }
                 }
 
                 // Preserve local state (favorites, custom covers, installed)
@@ -164,13 +154,97 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         store.set('games', finalGames)
         console.log('[Main] ✓ Sync complete. Total games:', finalGames.length)
 
-        // Notify renderer
+        // Notify renderer (covers are mirrored async)
+        win?.webContents.send('games-updated', finalGames)
         mirrorAllCovers(store, win)
+
+        // Background-resolve any games STILL named "Game ${appId}" after bulk
+        // resolution. These are appIds missing from Steam's GetAppList feed
+        // (DLC/region-locked/recently-added games). Fetched one-at-a-time
+        // with throttling — never blocks the sync return path.
+        resolveStragglersInBackground(store, win)
 
         return { success: true, count: finalGames.length }
     }
 
     return { success: apiResult.success, count: 0 }
+}
+
+// ─── Background straggler resolver ──────────────────────────────────────────
+//
+// Games whose names are still "Game ${appId}" after bulk resolution get their
+// names fetched one-by-one from Steam's appdetails endpoint. Steam rate-limits
+// this at ~200 requests / 5min, so we throttle at one call per 1.5s and cap
+// the queue at 100 games per sync. Failures are remembered for the rest of
+// the process lifetime so re-syncs don't re-attempt them.
+
+const stragglerFailedAppIds = new Set<string>()
+let stragglerResolverRunning = false
+const STRAGGLER_CAP = 100
+const STRAGGLER_DELAY_MS = 1500
+
+function resolveStragglersInBackground(store: JsonStore, win: BrowserWindow | null) {
+    if (stragglerResolverRunning) return
+    stragglerResolverRunning = true
+
+    void (async () => {
+        try {
+            const games = store.get('games')
+            const stragglers = games.filter(g =>
+                g.source === 'steam' &&
+                g.steamAppId &&
+                g.title.startsWith('Game ') &&
+                !stragglerFailedAppIds.has(g.steamAppId)
+            ).slice(0, STRAGGLER_CAP)
+
+            if (stragglers.length === 0) return
+            console.log('[Main] Background-resolving', stragglers.length, 'straggler names...')
+
+            let resolved = 0
+            for (const game of stragglers) {
+                try {
+                    const url = `https://store.steampowered.com/api/appdetails?appids=${game.steamAppId}&filters=basic`
+                    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+
+                    if (res.status === 429) {
+                        console.warn('[Main] Hit rate limit on stragglers, stopping. Resolved', resolved, 'so far')
+                        break
+                    }
+                    if (!res.ok) {
+                        stragglerFailedAppIds.add(game.steamAppId!)
+                        continue
+                    }
+
+                    const data = await res.json() as Record<string, { success: boolean; data?: { name?: string } }>
+                    const entry = data[game.steamAppId!]
+                    if (entry?.success && entry.data?.name) {
+                        const current = store.get('games')
+                        const updated = current.map(g =>
+                            g.id === game.id ? { ...g, title: entry.data!.name! } : g
+                        )
+                        store.set('games', updated)
+                        win?.webContents.send('games-updated', updated)
+                        resolved++
+                    } else {
+                        // Steam responded but no name — likely delisted. Remember
+                        // so we don't waste the rate limit on retries.
+                        stragglerFailedAppIds.add(game.steamAppId!)
+                    }
+                } catch (err) {
+                    console.warn('[Main] Straggler fetch failed for', game.steamAppId, err)
+                    stragglerFailedAppIds.add(game.steamAppId!)
+                }
+
+                await new Promise(resolve => setTimeout(resolve, STRAGGLER_DELAY_MS))
+            }
+
+            console.log('[Main] ✓ Background straggler resolution done.', resolved, 'names resolved.')
+        } catch (err) {
+            console.error('[Main] Background straggler resolver crashed:', err)
+        } finally {
+            stragglerResolverRunning = false
+        }
+    })()
 }
 
 
@@ -198,8 +272,8 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
     })
 
     // Logout
-    ipcMain.handle('steam-logout', () => {
-        logout()
+    ipcMain.handle('steam-logout', async () => {
+        await logout()
         return getAuthState()
     })
 

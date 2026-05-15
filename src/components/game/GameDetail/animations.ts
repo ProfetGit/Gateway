@@ -10,46 +10,49 @@ export const containerVariants = {
 }
 
 export const launchBoltVariants = {
-    idle: { x: 0, scale: 1, backgroundColor: '#dc2626' },
-    hover: { x: 6, scale: 1.05, backgroundColor: '#ffffff', boxShadow: '0 0 40px rgba(255,255,255,0.5)' },
-    tap: { scale: 0.92 }
+    idle:  { x: 0, scale: 1, backgroundColor: 'oklch(0.52 0.23 25)' },
+    hover: { x: 6, scale: 1.05, backgroundColor: 'oklch(0.98 0.003 25)', boxShadow: '0 0 40px oklch(0.98 0.003 25 / 0.5)' },
+    tap:   { scale: 0.92 }
 }
 
 export const launchIconVariants = {
-    idle: { color: '#ffffff' },
-    hover: { color: '#dc2626' }
+    idle:  { color: 'oklch(0.98 0.003 25)' },
+    hover: { color: 'oklch(0.52 0.23 25)' }
 }
 
 export const launchTextVariants = {
-    idle: { x: 0, skewX: 0, opacity: 0.9 },
-    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px rgba(220,38,38,0.4)' }
+    idle:  { x: 0, skewX: 0, opacity: 0.9 },
+    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px oklch(0.52 0.23 25 / 0.4)' }
 }
 
 export const launchSubtextVariants = {
-    idle: { x: 0, opacity: 0.6 },
+    idle:  { x: 0, opacity: 0.6 },
     hover: { x: 8, opacity: 1 }
 }
 
 export const installBoltVariants = {
-    idle: { x: 0, scale: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.05)' },
-    hover: { x: 6, scale: 1.05, borderColor: '#dc2626', backgroundColor: '#dc2626', boxShadow: '0 0 30px rgba(220,38,38,0.5)' },
-    tap: { scale: 0.92 }
+    idle:  { x: 0, scale: 1, borderColor: 'oklch(0.98 0.003 25 / 0.3)', backgroundColor: 'oklch(0.98 0.003 25 / 0.05)' },
+    hover: { x: 6, scale: 1.05, borderColor: 'oklch(0.52 0.23 25)', backgroundColor: 'oklch(0.52 0.23 25)', boxShadow: '0 0 30px oklch(0.52 0.23 25 / 0.5)' },
+    tap:   { scale: 0.92 }
 }
 
 export const installIconVariants = {
-    idle: { color: 'rgba(255,255,255,0.7)' },
-    hover: { color: '#ffffff' }
+    idle:  { color: 'oklch(0.98 0.003 25 / 0.7)' },
+    hover: { color: 'oklch(0.98 0.003 25)' }
 }
 
 export const installTextVariants = {
-    idle: { x: 0, skewX: 0, opacity: 0.7 },
-    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px rgba(220,38,38,0.4)' }
+    idle:  { x: 0, skewX: 0, opacity: 0.7 },
+    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px oklch(0.52 0.23 25 / 0.4)' }
 }
 
 export const installSubtextVariants = {
-    idle: { x: 0, opacity: 0.5 },
-    hover: { x: 8, opacity: 1, color: 'rgba(220,38,38,0.8)' }
+    idle:  { x: 0, opacity: 0.5 },
+    hover: { x: 8, opacity: 1, color: 'oklch(0.52 0.23 25 / 0.8)' }
 }
 
+// Hover transition — 100ms ease-out-expo, GPU-only. Replaces former spring physics on hover (banned).
+export const hoverTransition = { duration: 0.1, ease: [0.16, 1, 0.3, 1] as const }
+// Entrance / one-shot reveal transition — spring is acceptable here per signature-design Phase 2.
 export const springTransition = { type: "spring" as const, stiffness: 500, damping: 30 }
 export const fastTransition = { duration: 0.15, ease: "easeOut" as const }

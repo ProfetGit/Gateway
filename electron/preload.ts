@@ -169,6 +169,18 @@ contextBridge.exposeInMainWorld('api', {
   selectExecutable: (): Promise<string | null> => ipcRenderer.invoke('select-executable'),
   selectImage: (): Promise<string | null> => ipcRenderer.invoke('select-image'),
 
+  // Setup wizard / app config
+  getSetupState: (): Promise<{
+    hasCompletedSetup: boolean
+    hasApiKey: boolean
+    isSteamLoggedIn: boolean
+    hasGames: boolean
+  }> => ipcRenderer.invoke('get-setup-state'),
+  markSetupComplete: (): Promise<void> => ipcRenderer.invoke('mark-setup-complete'),
+  setSteamApiKey: (key: string): Promise<{ success: boolean; hasKey: boolean }> =>
+    ipcRenderer.invoke('set-steam-api-key', key),
+  getSteamApiKey: (): Promise<string> => ipcRenderer.invoke('get-steam-api-key'),
+
   // Window controls
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),

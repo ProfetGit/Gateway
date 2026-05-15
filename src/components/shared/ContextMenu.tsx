@@ -121,7 +121,7 @@ export function ContextMenu() {
                             stiffness: 300,
                             mass: 0.8
                         }}
-                        className="absolute pointer-events-auto min-w-[220px] bg-[#0f0f11]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] overflow-hidden"
+                        className="absolute pointer-events-auto min-w-[220px] bg-void-elevated/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_20px_50px_-10px_oklch(0_0_0/0.8)] overflow-hidden"
                         style={{ top: menuPosition.y, left: menuPosition.x }}
                     >
                         {/* Noise overlay for texture */}
@@ -150,8 +150,8 @@ export function ContextMenu() {
                                         relative group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 outline-none
                                         ${(index === activeIndex)
                                             ? item.danger
-                                                ? 'bg-red-500/10 text-red-200 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.2)]'
-                                                : 'bg-white/10 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]'
+                                                ? 'bg-red-500/10 text-red-200 shadow-[inset_0_0_0_1px_oklch(0.64_0.215_25/0.2)]'
+                                                : 'bg-white/10 text-white shadow-[inset_0_0_0_1px_oklch(0.98_0.003_25/0.1)]'
                                             : item.danger
                                                 ? 'text-red-400 opacity-80'
                                                 : 'text-gray-400'
@@ -171,7 +171,7 @@ export function ContextMenu() {
 
                                     {/* Active subtle shimmer/glow */}
                                     {index === activeIndex && !item.danger && (
-                                        <div className="absolute left-0 w-0.5 h-4 bg-crimson-500 rounded-r-full shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
+                                        <div className="absolute left-0 w-0.5 h-4 bg-crimson-500 rounded-r-full shadow-[0_0_8px_oklch(0.52_0.23_25/0.8)]" />
                                     )}
                                 </button>
                             ))}
