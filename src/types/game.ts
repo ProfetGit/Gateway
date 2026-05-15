@@ -1,3 +1,5 @@
+import type { FetchFreeDealsResult } from './freeDeals'
+
 export interface Game {
     id: string
     title: string
@@ -226,7 +228,7 @@ export interface ElectronAPI {
 
     // Trending games
     getTrendingGames: () => Promise<import('./trending').FetchTrendingResult>
-    getFreeDeals: () => Promise<any>
+    getFreeDeals: () => Promise<FetchFreeDealsResult>
 
     // Steam Store Actions
     openSteamStore: (appId: string | number) => Promise<void>

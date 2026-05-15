@@ -1,135 +1,102 @@
-import { motion } from 'framer-motion'
+import { ExternalLink, Star, Trash2 } from 'lucide-react'
 import { Game } from '../../../types/game'
 import { FetchGameDetailsResult } from '../../../types/game'
-import {
-    ExternalLink,
-    Monitor,
-    Star,
-    Trash2
-} from 'lucide-react'
-import { InfoRow } from './StatCards'
 
-interface GameDetailSidebarProps {
+interface GameDetailMetaStripProps {
     selectedGame: Game
-    imgSrc: string | undefined
     gameDetails: FetchGameDetailsResult | null
+    formattedPlaytime: string
+    formattedLastPlayed: string
+    formattedSize: string | undefined
     isDeleting: boolean
     toggleFavorite: (id: string) => void
     handleDelete: () => void
-    handleImageError: () => void
 }
 
-export function GameDetailSidebar({
+function MetaStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-white/25">{label}</span>
+            <span className="text-sm font-mono text-white/65">{value}</span>
+        </div>
+    )
+}
+
+/* h-28 = 112px — must exceed half of cover card height (96px) to fully contain the breach */
+export function GameDetailMetaStrip({
     selectedGame,
-    imgSrc,
     gameDetails,
+    formattedPlaytime,
+    formattedLastPlayed,
+    formattedSize,
     isDeleting,
     toggleFavorite,
-    handleDelete,
-    handleImageError
-}: GameDetailSidebarProps) {
+    handleDelete
+}: GameDetailMetaStripProps) {
+    const source = selectedGame.source
+        ? selectedGame.source.charAt(0).toUpperCase() + selectedGame.source.slice(1)
+        : 'Local'
+
     return (
-        <div className="relative w-[280px] shrink-0 bg-void-deep border-r border-void-border/30 flex flex-col">
-            {/* Ambient bleed background */}
-            <div className="absolute inset-0 overflow-hidden">
-                {imgSrc && (
-                    <img
-                        src={imgSrc}
-                        className="ambient-bleed w-full h-full object-cover"
-                        alt=""
-                    />
+        <div className="relative z-10 flex items-center h-28 border-b border-void-border/30 bg-void-pure shrink-0 pr-8">
+            {/* Stats — pl-48 clears the cover card (left-8=32px + w-36=144px + 16px gap = 192px = pl-48) */}
+            <div className="flex-1 flex items-center gap-6 pl-48">
+                <MetaStat label="Source" value={source} />
+                <div className="w-px h-8 bg-void-border/20 shrink-0" />
+                <MetaStat label="Status" value={selectedGame.isInstalled ? 'Ready to play' : 'Not installed'} />
+                {formattedSize && (
+                    <>
+                        <div className="w-px h-8 bg-void-border/20 shrink-0" />
+                        <MetaStat label="Size" value={formattedSize} />
+                    </>
                 )}
-                <div className="absolute inset-0 bg-void-deep/80" />
+                {gameDetails?.details?.releaseDate && (
+                    <>
+                        <div className="w-px h-8 bg-void-border/20 shrink-0" />
+                        <MetaStat label="Released" value={gameDetails.details.releaseDate} />
+                    </>
+                )}
+                <div className="w-px h-8 bg-void-border/20 shrink-0" />
+                <MetaStat label="Playtime" value={formattedPlaytime} />
+                <div className="w-px h-8 bg-void-border/20 shrink-0" />
+                <MetaStat label="Last played" value={formattedLastPlayed} />
             </div>
 
-            {/* Cover Art */}
-            <div className="relative p-4 z-10">
-                <motion.div
-                    className="relative aspect-[3/4] rounded-lg overflow-hidden border border-void-border/50 shadow-void-lift group"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    {/* Corner accents */}
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-crimson-500/60 z-20 pointer-events-none" />
-                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-crimson-500/60 z-20 pointer-events-none" />
-
-                    {imgSrc ? (
-                        <img
-                            src={imgSrc}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            onError={handleImageError}
-                            alt={selectedGame.title}
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-void-surface flex items-center justify-center">
-                            <span className="text-6xl font-display font-black text-white/5">
-                                {selectedGame.title.charAt(0)}
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Scanline overlay */}
-                    <div className="absolute inset-0 bg-scanlines opacity-30 pointer-events-none" />
-
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-void-pure/60 via-transparent to-transparent pointer-events-none" />
-
-                    {/* Installed indicator */}
-                    {selectedGame.isInstalled && (
-                        <div className="absolute top-2 left-2 z-30 flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-sm rounded">
-                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_oklch(0.72_0.17_165/0.8)]" />
-                            <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-400">Installed</span>
-                        </div>
-                    )}
-                </motion.div>
-            </div>
-
-            {/* Quick Info */}
-            <div className="flex-1 px-4 pb-4 z-10 space-y-3 overflow-y-auto scrollbar-hide">
-                <div className="space-y-2">
-                    <InfoRow label="From" value={selectedGame.source ? selectedGame.source.charAt(0).toUpperCase() + selectedGame.source.slice(1) : 'Local'} icon={<Monitor size={12} />} />
-                    <InfoRow label="Status" value={selectedGame.isInstalled ? 'Ready to play' : 'Not installed'} />
-                    {selectedGame.sizeOnDisk && (
-                        <InfoRow label="Size" value={`${(selectedGame.sizeOnDisk / 1073741824).toFixed(1)} GB`} />
-                    )}
-                    {gameDetails?.details?.releaseDate && (
-                        <InfoRow label="Released" value={gameDetails.details.releaseDate} />
-                    )}
-                </div>
-
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-void-border/30 z-10 flex items-center gap-2">
+            {/* Secondary actions */}
+            <div className="flex items-center gap-1.5 ml-6">
                 <button
                     onClick={() => toggleFavorite(selectedGame.id)}
-                    className={`p-2 rounded-lg transition-all duration-200 ${selectedGame.isFavorite
-                        ? 'bg-crimson-500/20 text-crimson-500'
-                        : 'bg-void-surface/50 text-white/30 hover:text-white/60 hover:bg-void-surface'
-                        }`}
+                    title={selectedGame.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    className={`p-2 transition-all duration-100 border ${
+                        selectedGame.isFavorite
+                            ? 'border-crimson-500/40 bg-crimson-500/10 text-crimson-400'
+                            : 'border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60'
+                    }`}
                 >
-                    <Star size={16} className={selectedGame.isFavorite ? 'fill-crimson-500' : ''} />
+                    <Star size={15} className={selectedGame.isFavorite ? 'fill-crimson-400' : ''} />
                 </button>
 
                 {selectedGame.steamAppId && (
                     <button
                         onClick={() => window.api?.openSteamStore(selectedGame.steamAppId!)}
-                        className="p-2 rounded-lg bg-void-surface/50 text-white/30 hover:text-white/60 hover:bg-void-surface transition-all duration-200"
+                        title="Open in Steam"
+                        className="p-2 border border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60 transition-all duration-100"
                     >
-                        <ExternalLink size={16} />
+                        <ExternalLink size={15} />
                     </button>
                 )}
 
                 {selectedGame.isInstalled && (
                     <button
                         onClick={handleDelete}
-                        className={`p-2 rounded-lg transition-all duration-200 ml-auto ${isDeleting
-                            ? 'bg-red-500/20 text-red-500'
-                            : 'bg-void-surface/50 text-white/30 hover:text-red-500 hover:bg-red-500/10'
-                            }`}
+                        title={isDeleting ? 'Click again to confirm' : 'Uninstall'}
+                        className={`p-2 transition-all duration-100 border ${
+                            isDeleting
+                                ? 'border-red-500/40 bg-red-500/10 text-red-400'
+                                : 'border-void-border/30 bg-transparent text-white/30 hover:text-red-400 hover:border-red-500/30'
+                        }`}
                     >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                     </button>
                 )}
             </div>

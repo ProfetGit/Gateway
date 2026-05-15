@@ -3,18 +3,33 @@ import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useFilteredGames, useGameStore } from '../../stores/gameStore'
 import { Gamepad2 } from 'lucide-react'
-import { forwardRef, memo } from 'react'
+import { forwardRef, memo, useEffect, useState } from 'react'
 import type { Game } from '../../types/game'
 
-// Memoized card wrapper — prevents re-renders unless game data changes
-const MemoizedGameCard = memo(function MemoizedGameCard({ game }: { game: Game }) {
-    return <GameCard game={game} />
+// Memoized card wrapper — prevents re-renders unless game data changes.
+// `animateIndex` is -1 once the initial stagger window has passed; recycled
+// cards from virtualization scroll then mount without animating.
+const MemoizedGameCard = memo(function MemoizedGameCard({
+    game,
+    animateIndex,
+}: {
+    game: Game
+    animateIndex: number
+}) {
+    return <GameCard game={game} animateIndex={animateIndex} />
 })
 
 export function GameGrid() {
     const games = useFilteredGames()
+    const [animateIn, setAnimateIn] = useState(true)
+    const hasGames = games.length > 0
 
-    // Removed double-RAF delay — cards render immediately
+    useEffect(() => {
+        if (!hasGames) return
+        setAnimateIn(true)
+        const id = window.setTimeout(() => setAnimateIn(false), 900)
+        return () => window.clearTimeout(id)
+    }, [hasGames])
 
     return (
         <div className="flex-1 min-h-0 bg-void-pure relative">
@@ -26,11 +41,14 @@ export function GameGrid() {
                 <VirtuosoGrid
                     style={{ height: '100%' }}
                     totalCount={games.length}
-                    overscan={50}
+                    overscan={15}
                     listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
                     itemClassName="min-h-[240px]"
                     itemContent={(index) => (
-                        <MemoizedGameCard game={games[index]} />
+                        <MemoizedGameCard
+                            game={games[index]}
+                            animateIndex={animateIn ? index : -1}
+                        />
                     )}
                 />
             )}
@@ -70,29 +88,6 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
                 Sync Library Now
             </button>
 
-            {/* Particle decoration */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {[...Array(20)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        className="absolute w-1 h-1 bg-crimson-500/40"
-                        style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                        }}
-                        animate={{
-                            y: [0, -100],
-                            opacity: [0, 1, 0],
-                        }}
-                        transition={{
-                            duration: 3 + Math.random() * 5,
-                            repeat: Infinity,
-                            delay: Math.random() * 5,
-                            ease: "linear"
-                        }}
-                    />
-                ))}
-            </div>
         </motion.div>
     )
 })

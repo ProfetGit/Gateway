@@ -99,8 +99,6 @@ export function TopNavigation() {
                         <User className="w-5 h-5 text-white/50 group-hover:text-crimson-400 transition-colors" />
                     )}
 
-                    {/* Status Indicator */}
-                    <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-void-pure group-hover:animate-pulse z-10" />
                 </button>
             </div>
         </nav>

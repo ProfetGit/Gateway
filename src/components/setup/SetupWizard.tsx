@@ -104,7 +104,6 @@ export function SetupWizard() {
                                 </button>
 
                                 <div className="flex items-center gap-2 text-crimson-500 mb-2">
-                                    <div className="w-2 h-2 bg-crimson-500 rounded-full animate-pulse" />
                                     <span className="font-mono text-[10px] tracking-[0.25em] uppercase">Welcome</span>
                                 </div>
                                 <h2 className="text-3xl font-display font-black text-white italic tracking-tighter uppercase transform -skew-x-6 mb-2">

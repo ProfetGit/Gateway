@@ -12,13 +12,6 @@ export function AppShell({ children }: AppShellProps) {
             <header className="h-10 flex items-center justify-between px-4 bg-void-deep border-b border-void-border drag-region shrink-0">
                 {/* Logo / Title */}
                 <div className="flex items-center gap-3 no-drag">
-                    <motion.div
-                        className="w-6 h-6 rounded bg-crimson-600 flex items-center justify-center"
-                        whileHover={{ scale: 1.1, boxShadow: '0 0 20px oklch(0.58 0.245 25 / 0.5)' }}
-                        transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                        <span className="text-xs font-bold text-white">G</span>
-                    </motion.div>
                     <span className="text-sm font-mono text-text-secondary uppercase tracking-widest">
                         Gateway
                     </span>

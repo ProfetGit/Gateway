@@ -18,9 +18,12 @@ import type { Game } from '../../types/game'
 
 interface GameCardProps {
     game: Game
+    /** Index into the visible grid for staggered load-in. -1 disables animation
+     *  (recycled cards during virtualized scroll). */
+    animateIndex?: number
 }
 
-export const GameCard = memo(function GameCard({ game }: GameCardProps) {
+export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: GameCardProps) {
     const getInitialSrc = () => {
         if (game.localCoverPath) return `gateway://cover/${game.localCoverPath}`
         return game.coverUrl
@@ -48,11 +51,10 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
         toggleFavorite(game.id)
     }
 
-    // Reset state when game changes
     useEffect(() => {
         setImgSrc(getInitialSrc())
         setImageError(false)
-    }, [game.coverUrl, game.localCoverPath])
+    }, [game.coverUrl, game.localCoverPath]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleImageError = () => {
         const currentSrc = imgSrc || ''
@@ -78,9 +80,13 @@ export const GameCard = memo(function GameCard({ game }: GameCardProps) {
 
     const hasCover = imgSrc && !imageError
 
+    const shouldAnimate = animateIndex >= 0
+    const animateDelayMs = shouldAnimate ? Math.min(animateIndex * 28, 560) : 0
+
     return (
         <article
-            className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_oklch(0.52_0.23_25/0.25)]"
+            className={`relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_oklch(0.52_0.23_25/0.25)]${shouldAnimate ? ' animate-card-in' : ''}`}
+            style={shouldAnimate ? { animationDelay: `${animateDelayMs}ms` } : undefined}
             onClick={() => openDetail(game)}
             onContextMenu={(e) => {
                 e.preventDefault()

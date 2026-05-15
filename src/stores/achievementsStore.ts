@@ -1,5 +1,20 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
+
+// Debounce localStorage writes — rapid per-result `set` calls during parallel
+// fetching would otherwise serialize the full progress map (100–500 entries)
+// on every single IPC result, blocking the main thread.
+function debouncedStorage(delayMs: number): StateStorage {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    return {
+        getItem: (name) => localStorage.getItem(name),
+        setItem: (name, value) => {
+            if (timer) clearTimeout(timer)
+            timer = setTimeout(() => localStorage.setItem(name, value), delayMs)
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+    }
+}
 
 export interface AchievementProgress {
     appId: string
@@ -51,6 +66,20 @@ export const useAchievementsStore = create<AchievementsStore>()(
                 const workers: Promise<void>[] = []
 
                 const worker = async () => {
+                    // Accumulate results locally; flush to store in small batches so
+                    // we get progressive UI updates without a spread on every single result.
+                    const FLUSH_EVERY = 3
+                    let batch: Record<string, AchievementProgress> = {}
+                    let batchCount = 0
+
+                    const flush = () => {
+                        if (Object.keys(batch).length === 0) return
+                        const snapshot = batch
+                        batch = {}
+                        batchCount = 0
+                        set((s) => ({ progress: { ...s.progress, ...snapshot } }))
+                    }
+
                     while (cursor < needsFetch.length) {
                         const idx = cursor++
                         const appId = needsFetch[idx]
@@ -63,7 +92,7 @@ export const useAchievementsStore = create<AchievementsStore>()(
                                 const pct = result.unlockedCount === result.totalAchievements
                                     ? 100
                                     : Math.floor((result.unlockedCount / result.totalAchievements) * 100)
-                                const entry: AchievementProgress = {
+                                batch[appId] = {
                                     appId,
                                     unlocked: result.unlockedCount,
                                     total: result.totalAchievements,
@@ -71,10 +100,9 @@ export const useAchievementsStore = create<AchievementsStore>()(
                                     gameName: result.gameName,
                                     fetchedAt: Date.now(),
                                 }
-                                set((s) => ({ progress: { ...s.progress, [appId]: entry } }))
                             } else {
                                 // Cache the non-eligible state too so we don't retry every mount
-                                const entry: AchievementProgress = {
+                                batch[appId] = {
                                     appId,
                                     unlocked: 0,
                                     total: result?.totalAchievements ?? 0,
@@ -84,13 +112,15 @@ export const useAchievementsStore = create<AchievementsStore>()(
                                     error: result?.error,
                                     errorCode: result?.errorCode,
                                 }
-                                set((s) => ({ progress: { ...s.progress, [appId]: entry } }))
                             }
                         } catch (err) {
                             // Network/IPC failure — leave uncached so we retry next mount
                             console.warn('[Achievements] fetch failed for', appId, err)
                         }
+
+                        if (++batchCount >= FLUSH_EVERY) flush()
                     }
+                    flush()
                 }
 
                 for (let i = 0; i < Math.min(MAX_PARALLEL, needsFetch.length); i++) {
@@ -107,7 +137,7 @@ export const useAchievementsStore = create<AchievementsStore>()(
         }),
         {
             name: 'gateway-achievements',
-            storage: createJSONStorage(() => localStorage),
+            storage: createJSONStorage(() => debouncedStorage(1500)),
             version: 2,
             // Only persist `progress`. `inFlight` is a Set (doesn't JSON well)
             // and represents in-progress network requests that don't survive

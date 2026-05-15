@@ -79,23 +79,19 @@ export function AchievementHuntsSection() {
             <div className="flex items-center justify-between mb-3 group/header">
                 <div className="flex items-center gap-4">
                     {/* Animated trophy icon */}
-                    <div className="relative">
-                        <motion.div
-                            animate={{
-                                scale: [1, 1.08, 1],
-                                rotate: [0, 4, -4, 0],
-                            }}
-                            transition={{
-                                duration: 3,
-                                repeat: Infinity,
-                                ease: 'easeInOut',
-                            }}
-                            className="relative z-10"
-                        >
-                            <Trophy className="w-5 h-5 text-crimson-500" />
-                        </motion.div>
-                        <div className="absolute inset-0 bg-crimson-500/40 blur-md animate-pulse" />
-                    </div>
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.08, 1],
+                            rotate: [0, 4, -4, 0],
+                        }}
+                        transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                    >
+                        <Trophy className="w-5 h-5 text-crimson-500" />
+                    </motion.div>
 
                     <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
                         Achievement Hunts

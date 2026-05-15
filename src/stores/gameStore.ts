@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useMemo } from 'react'
 import type { GameStore } from '../types/game'
+import { filterAndSortGames } from '../lib/gameFilters'
 
 let _gamesUpdatedListenerRegistered = false
 
@@ -225,57 +226,5 @@ export const useFilteredGames = () => {
     const games = useGameStore(state => state.games)
     const filters = useGameStore(state => state.filters)
 
-    return useMemo(() => {
-        const filtered = games.filter((game) => {
-            const { status, platform, onlyFavorites, search } = filters
-
-            // 1. Search Filter
-            if (search) {
-                const query = search.toLowerCase()
-                if (!game.title.toLowerCase().includes(query)) {
-                    return false
-                }
-            }
-
-            // 2. Status Filter
-            if (status === 'installed' && !game.isInstalled) return false
-
-            // 3. Platform Filter
-            if (platform === 'steam' && game.source !== 'steam') return false
-
-            // 4. Favorites Filter
-            if (onlyFavorites && !game.isFavorite) return false
-
-            return true
-        })
-
-        // Sorting
-        return filtered.sort((a, b) => {
-            const { sortBy, sortOrder } = filters
-            let valA: any
-            let valB: any
-
-            switch (sortBy) {
-                case 'alphabetical':
-                    valA = a.title.toLowerCase()
-                    valB = b.title.toLowerCase()
-                    break
-                case 'playtime':
-                    valA = a.playtime || 0
-                    valB = b.playtime || 0
-                    break
-                case 'lastPlayed':
-                    valA = a.lastPlayed ? new Date(a.lastPlayed).getTime() : 0
-                    valB = b.lastPlayed ? new Date(b.lastPlayed).getTime() : 0
-                    break
-                default:
-                    valA = a.title
-                    valB = b.title
-            }
-
-            if (valA < valB) return sortOrder === 'asc' ? -1 : 1
-            if (valA > valB) return sortOrder === 'asc' ? 1 : -1
-            return 0
-        })
-    }, [games, filters])
+    return useMemo(() => filterAndSortGames(games, filters), [games, filters])
 }

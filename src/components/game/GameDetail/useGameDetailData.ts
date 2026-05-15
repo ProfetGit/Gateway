@@ -39,7 +39,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
     const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
     const [bannerSrc, setBannerSrc] = useState<string | undefined>(undefined)
 
-    // Reset cache when game changes
+    // Reset cache when game changes — selectedGame is intentionally omitted; we only want to re-run on id change
     useEffect(() => {
         setAchievementsData(null)
         setNewsData(null)
@@ -65,6 +65,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
                 setBannerSrc(undefined)
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedGame?.id])
 
     // Fetch Details

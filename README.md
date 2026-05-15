@@ -1,5 +1,7 @@
 # Gateway
 
+[![CI](https://github.com/ProfetGit/Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ProfetGit/Gateway/actions/workflows/ci.yml)
+
 A Windows game launcher for your Steam library, with a deliberately opinionated OLED-first interface.
 
 Gateway surfaces your Steam library alongside live catalog data (trending, free-to-keep deals) and tracks achievement progress across your games — without re-implementing a storefront. Local-first by design: your library lives in a JSON file on disk, covers are mirrored locally, and external APIs only fire when their data is needed.
@@ -30,7 +32,7 @@ Gateway surfaces your Steam library alongside live catalog data (trending, free-
 - **Electron 30** (frameless window, custom protocol for local cover assets)
 - **React 18** + **TypeScript 5** (renderer)
 - **Vite 5** + `vite-plugin-electron` (dev + build)
-- **Tailwind CSS 3.4** with OKLCH `<alpha-value>` palette
+- **Tailwind CSS 4.0** (CSS-first config via `@tailwindcss/vite`, OKLCH palette)
 - **Framer Motion** for entrance/transition animation
 - **Zustand** for renderer state
 - **JSON file store** for persistence (`{userData}/gateway-data.json` — no SQL)
@@ -65,6 +67,9 @@ npx tsc --noEmit
 
 # Lint (max-warnings 0)
 npm run lint
+
+# Run tests
+npm test
 
 # Build production binaries (electron-builder)
 npm run build

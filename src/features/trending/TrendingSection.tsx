@@ -45,7 +45,7 @@ export function TrendingSection({ onGameClick }: TrendingSectionProps) {
 
     const handleOpenInSteam = (gameId: number) => {
         // Open in Steam app directly
-        (window as any).api?.openSteamStore(gameId)
+        window.api?.openSteamStore(gameId)
     }
 
     return (

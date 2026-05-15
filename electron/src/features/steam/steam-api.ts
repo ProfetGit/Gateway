@@ -6,7 +6,7 @@ import { ipcMain } from 'electron'
 export async function fetchSteamStoreDetails(appIds: string[]) {
     if (appIds.length === 0) return []
 
-    const games: any[] = []
+    const games: { appId: string; name: string; playtime: number; lastPlayed: undefined }[] = []
 
     // Fetch each app individually for reliability (Steam API can be finicky with batch requests)
     for (const appId of appIds) {

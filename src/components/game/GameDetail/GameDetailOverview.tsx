@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { Calendar, Clock, Cpu, HardDrive, Trophy } from 'lucide-react'
+import { Cpu, HardDrive, Trophy } from 'lucide-react'
 import { FetchAchievementsResult, FetchGameDetailsResult } from '../../../types/game'
-import { RequirementsCard, StatCard } from './StatCards'
+import { RequirementsCard } from './StatCards'
 
 interface GameDetailOverviewProps {
     gameDetails: FetchGameDetailsResult | null
@@ -11,6 +11,29 @@ interface GameDetailOverviewProps {
     formattedLastPlayed: string
 }
 
+function InlineStat({
+    label,
+    value,
+    accent
+}: {
+    label: string
+    value: string
+    accent?: 'crimson' | 'emerald' | 'amber'
+}) {
+    const valueColor =
+        accent === 'crimson' ? 'text-crimson-400' :
+        accent === 'emerald' ? 'text-emerald-400' :
+        accent === 'amber' ? 'text-amber-400' :
+        'text-white/80'
+
+    return (
+        <div className="flex flex-col gap-0.5">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-white/25">{label}</span>
+            <span className={`text-base font-display font-bold ${valueColor}`}>{value}</span>
+        </div>
+    )
+}
+
 export function GameDetailOverview({
     gameDetails,
     achievementsData,
@@ -18,58 +41,76 @@ export function GameDetailOverview({
     formattedPlaytime,
     formattedLastPlayed
 }: GameDetailOverviewProps) {
+    const hasStats =
+        formattedPlaytime !== '0h' ||
+        formattedLastPlayed !== 'Never' ||
+        !!gameDetails?.details?.metacriticScore ||
+        (achievementsData?.totalAchievements ?? 0) > 0
+
     return (
         <motion.div
             key="overview"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
+            className="space-y-8"
         >
-            {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-3">
-                <StatCard
-                    icon={<Clock size={16} className="text-crimson-500" />}
-                    label="Playtime"
-                    value={formattedPlaytime}
-                />
-                <StatCard
-                    icon={<Calendar size={16} className="text-white/40" />}
-                    label="Last Session"
-                    value={formattedLastPlayed}
-                />
-                {gameDetails?.details?.metacriticScore && (
-                    <StatCard
-                        icon={<Trophy size={16} className={gameDetails.details.metacriticScore >= 75 ? 'text-emerald-500' : 'text-amber-500'} />}
-                        label="Metacritic"
-                        value={String(gameDetails.details.metacriticScore)}
-                        highlight={gameDetails.details.metacriticScore >= 75 ? 'emerald' : 'amber'}
+            {/* Inline stat row — replaces the 4-card grid */}
+            {hasStats && (
+                <div className="flex items-center gap-8 pb-6 border-b border-void-border/20">
+                    <InlineStat
+                        label="Playtime"
+                        value={formattedPlaytime}
+                        accent={formattedPlaytime !== '0h' ? 'crimson' : undefined}
                     />
-                )}
-                {achievementsData?.totalAchievements && achievementsData.totalAchievements > 0 && (
-                    <StatCard
-                        icon={<Trophy size={16} className="text-white/40" />}
-                        label="Achievements"
-                        value={`${achievementsData.unlockedCount}/${achievementsData.totalAchievements}`}
-                    />
-                )}
-            </div>
+                    <div className="w-px h-10 bg-void-border/20 shrink-0" />
+                    <InlineStat label="Last session" value={formattedLastPlayed} />
+                    {gameDetails?.details?.metacriticScore != null && (
+                        <>
+                            <div className="w-px h-10 bg-void-border/20 shrink-0" />
+                            <InlineStat
+                                label="Metacritic"
+                                value={String(gameDetails.details.metacriticScore)}
+                                accent={gameDetails.details.metacriticScore >= 75 ? 'emerald' : 'amber'}
+                            />
+                        </>
+                    )}
+                    {achievementsData && achievementsData.totalAchievements > 0 && (
+                        <>
+                            <div className="w-px h-10 bg-void-border/20 shrink-0" />
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] font-mono uppercase tracking-widest text-white/25">Achievements</span>
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-base font-display font-bold text-white/80">
+                                        {achievementsData.unlockedCount}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-white/30">
+                                        / {achievementsData.totalAchievements}
+                                    </span>
+                                    <Trophy size={11} className="text-white/25 mb-0.5" />
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* Loading skeleton */}
+            {detailsLoading && (
+                <div className="space-y-3">
+                    <div className="h-16 bg-void-surface/40 animate-pulse" />
+                    <div className="h-28 bg-void-surface/40 animate-pulse" />
+                </div>
+            )}
 
             {/* Description */}
             {gameDetails?.details?.shortDescription && (
                 <motion.div
-                    className="p-5 bg-void-surface/50 border border-void-border/30 rounded-lg relative overflow-hidden"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.1 }}
                 >
-                    {/* Corner accent */}
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t border-l border-crimson-500/40" />
-
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-0.5 h-4 bg-crimson-500 rounded-full" />
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-white/40">About</span>
-                    </div>
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-white/25 mb-3">About</p>
                     <p
                         className="select-text text-sm text-white/70 leading-relaxed"
                         dangerouslySetInnerHTML={{ __html: gameDetails.details.shortDescription }}
@@ -77,11 +118,11 @@ export function GameDetailOverview({
 
                     {/* Genres */}
                     {gameDetails.details.genres.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-void-border/30">
+                        <div className="flex flex-wrap gap-1.5 mt-5">
                             {gameDetails.details.genres.map(g => (
                                 <span
                                     key={g}
-                                    className="px-2 py-0.5 bg-void-border/30 border border-void-border/30 rounded text-[10px] font-mono uppercase tracking-wider text-white/50 hover:border-crimson-500/30 hover:text-white/70 transition-colors cursor-default"
+                                    className="px-2 py-0.5 border border-void-border/30 text-[10px] font-mono uppercase tracking-wider text-white/40 hover:border-crimson-500/30 hover:text-white/60 transition-colors duration-100 cursor-default"
                                 >
                                     {g}
                                 </span>
@@ -108,14 +149,6 @@ export function GameDetailOverview({
                             html={gameDetails.details.pcRequirements.recommended}
                         />
                     )}
-                </div>
-            )}
-
-            {/* Loading state */}
-            {detailsLoading && (
-                <div className="space-y-3">
-                    <div className="h-20 bg-void-surface/50 rounded-lg animate-pulse" />
-                    <div className="h-32 bg-void-surface/50 rounded-lg animate-pulse" />
                 </div>
             )}
         </motion.div>

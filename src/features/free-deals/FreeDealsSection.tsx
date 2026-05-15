@@ -4,13 +4,7 @@ import { Gift, Sparkles, Clock, Check } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
 import { CarouselNav } from '../../components/shared/CarouselNav'
 import { useHorizontalScroller } from '../../components/shared/useHorizontalScroller'
-import type { FreeDeal, FreeDealsData } from '../../types/freeDeals'
-
-interface FreeDealsResult {
-    success: boolean
-    data?: FreeDealsData
-    error?: string
-}
+import type { FreeDeal, FreeDealsData, FetchFreeDealsResult } from '../../types/freeDeals'
 
 interface FreeDealsSectionProps {
     onGameClick?: (gameId: number) => void
@@ -26,7 +20,7 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
         setIsLoading(true)
         setError(null)
         try {
-            const result: FreeDealsResult = await (window as any).api?.getFreeDeals()
+            const result: FetchFreeDealsResult = await window.api?.getFreeDeals()
             if (result?.success && result.data) {
                 setData(result.data)
 
@@ -38,8 +32,8 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
                 if (appIds.length > 0) {
                     const newClaimed = new Set<string>()
                     for (const appId of appIds) {
-                        const res = await (window as any).api?.checkGameOwned(appId)
-                        if (res?.owned) {
+                        const res = await window.api?.checkGameOwned(appId)
+                        if (res) {
                             newClaimed.add(appId)
                         }
                     }
@@ -61,7 +55,7 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
 
     // Listen for game claimed events (after focus returns)
     React.useEffect(() => {
-        const unsubscribe = (window as any).api?.onGameClaimed?.((data: { appId: string; owned: boolean }) => {
+        const unsubscribe = window.api?.onGameClaimed?.((data: { appId: string; owned: boolean }) => {
             console.log('[FreeDeals] Game claimed event:', data)
             if (data.owned) {
                 setClaimedIds(prev => new Set([...prev, data.appId]))
@@ -78,10 +72,10 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
     const handleClaimGame = (steamAppId: string | null, claimUrl: string) => {
         if (steamAppId) {
             // Open in Steam app and track for claim detection
-            (window as any).api?.openSteamStoreClaim(steamAppId)
+            window.api?.openSteamStoreClaim(steamAppId)
         } else {
             // Fallback to browser
-            (window as any).api?.openUrl(claimUrl)
+            window.api?.openUrl(claimUrl)
         }
     }
 

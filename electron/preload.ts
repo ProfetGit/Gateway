@@ -1,4 +1,4 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
 
 // Type definitions
 interface Game {
@@ -147,14 +147,14 @@ contextBridge.exposeInMainWorld('api', {
 
   // Events
   onGamesUpdated: (callback: (games: Game[]) => void) => {
-    const subscription = (_event: any, games: Game[]) => callback(games)
+    const subscription = (_event: IpcRendererEvent, games: Game[]) => callback(games)
     ipcRenderer.on('games-updated', subscription)
     return () => ipcRenderer.removeListener('games-updated', subscription)
   },
 
   // Game claimed event (fired when window regains focus after claiming)
   onGameClaimed: (callback: (data: { appId: string; owned: boolean }) => void) => {
-    const subscription = (_event: any, data: { appId: string; owned: boolean }) => callback(data)
+    const subscription = (_event: IpcRendererEvent, data: { appId: string; owned: boolean }) => callback(data)
     ipcRenderer.on('game-claimed', subscription)
     return () => ipcRenderer.removeListener('game-claimed', subscription)
   }

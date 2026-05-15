@@ -72,7 +72,7 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         }
 
         const details = await fetchSteamStoreDetails(idsToFetch)
-        const detailsMap = new Map(details.map((d: any) => [String(d.appId), d]))
+        const detailsMap = new Map(details.map((d) => [String(d.appId), d]))
 
         for (const game of apiGames) {
             const detail = detailsMap.get(game.appId)
@@ -80,12 +80,12 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         }
 
         // Add local claims that weren't in the API list
-        const fetchedIds = new Set(details.map((g: any) => String(g.appId)))
+        const fetchedIds = new Set(details.map((g) => String(g.appId)))
         for (const id of idsToFetch) {
             if (localClaims.includes(id) && !ownedAppIds.has(id)) {
                 if (fetchedIds.has(id)) {
                     const detail = detailsMap.get(id)
-                    apiGames.push({ appId: id, name: detail.name, playtime: 0, lastPlayed: undefined })
+                    apiGames.push({ appId: id, name: detail?.name ?? `Game ${id}`, playtime: 0, lastPlayed: undefined })
                 } else {
                     apiGames.push({ appId: id, name: `Claimed Game (${id})`, playtime: 0, lastPlayed: undefined })
                 }

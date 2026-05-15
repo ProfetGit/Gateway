@@ -178,6 +178,7 @@ async function fetchOwnedGamesViaApiKey(steamId: string): Promise<FetchGamesResu
         const data = await response.json()
 
         if (data?.response?.games && Array.isArray(data.response.games)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const games = data.response.games.map((game: any) => ({
                 appId: String(game.appid),
                 name: game.name || `Game ${game.appid}`,
@@ -201,6 +202,7 @@ async function fetchOwnedGamesViaApiKey(steamId: string): Promise<FetchGamesResu
                 'GameMaker Studio 2', 'Vorpx', 'RetroArch',
             ]
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const filtered = games.filter((g: any) => {
                 const name = g.name || ''
                 if (name === 'Steamworks Common Redistributables') return false
@@ -347,6 +349,7 @@ async function fetchAchievementsViaApiKey(
             }
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const achievements: Achievement[] = playerData.playerstats.achievements.map((ach: any) => {
             const schema = schemaMap.get(ach.apiname) || { name: ach.apiname, description: '', icon: '', icongray: '' }
             return {
