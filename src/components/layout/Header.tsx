@@ -1,15 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, X, Star, ChevronDown, Check, Monitor } from 'lucide-react'
+import { Search, Plus, X, Star, ChevronDown, Check } from 'lucide-react'
 import { useGameStore, useFilteredGames } from '../../stores/gameStore'
 import clsx from 'clsx'
-import type { FilterStatus, SortOption, FilterPlatform } from '../../types/game'
+import type { FilterStatus, SortOption } from '../../types/game'
 import { useState, useRef, useEffect } from 'react'
 
 export function Header() {
     const {
         filters,
         setFilterStatus,
-        setFilterPlatform,
         toggleOnlyFavorites,
         setSearchQuery,
         setSort,
@@ -33,7 +32,6 @@ export function Header() {
                 <div className="flex flex-col gap-4">
                     {/* Status Display */}
                     <div className="flex items-center gap-3 text-xs font-mono tracking-[0.2em] text-white/30 uppercase pl-1">
-                        <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-pulse" />
                         <span>{gameCount} {gameCount === 1 ? 'Game' : 'Games'}</span>
                     </div>
 
@@ -82,15 +80,6 @@ export function Header() {
                                 setSort(sort, direction)
                             }}
                         />
-
-                        {/* Divider */}
-                        <div className="w-px h-6 bg-white/10 mx-4 rotate-12" />
-
-                        {/* Platform Filter */}
-                        <PlatformDropdown
-                            currentPlatform={filters.platform}
-                            onPlatformChange={setFilterPlatform}
-                        />
                     </div>
                 </div>
 
@@ -108,10 +97,7 @@ export function Header() {
                             className="w-full pl-8 pr-10 py-2 bg-transparent border-none outline-none text-lg font-display font-bold italic tracking-wider text-white placeholder:text-white/20 uppercase focus:outline-none focus:ring-0 focus:border-none"
                             style={{ outline: 'none', boxShadow: 'none' }}
                         />
-                        {/* Blinking Cursor Decoration (only when empty) */}
-                        {!filters.search && (
-                            <div className="absolute right-0 bottom-3 w-2 h-4 bg-crimson-500 animate-pulse pointer-events-none opacity-50" />
-                        )}
+                        {/* search icon already provides affordance — no extra cursor decoration */}
                         {filters.search && (
                             <button
                                 onClick={() => setSearchQuery('')}
@@ -201,63 +187,3 @@ function SortDropdown({ currentSort, onSort }: { currentSort: SortOption, onSort
     )
 }
 
-function PlatformDropdown({ currentPlatform, onPlatformChange }: { currentPlatform: FilterPlatform, onPlatformChange: (platform: FilterPlatform) => void }) {
-    const [isOpen, setIsOpen] = useState(false)
-    const containerRef = useRef<HTMLDivElement>(null)
-
-    const options: { id: FilterPlatform; label: string }[] = [
-        { id: 'all', label: 'All Platforms' },
-        { id: 'steam', label: 'Steam' },
-        { id: 'lutris', label: 'Lutris' },
-        { id: 'heroic', label: 'Heroic' },
-    ]
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
-
-    return (
-        <div className="relative" ref={containerRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-display font-bold italic tracking-wider uppercase text-white/40 hover:text-white transition-colors"
-            >
-                <Monitor className="w-4 h-4" />
-                <span><span className="text-white">{options.find(o => o.id === currentPlatform)?.label}</span></span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-2 w-48 bg-void-surface border-0 shadow-xl z-50 flex flex-col py-2"
-                    >
-                        {options.map((option) => (
-                            <button
-                                key={option.id}
-                                onClick={() => {
-                                    onPlatformChange(option.id)
-                                    setIsOpen(false)
-                                }}
-                                className="flex items-center justify-between px-4 py-3 text-left text-xs font-mono font-bold uppercase tracking-wider text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-                            >
-                                {option.label}
-                                {currentPlatform === option.id && <Check className="w-3 h-3 text-crimson-500" />}
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    )
-}

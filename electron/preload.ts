@@ -1,28 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
-// Gamescope configuration options
-interface GamescopeSettings {
-  enabled: boolean
-  width?: number
-  height?: number
-  outputWidth?: number
-  outputHeight?: number
-  fullscreen?: boolean
-  borderless?: boolean
-  scaler?: 'auto' | 'integer' | 'fit' | 'fill' | 'stretch'
-  filter?: 'linear' | 'nearest' | 'fsr' | 'nis'
-  fsr?: boolean
-  fsrSharpness?: number
-  nisSharpness?: number
-  fpsLimit?: number
-  unfocusedFpsLimit?: number
-  exposeWayland?: boolean
-  hdr?: boolean
-  forceGrabCursor?: boolean
-  adaptiveSync?: boolean
-  vrr?: boolean
-}
-
 // Type definitions
 interface Game {
   id: string
@@ -31,23 +8,15 @@ interface Game {
   localCoverPath?: string
   executablePath?: string
   steamAppId?: string
-  lutrisId?: number
-  lutrisSlug?: string
-  heroicAppName?: string
-  heroicRunner?: 'legendary' | 'gog' | 'sideload'
   isInstalled: boolean
   isFavorite: boolean
-  source: 'manual' | 'steam' | 'lutris' | 'heroic'
+  source: 'manual' | 'steam'
   playtime?: number
   lastPlayed?: string
   notes?: string
   launchArgs?: string
   heroImageUrl?: string
   logoImageUrl?: string
-  // Launch options
-  mangoHudEnabled?: boolean
-  gamescope?: GamescopeSettings
-  gamemodeEnabled?: boolean
   customEnvVars?: string
 }
 
@@ -119,16 +88,6 @@ contextBridge.exposeInMainWorld('api', {
   installSteamGame: (appId: string): Promise<void> => ipcRenderer.invoke('install-steam-game', appId),
   clearAndResync: (): Promise<{ success: boolean; error?: string; totalGames?: number; installedGames?: number }> =>
     ipcRenderer.invoke('clear-and-resync'),
-
-  // Lutris integration
-  getLutrisStatus: () => ipcRenderer.invoke('get-lutris-status'),
-  syncLutris: (): Promise<Game[]> => ipcRenderer.invoke('sync-lutris'),
-
-  // Heroic integration
-  getHeroicStatus: () => ipcRenderer.invoke('get-heroic-status'),
-  syncHeroic: (): Promise<Game[]> => ipcRenderer.invoke('sync-heroic'),
-  installHeroicGame: (appName: string, runner?: string): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('install-heroic-game', appName, runner),
 
   // Steam authentication
   steamLogin: (): Promise<AuthState> => ipcRenderer.invoke('steam-login'),

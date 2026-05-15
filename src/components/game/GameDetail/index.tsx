@@ -21,7 +21,7 @@ import { GameDetailHero } from './GameDetailHero'
 import { GameDetailOverview } from './GameDetailOverview'
 
 export function GameDetail() {
-    const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame, updateGame } = useGameStore()
+    const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame } = useGameStore()
     const [isDeleting, setIsDeleting] = useState(false)
     const [isInstalling, setIsInstalling] = useState(false)
     const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -52,7 +52,6 @@ export function GameDetail() {
         setIsInstalling(true)
         try {
             if (selectedGame.steamAppId) await window.api?.installSteamGame(selectedGame.steamAppId)
-            else if (selectedGame.heroicAppName) await window.api?.installHeroicGame(selectedGame.heroicAppName, selectedGame.heroicRunner)
         } catch (err) { console.error(err) }
         finally { setTimeout(() => setIsInstalling(false), 2000) }
     }, [selectedGame])
@@ -152,7 +151,6 @@ export function GameDetail() {
                             gameDetails={gameDetails}
                             isDeleting={isDeleting}
                             toggleFavorite={toggleFavorite}
-                            updateGame={updateGame}
                             handleDelete={handleDelete}
                             handleImageError={handleImageError}
                         />

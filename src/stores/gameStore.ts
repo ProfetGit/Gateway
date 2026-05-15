@@ -2,9 +2,13 @@ import { create } from 'zustand'
 import { useMemo } from 'react'
 import type { GameStore } from '../types/game'
 
+let _gamesUpdatedListenerRegistered = false
+
 export const useGameStore = create<GameStore>((set, get) => {
-    // Listen for updates from main process (e.g. cover mirroring completion)
-    if (typeof window !== 'undefined' && window.api) {
+    // Listen for updates from main process (e.g. cover mirroring completion).
+    // Guard prevents duplicate listeners on HMR re-evaluation.
+    if (typeof window !== 'undefined' && window.api && !_gamesUpdatedListenerRegistered) {
+        _gamesUpdatedListenerRegistered = true
         window.api.onGamesUpdated((updatedGames) => {
             set({ games: updatedGames })
         })
@@ -169,14 +173,14 @@ export const useGameStore = create<GameStore>((set, get) => {
                 await Promise.all(
                     batch.map((game) => {
                         const coverUrl = game.coverUrl
-                        if (!coverUrl) return Promise.resolve()
+                        if (!coverUrl && !game.localCoverPath) return Promise.resolve()
                         return new Promise<void>((resolve) => {
                             const img = new Image()
                             img.onload = () => resolve()
                             img.onerror = () => resolve()
                             img.src = game.localCoverPath
                                 ? `gateway://cover/${game.localCoverPath}`
-                                : coverUrl
+                                : coverUrl!
                         })
                     })
                 )
@@ -238,8 +242,6 @@ export const useFilteredGames = () => {
 
             // 3. Platform Filter
             if (platform === 'steam' && game.source !== 'steam') return false
-            if (platform === 'lutris' && game.source !== 'lutris') return false
-            if (platform === 'heroic' && game.source !== 'heroic') return false
 
             // 4. Favorites Filter
             if (onlyFavorites && !game.isFavorite) return false

@@ -30,7 +30,6 @@ electron/                  → main process (Node) + preload bridge
       steam/               → Steam Store + Web API (trending, free deals, achievements, news)
       library/             → CRUD on local library
       sync/                → Steam sync + claim-detection on window-focus
-      lutris/, heroic/     → external launcher scanners
 
 src/                       → renderer (React 18 + Vite)
   App.tsx                  → AppShell root: all modal overlays mount HERE, not in feature trees
@@ -66,7 +65,7 @@ Reason: `HomeView` wraps content in `relative z-10`, which creates a stacking co
 
 ### Game sources
 
-`Game.source` is one of `'manual' | 'steam' | 'lutris' | 'heroic'`. Steam-specific operations (achievements, news, hero images, store links) gate on `game.steamAppId` being present — non-Steam sources will just not render those features.
+`Game.source` is one of `'manual' | 'steam'`. Steam-specific operations (achievements, news, hero images, store links) gate on `game.steamAppId` being present. Target platform is Windows only — Linux launch wrappers (Gamescope, MangoHud, Feral GameMode) are not part of the product surface.
 
 ## Design system (enforced)
 
@@ -122,7 +121,7 @@ Horizontal carousels (Trending, FreeDeals) use the shared `useHorizontalScroller
   - **System-speak**: "System Settings", "Gateway OS", "System Ready", "Uplink", "Network", "Connect to Steam Network", "First Run", "STATUS:", "SOURCE:".
   - **Data-speak**: "Database", "Local Database", "Purge", "Metadata", "Manifest", "Cache", "Local cache from remote", "Backup library manifest", "Sync local cache".
   - **Process-speak**: "ENTRY", "NEW ENTRY", "H LOGGED" (use "hours played"), "Synchronize game data", "Fetch", "Endpoint".
-  - **Linux/dev-speak in product copy**: "Nested compositor", "CPU governor optimization", "Profile fallback". Real tool *names* (MangoHud, GameMode, Gamescope, FSR, NIS) are fine as labels because users recognize them — but **their descriptions must be plain English** ("Show FPS and stats while playing", not "Performance overlay"; "Custom window scaling", not "Nested compositor").
+  - **Dev/jargon in product copy**: terminal-speak ("nested compositor", "CPU governor optimization", "profile fallback", "subprocess", "stdout") never appears in user-facing strings. Plain English only.
   - **SHOUTING acronyms**: "CANNOT LOAD X", "NO X" — use sentence case ("Couldn't load X", "No X yet").
   Replacements lean on outcome-verb phrasing: "Refresh Library" not "Sync local cache from remote"; "Save to File" not "Export library manifest"; "Not signed in" not "No Uplink Detected"; "Clear Library" not "Purge Local Database"; "Couldn't load achievements" not "CANNOT LOAD ACHIEVEMENTS". `font-mono uppercase tracking-widest` is a *visual* treatment — apply it to plain words, don't use it as license for jargon.
 - **State design**: empty/error/loading are designed surfaces, not text fallbacks. Skeletons (shimmer animation) over spinners. Section auto-hides when empty rather than rendering placeholder shells.

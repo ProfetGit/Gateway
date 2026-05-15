@@ -10,7 +10,7 @@ import type { Game } from '../../types/game'
 
 export function HomeView() {
     const { games, openDetail } = useGameStore()
-    const { setIsScrolled } = useUIStore()
+    const { isScrolled, setIsScrolled } = useUIStore()
 
     // Reset scroll state on mount/unmount
     React.useEffect(() => {
@@ -18,20 +18,23 @@ export function HomeView() {
         return () => setIsScrolled(false)
     }, [setIsScrolled])
 
-    // Get most active games (last played)
-    const activeCarouselGames = games
-        .filter(g => g.lastPlayed)
-        .sort((a, b) => new Date(b.lastPlayed!).getTime() - new Date(a.lastPlayed!).getTime())
-        .slice(0, 6)
+    // Get most active games (last played) — memoized so filter+sort don't run on every scroll tick
+    const displayCarouselGames = React.useMemo(() => {
+        const recent = games
+            .filter(g => g.lastPlayed)
+            .sort((a, b) => new Date(b.lastPlayed!).getTime() - new Date(a.lastPlayed!).getTime())
+            .slice(0, 6)
+        return recent.length > 0 ? recent : games.slice(0, 6)
+    }, [games])
 
-    // Fallback if no recent games
-    const displayCarouselGames = activeCarouselGames.length > 0
-        ? activeCarouselGames
-        : games.slice(0, 6)
+    const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const next = e.currentTarget.scrollTop > 50
+        if (next !== isScrolled) setIsScrolled(next)
+    }, [isScrolled, setIsScrolled])
 
     return (
         <div
-            onScroll={(e) => setIsScrolled(e.currentTarget.scrollTop > 50)}
+            onScroll={handleScroll}
             className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-void-pure scrollbar-hide"
         >
             <AnimatePresence mode="wait">
@@ -71,6 +74,7 @@ export function HomeView() {
     )
 }
 
+
 interface WideHeroCarouselProps {
     games: Game[]
     onOpenDetail: (game: Game) => void
@@ -94,7 +98,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
         if (game.steamAppId) {
             return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/library_hero.jpg`
         }
-        // Priority 2: Explicit Hero/Banner URL (e.g. from Lutris API)
+        // Priority 2: Explicit Hero/Banner URL
         if (game.heroImageUrl) {
             return game.heroImageUrl
         }
@@ -141,36 +145,11 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                     <div className="absolute inset-0 bg-gradient-to-t from-void-pure via-transparent to-void-pure/30" />
 
                     {/* TEXTURE OVERLAYS */}
-                    <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat brightness-100 contrast-150" />
+                    <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none bg-[url('/noise.svg')] bg-repeat brightness-100 contrast-150" />
                     <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0)_3px)] opacity-[0.05] pointer-events-none" />
                 </motion.div>
             </AnimatePresence>
 
-            {/* FLOATING PARTICLES */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {[...Array(20)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        className="absolute w-1 h-1 bg-crimson-500/40 rounded-full blur-[1px]"
-                        initial={{
-                            x: Math.random() * 100 + "%",
-                            y: Math.random() * 100 + "%",
-                            scale: Math.random() * 0.5 + 0.5,
-                            opacity: Math.random() * 0.5
-                        }}
-                        animate={{
-                            y: [null, Math.random() * -100 + "%"],
-                            opacity: [null, 0]
-                        }}
-                        transition={{
-                            duration: Math.random() * 10 + 10,
-                            repeat: Infinity,
-                            ease: "linear",
-                            delay: Math.random() * 5
-                        }}
-                    />
-                ))}
-            </div>
 
             {/* HERO CONTENT */}
             <div className="relative z-20 h-full w-full max-w-[1600px] mx-auto flex flex-col justify-center px-12 md:px-20">
@@ -263,7 +242,6 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
                                         }}
                                         transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                                     >
-                                        <span className="w-1.5 h-1.5 bg-crimson-500 rounded-full animate-ping" />
                                         Ready to play
                                     </motion.div>
                                 </div>

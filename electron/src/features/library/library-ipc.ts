@@ -50,96 +50,16 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
     ipcMain.handle('launch-game', async (_event, game: Game) => {
         const { exec } = await import('child_process')
 
-        // ════════════════════════════════════════════════════════════════════
-        // Build environment variables prefix
-        // ════════════════════════════════════════════════════════════════════
-        const envVars: string[] = []
+        const envPrefix = game.customEnvVars?.trim() ? game.customEnvVars.trim() + ' ' : ''
 
-        // MangoHud
-        if (game.mangoHudEnabled) {
-            envVars.push('MANGOHUD=1')
-        }
-
-        // Custom environment variables
-        if (game.customEnvVars?.trim()) {
-            envVars.push(game.customEnvVars.trim())
-        }
-
-        const envPrefix = envVars.length > 0 ? envVars.join(' ') + ' ' : ''
-
-        // ════════════════════════════════════════════════════════════════════
-        // Build gamescope command wrapper
-        // ════════════════════════════════════════════════════════════════════
-        let gamescopeCmd = ''
-        if (game.gamescope?.enabled) {
-            const gs = game.gamescope
-            const args: string[] = ['gamescope']
-
-            // Resolution
-            if (gs.width) args.push(`-w ${gs.width}`)
-            if (gs.height) args.push(`-h ${gs.height}`)
-            if (gs.outputWidth) args.push(`-W ${gs.outputWidth}`)
-            if (gs.outputHeight) args.push(`-H ${gs.outputHeight}`)
-
-            // Display mode
-            if (gs.fullscreen) args.push('-f')
-            if (gs.borderless) args.push('-b')
-
-            // Scaler mode
-            if (gs.scaler) args.push(`-S ${gs.scaler}`)
-
-            // Filter/upscaling
-            if (gs.filter) args.push(`-F ${gs.filter}`)
-            if (gs.fsr && !gs.filter) args.push('--fsr') // Legacy flag
-            if (gs.fsrSharpness !== undefined) args.push(`--fsr-sharpness ${gs.fsrSharpness}`)
-            if (gs.nisSharpness !== undefined) args.push(`--nis-sharpness ${gs.nisSharpness}`)
-
-            // Frame limiting
-            if (gs.fpsLimit) args.push(`-r ${gs.fpsLimit}`)
-            if (gs.unfocusedFpsLimit) args.push(`-o ${gs.unfocusedFpsLimit}`)
-
-            // Other options
-            if (gs.exposeWayland) args.push('--expose-wayland')
-            if (gs.hdr) args.push('--hdr-enabled')
-            if (gs.forceGrabCursor) args.push('--force-grab-cursor')
-            if (gs.adaptiveSync || gs.vrr) args.push('--adaptive-sync')
-
-            gamescopeCmd = args.join(' ') + ' -- '
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // Build gamemode prefix (Feral GameMode)
-        // ════════════════════════════════════════════════════════════════════
-        const gamemodePrefix = game.gamemodeEnabled ? 'gamemoderun ' : ''
-
-        // ════════════════════════════════════════════════════════════════════
-        // Build final command based on game source
-        // ════════════════════════════════════════════════════════════════════
-        const needsShell = envPrefix || gamescopeCmd || gamemodePrefix
-
-        // Lutris games
-        if (game.lutrisId) {
-            if (needsShell) {
-                const cmd = `${envPrefix}${gamescopeCmd}${gamemodePrefix}lutris lutris:rungameid/${game.lutrisId}`
-                exec(cmd, (error) => {
-                    if (error) console.error('Failed to launch Lutris game:', error)
-                })
-            } else {
-                await shell.openExternal(`lutris:rungameid/${game.lutrisId}`)
-            }
-        }
         // Steam games
-        else if (game.steamAppId) {
-            // NOTE: Launch options (MangoHud, Gamescope, GameMode) are now synced
-            // directly to Steam's localconfig.vdf via the syncSteamLaunchOptions API.
-            // This means we can simply launch via steam:// protocol and Steam will
-            // apply the options from its config file.
+        if (game.steamAppId) {
             await shell.openExternal(`steam://rungameid/${game.steamAppId}`)
         }
         // Manual executable
         else if (game.executablePath) {
             const args = game.launchArgs || ''
-            const cmd = `${envPrefix}${gamescopeCmd}${gamemodePrefix}"${game.executablePath}" ${args}`
+            const cmd = `${envPrefix}"${game.executablePath}" ${args}`
             exec(cmd, (error) => {
                 if (error) console.error('Failed to launch game:', error)
             })

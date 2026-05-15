@@ -56,7 +56,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
                 : selectedGame.coverUrl
             setImgSrc(cover)
 
-            // Banner Search - prioritization: steam cdn -> heroic metadata -> undefined
+            // Banner Search - prioritization: steam cdn -> explicit heroImageUrl -> undefined
             if (selectedGame.steamAppId) {
                 setBannerSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_hero.jpg`)
             } else if (selectedGame.heroImageUrl) {

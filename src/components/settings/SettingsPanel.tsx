@@ -1,11 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Database, Trash2, LogIn, LogOut, User, RefreshCw, ShieldAlert, KeyRound, ExternalLink, Wand2, Check } from 'lucide-react'
+import { X, Trash2, LogIn, LogOut, RefreshCw, KeyRound, ExternalLink, Wand2, Check, ChevronDown, User as UserIcon, Library, Info } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { AuthState } from '../../types/game'
+
+type TabId = 'account' | 'library' | 'about'
 
 export function SettingsPanel() {
     const { isSettingsOpen, closeSettings, games, setGames, openSetupWizard } = useGameStore()
+    const [tab, setTab] = useState<TabId>('account')
     const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null })
     const [isLoggingIn, setIsLoggingIn] = useState(false)
     const [isFetching, setIsFetching] = useState(false)
@@ -13,8 +16,8 @@ export function SettingsPanel() {
     const [apiKeySaved, setApiKeySaved] = useState(false)
     const [apiKeyError, setApiKeyError] = useState<string | null>(null)
     const [hasStoredKey, setHasStoredKey] = useState(false)
+    const [keyExpanded, setKeyExpanded] = useState(false)
 
-    // Check auth state + API key presence on mount
     useEffect(() => {
         if (isSettingsOpen) {
             window.api?.getAuthState().then(setAuthState)
@@ -23,7 +26,9 @@ export function SettingsPanel() {
                 setApiKey('')
                 setApiKeySaved(false)
                 setApiKeyError(null)
+                setKeyExpanded(false)
             })
+            setTab('account')
         }
     }, [isSettingsOpen])
 
@@ -54,9 +59,7 @@ export function SettingsPanel() {
             if (state) {
                 setAuthState(state)
                 const allGames = await window.api?.getGames()
-                if (allGames) {
-                    setGames(allGames)
-                }
+                if (allGames) setGames(allGames)
             }
         } catch (error) {
             console.error('Login failed:', error)
@@ -67,31 +70,18 @@ export function SettingsPanel() {
 
     const handleSteamLogout = async () => {
         const state = await window.api?.steamLogout()
-        if (state) {
-            setAuthState(state)
-        }
+        if (state) setAuthState(state)
     }
 
     const handleSyncLibrary = async () => {
         setIsFetching(true)
         try {
-            // Sync Steam first
             const result = await window.api?.clearAndResync()
             if (result && !result.success) {
                 alert(result.error || "Couldn't refresh your Steam library")
             }
-
-            // Then sync Lutris
-            await window.api?.syncLutris()
-
-            // Then sync Heroic
-            await window.api?.syncHeroic()
-
-            // Reload all games
             const allGames = await window.api?.getGames()
-            if (allGames) {
-                setGames(allGames)
-            }
+            if (allGames) setGames(allGames)
         } catch (error) {
             console.error('Sync failed:', error)
             alert("Something went wrong.")
@@ -109,11 +99,19 @@ export function SettingsPanel() {
         }
     }
 
+    const stats = useMemo(() => {
+        const steam = games.filter(g => g.source === 'steam').length
+        const installed = games.filter(g => g.isInstalled).length
+        const sources = [
+            { key: 'steam', label: 'Steam', count: steam },
+        ].filter(s => s.count > 0)
+        return { total: games.length, installed, sources }
+    }, [games])
+
     return (
         <AnimatePresence>
             {isSettingsOpen && (
                 <>
-                    {/* Backdrop */}
                     <motion.div
                         className="fixed inset-0 bg-void-pure/80 backdrop-blur-md z-40"
                         initial={{ opacity: 0 }}
@@ -122,7 +120,6 @@ export function SettingsPanel() {
                         onClick={closeSettings}
                     />
 
-                    {/* Panel - "System Overlay" Style */}
                     <motion.div
                         className="fixed right-0 top-0 bottom-0 w-full max-w-2xl z-50 overflow-hidden"
                         initial={{ x: '100%' }}
@@ -131,213 +128,68 @@ export function SettingsPanel() {
                         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                     >
                         <div className="h-full bg-void-pure border-l border-white/10 flex flex-col relative">
-                            {/* NOISE & SCANLINES */}
                             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat mix-blend-overlay" />
-                            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0)_3px)] opacity-[0.1] pointer-events-none" />
+                            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0)_3px)] opacity-[0.04] pointer-events-none" />
 
-                            {/* Header */}
-                            <div className="relative px-8 py-8 border-b border-white/10 flex items-center justify-between shrink-0 bg-gradient-to-r from-void-pure to-void-pure/90">
-                                <div>
-                                    <div className="flex items-center gap-2 text-crimson-500 mb-1">
-                                        <div className="w-2 h-2 bg-crimson-500 rounded-full animate-pulse" />
-                                        <span className="font-mono text-[10px] tracking-[0.2em] uppercase">Settings</span>
+                            {/* Compact header + tabs */}
+                            <div className="relative shrink-0 border-b border-white/10 bg-void-pure">
+                                <div className="px-6 pt-5 pb-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-2xl font-display font-black text-white italic tracking-tighter uppercase transform -skew-x-6">
+                                            Settings
+                                            <span className="text-white/15 ml-2 text-lg">///</span>
+                                        </h2>
                                     </div>
-                                    <h2 className="text-4xl font-display font-black text-white italic tracking-tighter uppercase transform -skew-x-6">
-                                        Settings
-                                        <span className="text-white/20 ml-2">///</span>
-                                    </h2>
+                                    <button
+                                        onClick={closeSettings}
+                                        className="group relative p-2.5 hover:bg-white/5 transition-colors duration-100 border border-white/10 hover:border-crimson-500/50"
+                                    >
+                                        <X className="w-4 h-4 text-white/60 group-hover:text-crimson-500 transition-colors duration-100" />
+                                    </button>
                                 </div>
-                                <motion.button
-                                    onClick={closeSettings}
-                                    className="group relative p-4 hover:bg-white/5 transition-colors border border-white/10 hover:border-crimson-500/50"
-                                    whileHover="hover"
-                                    whileTap="tap"
-                                >
-                                    <X className="w-6 h-6 text-white/60 group-hover:text-crimson-500 transition-colors" />
-                                    <span className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white/20 group-hover:border-crimson-500" />
-                                    <span className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-white/20 group-hover:border-crimson-500" />
-                                </motion.button>
+
+                                <div className="px-6 flex items-center gap-1">
+                                    <TabButton id="account" active={tab} setTab={setTab} icon={<UserIcon className="w-3.5 h-3.5" />} label="Account" />
+                                    <TabButton id="library" active={tab} setTab={setTab} icon={<Library className="w-3.5 h-3.5" />} label="Library" badge={stats.total} />
+                                    <TabButton id="about" active={tab} setTab={setTab} icon={<Info className="w-3.5 h-3.5" />} label="About" />
+                                </div>
                             </div>
 
-                            {/* Content */}
-                            <div className="flex-1 overflow-y-auto p-8 space-y-12 scrollbar-hide relative z-10">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative z-10">
+                                {tab === 'account' && (
+                                    <AccountTab
+                                        authState={authState}
+                                        isLoggingIn={isLoggingIn}
+                                        onLogin={handleSteamLogin}
+                                        onLogout={handleSteamLogout}
+                                        hasStoredKey={hasStoredKey}
+                                        keyExpanded={keyExpanded}
+                                        setKeyExpanded={setKeyExpanded}
+                                        apiKey={apiKey}
+                                        setApiKey={setApiKey}
+                                        setApiKeyError={setApiKeyError}
+                                        setApiKeySaved={setApiKeySaved}
+                                        apiKeyError={apiKeyError}
+                                        apiKeySaved={apiKeySaved}
+                                        onSaveKey={handleSaveApiKey}
+                                        onClearKey={handleClearApiKey}
+                                        onOpenSetup={() => { closeSettings(); openSetupWizard() }}
+                                    />
+                                )}
 
-                                {/* USER IDENTITY */}
-                                <section>
-                                    <SectionHeader icon={<User className="w-4 h-4" />} title="Account" />
+                                {tab === 'library' && (
+                                    <LibraryTab
+                                        stats={stats}
+                                        isFetching={isFetching}
+                                        canRefresh={authState.isLoggedIn}
+                                        onRefresh={handleSyncLibrary}
+                                        onClear={handleClearLibrary}
+                                    />
+                                )}
 
-                                    <div className="bg-white/5 border border-white/10 p-6 relative overflow-hidden group">
-
-
-                                        {authState.isLoggedIn && authState.user ? (
-                                            <div className="relative z-10">
-                                                <div className="flex items-start justify-between mb-6">
-                                                    <div className="flex items-center gap-6">
-                                                        <div className="relative">
-                                                            <div className="w-20 h-20 rounded-sm overflow-hidden border-2 border-crimson-500/30">
-                                                                <img
-                                                                    src={authState.user.avatarUrl}
-                                                                    alt={authState.user.username}
-                                                                    className="w-full h-full object-cover transition-all duration-500"
-                                                                />
-                                                            </div>
-                                                            <div className="absolute -bottom-2 -right-2 bg-crimson-600 text-[10px] font-mono font-bold px-2 py-0.5 text-white">
-                                                                Online
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight italic">
-                                                                {authState.user.username}
-                                                            </h3>
-                                                            <p className="font-mono text-xs text-crimson-400 tracking-widest mt-1">
-                                                                Signed in to Steam
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <BespokeButton
-                                                        onClick={handleSteamLogout}
-                                                        icon={<LogOut className="w-4 h-4" />}
-                                                        label="Disconnect"
-                                                        variant="ghost"
-                                                    />
-                                                </div>
-
-                                                <div className="w-full">
-                                                    <BespokeButton
-                                                        onClick={handleSyncLibrary}
-                                                        disabled={isFetching}
-                                                        icon={isFetching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                                        label={isFetching ? "Refreshing..." : "Refresh Library"}
-                                                        description="Pull in your latest games"
-                                                        variant="primary"
-                                                        className="w-full"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="relative z-10 flex flex-col items-center text-center py-6">
-                                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10">
-                                                    <User className="w-8 h-8 text-white/40" />
-                                                </div>
-                                                <h3 className="text-xl font-bold text-white uppercase tracking-tight mb-2">Not signed in</h3>
-                                                <p className="font-mono text-xs text-white/40 mb-6 max-w-sm">
-                                                    Sign in to Steam to load your games.
-                                                </p>
-                                                <BespokeButton
-                                                    onClick={handleSteamLogin}
-                                                    disabled={isLoggingIn}
-                                                    icon={<LogIn className="w-4 h-4" />}
-                                                    label={isLoggingIn ? "Connecting..." : "Connect Steam"}
-                                                    variant="primary"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-
-                                {/* DATABASE METRICS */}
-                                <section>
-                                    <SectionHeader icon={<Database className="w-4 h-4" />} title="Library Stats" />
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                        <StatMetric label="Total Games" value={games.length} />
-                                        <StatMetric label="Installed" value={games.filter(g => g.isInstalled).length} color="crimson" />
-                                        <StatMetric label="Steam" value={games.filter(g => g.source === 'steam').length} />
-                                        <StatMetric label="Lutris" value={games.filter(g => g.source === 'lutris').length} />
-                                        <StatMetric label="Heroic" value={games.filter(g => g.source === 'heroic').length} color="crimson" />
-                                    </div>
-                                </section>
-
-                                {/* STEAM WEB API KEY */}
-                                <section>
-                                    <SectionHeader icon={<KeyRound className="w-4 h-4" />} title="Steam Key" />
-                                    <div className="bg-void-surface/40 border border-void-border/40 p-5 space-y-4">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <p className="text-xs text-white/55 leading-relaxed max-w-md">
-                                                Optional. With Steam sign-in done, Gateway reads your library from your active session — no key needed. Only paste a key if your Steam profile is private.
-                                            </p>
-                                            <span className={`shrink-0 px-2 py-1 text-[9px] font-mono font-black uppercase tracking-widest border ${hasStoredKey ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'text-white/40 border-white/15'}`}>
-                                                {hasStoredKey ? 'Set' : 'Not Set'}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="password"
-                                                value={apiKey}
-                                                onChange={(e) => { setApiKey(e.target.value); setApiKeyError(null); setApiKeySaved(false) }}
-                                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveApiKey() }}
-                                                placeholder={hasStoredKey ? 'Paste new key to replace' : 'Paste your key'}
-                                                className="flex-1 px-3 py-2 bg-void-pure border border-white/15 focus:border-crimson-500/60 focus:outline-none text-xs font-mono text-white placeholder:text-white/25 tracking-wider"
-                                            />
-                                            <button
-                                                onClick={handleSaveApiKey}
-                                                className="px-3 py-2 text-xs font-mono font-bold uppercase tracking-widest border border-crimson-500/50 text-crimson-300 hover:bg-crimson-500/10 hover:border-crimson-500 transition-colors duration-200 flex items-center gap-1.5"
-                                            >
-                                                {apiKeySaved ? <Check className="w-3 h-3 text-emerald-400" /> : null}
-                                                Save
-                                            </button>
-                                            {hasStoredKey && (
-                                                <button
-                                                    onClick={handleClearApiKey}
-                                                    className="px-3 py-2 text-xs font-mono font-bold uppercase tracking-widest border border-white/10 text-white/50 hover:text-red-400 hover:border-red-500/40 transition-colors duration-200"
-                                                >
-                                                    Clear
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center justify-between text-[10px] font-mono">
-                                            {apiKeyError ? (
-                                                <span className="text-red-400 uppercase tracking-widest">{apiKeyError}</span>
-                                            ) : (
-                                                <button
-                                                    onClick={() => window.api?.openUrl('https://steamcommunity.com/dev/apikey')}
-                                                    className="text-white/40 hover:text-crimson-300 transition-colors uppercase tracking-widest flex items-center gap-1.5"
-                                                >
-                                                    Get a key from Steam
-                                                    <ExternalLink className="w-2.5 h-2.5" />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => { closeSettings(); openSetupWizard() }}
-                                                className="text-white/40 hover:text-crimson-300 transition-colors uppercase tracking-widest flex items-center gap-1.5"
-                                            >
-                                                <Wand2 className="w-2.5 h-2.5" />
-                                                Open setup again
-                                            </button>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* DANGER ZONE */}
-                                <section className="relative">
-                                    <div className="absolute inset-0 bg-red-500/5 mix-blend-overlay pointer-events-none -m-4 rounded-lg" />
-                                    <SectionHeader icon={<ShieldAlert className="w-4 h-4 text-red-500" />} title="Danger Zone" className="text-red-500" />
-                                    <div className="bg-red-950/20 border border-red-500/20 p-6">
-                                        <div className="flex items-start justify-between gap-6">
-                                            <div>
-                                                <h4 className="text-red-500 font-bold uppercase tracking-wider mb-1">Clear Library</h4>
-                                                <p className="font-mono text-xs text-red-400/60">
-                                                    This cannot be undone. All your games will be removed.
-                                                </p>
-                                            </div>
-                                            <BespokeButton
-                                                icon={<Trash2 className="w-4 h-4" />}
-                                                label="Clear Library"
-                                                onClick={handleClearLibrary}
-                                                variant="danger"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-
-                            </div>
-
-                            {/* Footer */}
-                            <div className="p-6 border-t border-white/10 bg-void-pure text-center relative z-20">
-                                <p className="font-mono text-[10px] text-white/20 uppercase tracking-[0.3em]">
-                                    Gateway 1.0.0
-                                </p>
+                                {tab === 'about' && (
+                                    <AboutTab />
+                                )}
                             </div>
                         </div>
                     </motion.div>
@@ -347,88 +199,305 @@ export function SettingsPanel() {
     )
 }
 
-// --- SUBCOMPONENTS ---
+// --- TABS ---
 
-function SectionHeader({ icon, title, className = "text-white/60" }: { icon: React.ReactNode, title: string, className?: string }) {
+function TabButton({ id, active, setTab, icon, label, badge }: { id: TabId, active: TabId, setTab: (t: TabId) => void, icon: React.ReactNode, label: string, badge?: number }) {
+    const isActive = active === id
     return (
-        <div className={`flex items-center gap-3 mb-6 ${className}`}>
-            {icon}
-            <h3 className="font-mono text-sm tracking-[0.2em] uppercase font-bold">
-                {title}
-            </h3>
-            <div className="flex-1 h-px bg-current opacity-20" />
-        </div>
-    )
-}
-
-function StatMetric({ label, value, color = "white" }: { label: string, value: string | number, color?: "white" | "crimson" }) {
-    const isCrimson = color === "crimson"
-    return (
-        <div className="bg-white/5 border border-white/10 p-4 relative group hover:bg-white/10 transition-colors">
-            {/* Corner Markers */}
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/20 group-hover:border-white/50" />
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/20 group-hover:border-white/50" />
-
-            <div className={`text-3xl font-display font-black italic tracking-tighter mb-1 ${isCrimson ? "text-crimson-500" : "text-white"}`}>
-                {value}
-            </div>
-            <div className="font-mono text-[10px] text-white/40 tracking-widest uppercase">
-                {label}
-            </div>
-        </div>
-    )
-}
-
-interface BespokeButtonProps {
-    icon: React.ReactNode
-    label: string
-    description?: string
-    onClick: () => void
-    variant?: 'default' | 'primary' | 'danger' | 'ghost'
-    disabled?: boolean
-    className?: string
-}
-
-function BespokeButton({ icon, label, description, onClick, variant = 'default', disabled, className = "" }: BespokeButtonProps) {
-    const variants = {
-        default: "bg-white/5 border border-white/10 hover:bg-white/10 text-white",
-        primary: "bg-crimson-600 border border-crimson-500 hover:bg-crimson-500 text-white shadow-[0_0_20px_oklch(0.52_0.23_25/0.3)] hover:shadow-[0_0_30px_oklch(0.52_0.23_25/0.5)]",
-        danger: "bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 text-red-500",
-        ghost: "bg-transparent border border-white/20 hover:border-white/50 text-white/80 hover:text-white"
-    }
-
-    return (
-        <motion.button
-            onClick={onClick}
-            disabled={disabled}
-            className={`
-                group relative flex items-center gap-4 px-6 py-4 transition-all duration-300
-                ${variants[variant]}
-                disabled:opacity-50 disabled:grayscale
-                ${className}
-            `}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
+        <button
+            onClick={() => setTab(id)}
+            className={`relative flex items-center gap-2 px-4 py-2.5 font-mono text-[11px] uppercase tracking-widest font-bold transition-colors duration-100 ${isActive ? 'text-white' : 'text-white/40 hover:text-white/70'}`}
         >
-            {/* Tech Decoration */}
-            {variant === 'primary' && (
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+            {icon}
+            <span>{label}</span>
+            {typeof badge === 'number' && badge > 0 && (
+                <span className={`text-[9px] font-mono tracking-wider ${isActive ? 'text-crimson-400' : 'text-white/30'}`}>
+                    {badge}
+                </span>
             )}
+            {isActive && (
+                <motion.div
+                    layoutId="settings-tab-underline"
+                    className="absolute -bottom-px left-0 right-0 h-0.5 bg-crimson-500"
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                />
+            )}
+        </button>
+    )
+}
 
-            <div className="relative z-10 flex flex-col items-start text-left">
-                <div className="flex items-center gap-3 font-display font-black italic tracking-wider uppercase text-lg">
-                    {icon}
-                    <span>{label}</span>
-                </div>
-                {description && (
-                    <span className="font-mono text-[10px] opacity-60 mt-1 uppercase tracking-wider pl-7">
-                        {description}
-                    </span>
+function AccountTab(props: {
+    authState: AuthState
+    isLoggingIn: boolean
+    onLogin: () => void
+    onLogout: () => void
+    hasStoredKey: boolean
+    keyExpanded: boolean
+    setKeyExpanded: (b: boolean) => void
+    apiKey: string
+    setApiKey: (s: string) => void
+    setApiKeyError: (s: string | null) => void
+    setApiKeySaved: (b: boolean) => void
+    apiKeyError: string | null
+    apiKeySaved: boolean
+    onSaveKey: () => void
+    onClearKey: () => void
+    onOpenSetup: () => void
+}) {
+    const { authState, isLoggingIn, onLogin, onLogout, hasStoredKey, keyExpanded, setKeyExpanded, apiKey, setApiKey, setApiKeyError, setApiKeySaved, apiKeyError, apiKeySaved, onSaveKey, onClearKey, onOpenSetup } = props
+
+    return (
+        <div className="space-y-4">
+            {/* Identity card — compact horizontal */}
+            <div className="bg-white/5 border border-white/10 p-4">
+                {authState.isLoggedIn && authState.user ? (
+                    <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                            <div className="w-14 h-14 rounded-sm overflow-hidden border border-crimson-500/30">
+                                <img src={authState.user.avatarUrl} alt={authState.user.username} className="w-full h-full object-cover" />
+                            </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-display font-black text-white uppercase tracking-tight italic truncate">
+                                {authState.user.username}
+                            </h3>
+                            <p className="font-mono text-[10px] text-white/50 tracking-widest uppercase mt-0.5">
+                                Signed in to Steam
+                            </p>
+                        </div>
+                        <button
+                            onClick={onLogout}
+                            className="shrink-0 px-3 py-2 border border-white/15 hover:border-crimson-500/50 hover:text-crimson-300 text-white/70 font-mono text-[10px] uppercase tracking-widest font-bold transition-colors duration-100 flex items-center gap-1.5"
+                        >
+                            <LogOut className="w-3 h-3" />
+                            Disconnect
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center text-center py-4">
+                        <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mb-3 border border-white/10">
+                            <UserIcon className="w-6 h-6 text-white/40" />
+                        </div>
+                        <h3 className="text-base font-bold text-white uppercase tracking-tight mb-1">Not signed in</h3>
+                        <p className="font-mono text-[10px] text-white/40 mb-4 max-w-xs uppercase tracking-wider">
+                            Sign in to Steam to load your games
+                        </p>
+                        <button
+                            onClick={onLogin}
+                            disabled={isLoggingIn}
+                            className="px-5 py-2.5 bg-crimson-600 border border-crimson-500 hover:bg-crimson-500 text-white font-display font-black italic tracking-wider uppercase text-sm transition-colors duration-100 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <LogIn className="w-4 h-4" />
+                            {isLoggingIn ? "Connecting..." : "Connect Steam"}
+                        </button>
+                    </div>
                 )}
             </div>
 
-            {/* Hover Indicator */}
-            <div className="absolute right-0 top-0 bottom-0 w-1 bg-current opacity-0 group-hover:opacity-100 transition-opacity" />
-        </motion.button>
+            {/* Setup wizard row */}
+            <button
+                onClick={onOpenSetup}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] border border-white/10 hover:border-crimson-500/40 hover:bg-white/[0.04] transition-colors duration-100 group"
+            >
+                <div className="flex items-center gap-3">
+                    <Wand2 className="w-4 h-4 text-white/50 group-hover:text-crimson-400 transition-colors duration-100" />
+                    <div className="text-left">
+                        <div className="font-mono text-xs uppercase tracking-widest font-bold text-white/80">Setup wizard</div>
+                        <div className="font-mono text-[10px] text-white/40 mt-0.5">Walk through first-time setup again</div>
+                    </div>
+                </div>
+                <ChevronDown className="w-4 h-4 text-white/30 -rotate-90 group-hover:text-crimson-400 transition-colors duration-100" />
+            </button>
+
+            {/* Steam Key — accordion */}
+            <div className="bg-white/[0.02] border border-white/10">
+                <button
+                    onClick={() => setKeyExpanded(!keyExpanded)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors duration-100 group"
+                >
+                    <div className="flex items-center gap-3">
+                        <KeyRound className="w-4 h-4 text-white/50 group-hover:text-crimson-400 transition-colors duration-100" />
+                        <div className="text-left">
+                            <div className="font-mono text-xs uppercase tracking-widest font-bold text-white/80">Steam API key</div>
+                            <div className="font-mono text-[10px] text-white/40 mt-0.5">Optional — only for private profiles</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 text-[9px] font-mono font-black uppercase tracking-widest border ${hasStoredKey ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'text-white/40 border-white/15'}`}>
+                            {hasStoredKey ? 'Set' : 'Not set'}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-white/30 transition-transform duration-200 ${keyExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                    {keyExpanded && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden"
+                        >
+                            <div className="px-4 pb-4 pt-1 space-y-3 border-t border-white/5">
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="password"
+                                        value={apiKey}
+                                        onChange={(e) => { setApiKey(e.target.value); setApiKeyError(null); setApiKeySaved(false) }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') onSaveKey() }}
+                                        placeholder={hasStoredKey ? 'Paste new key to replace' : 'Paste your key'}
+                                        className="flex-1 px-3 py-2 bg-void-pure border border-white/15 focus:border-crimson-500/60 focus:outline-none text-xs font-mono text-white placeholder:text-white/25 tracking-wider"
+                                    />
+                                    <button
+                                        onClick={onSaveKey}
+                                        className="px-3 py-2 text-xs font-mono font-bold uppercase tracking-widest border border-crimson-500/50 text-crimson-300 hover:bg-crimson-500/10 hover:border-crimson-500 transition-colors duration-100 flex items-center gap-1.5"
+                                    >
+                                        {apiKeySaved ? <Check className="w-3 h-3 text-emerald-400" /> : null}
+                                        Save
+                                    </button>
+                                    {hasStoredKey && (
+                                        <button
+                                            onClick={onClearKey}
+                                            className="px-3 py-2 text-xs font-mono font-bold uppercase tracking-widest border border-white/10 text-white/50 hover:text-red-400 hover:border-red-500/40 transition-colors duration-100"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center justify-between text-[10px] font-mono">
+                                    {apiKeyError ? (
+                                        <span className="text-red-400 uppercase tracking-widest">{apiKeyError}</span>
+                                    ) : (
+                                        <button
+                                            onClick={() => window.api?.openUrl('https://steamcommunity.com/dev/apikey')}
+                                            className="text-white/40 hover:text-crimson-300 transition-colors duration-100 uppercase tracking-widest flex items-center gap-1.5"
+                                        >
+                                            Get a key from Steam
+                                            <ExternalLink className="w-2.5 h-2.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    )
+}
+
+function LibraryTab({ stats, isFetching, canRefresh, onRefresh, onClear }: {
+    stats: { total: number, installed: number, sources: { key: string, label: string, count: number }[] }
+    isFetching: boolean
+    canRefresh: boolean
+    onRefresh: () => void
+    onClear: () => void
+}) {
+    const showSourceCards = stats.sources.length > 1
+    const gridCols = stats.sources.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+
+    return (
+        <div className="space-y-6">
+            {/* Headline numbers */}
+            <div className="bg-white/5 border border-white/10 p-5">
+                <div className="flex items-baseline gap-6">
+                    <div>
+                        <div className="text-4xl font-display font-black italic tracking-tighter text-white leading-none">
+                            {stats.total}
+                        </div>
+                        <div className="font-mono text-[10px] text-white/40 tracking-widest uppercase mt-2">
+                            Games
+                        </div>
+                    </div>
+                    <div className="w-px h-10 bg-white/10" />
+                    <div>
+                        <div className="text-4xl font-display font-black italic tracking-tighter text-crimson-500 leading-none">
+                            {stats.installed}
+                        </div>
+                        <div className="font-mono text-[10px] text-white/40 tracking-widest uppercase mt-2">
+                            Installed
+                        </div>
+                    </div>
+                    {!showSourceCards && stats.sources[0] && (
+                        <>
+                            <div className="w-px h-10 bg-white/10" />
+                            <div>
+                                <div className="text-4xl font-display font-black italic tracking-tighter text-white/80 leading-none">
+                                    {stats.sources[0].count}
+                                </div>
+                                <div className="font-mono text-[10px] text-white/40 tracking-widest uppercase mt-2">
+                                    From {stats.sources[0].label}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Source breakdown only when multiple sources active */}
+            {showSourceCards && (
+                <div className={`grid gap-3 ${gridCols}`}>
+                    {stats.sources.map((s, i) => (
+                        <div key={s.key} className="bg-white/5 border border-white/10 p-4">
+                            <div className={`text-2xl font-display font-black italic tracking-tighter mb-1 ${i === 0 ? 'text-white' : 'text-crimson-500'}`}>
+                                {s.count}
+                            </div>
+                            <div className="font-mono text-[10px] text-white/40 tracking-widest uppercase">
+                                {s.label}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-2">
+                <button
+                    onClick={onRefresh}
+                    disabled={isFetching || !canRefresh}
+                    className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-crimson-600 border border-crimson-500 hover:bg-crimson-500 text-white font-display font-black italic tracking-wider uppercase text-base transition-colors duration-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+                    {isFetching ? "Refreshing..." : "Refresh Library"}
+                </button>
+                {!canRefresh && (
+                    <p className="font-mono text-[10px] text-white/40 uppercase tracking-widest text-center">
+                        Sign in to Steam first
+                    </p>
+                )}
+            </div>
+
+            {/* Danger — text-link, no full red panel */}
+            <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                <div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest text-white/50 font-bold">Clear library</div>
+                    <div className="font-mono text-[10px] text-white/30 mt-0.5">Removes all games. Cannot be undone.</div>
+                </div>
+                <button
+                    onClick={onClear}
+                    className="px-3 py-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 font-mono text-[10px] uppercase tracking-widest font-bold transition-colors duration-100 flex items-center gap-1.5"
+                >
+                    <Trash2 className="w-3 h-3" />
+                    Clear
+                </button>
+            </div>
+        </div>
+    )
+}
+
+function AboutTab() {
+    return (
+        <div className="space-y-4">
+            <div className="bg-white/5 border border-white/10 p-6 text-center">
+                <div className="text-3xl font-display font-black italic tracking-tighter text-white uppercase mb-2 -skew-x-6">
+                    Gateway
+                </div>
+                <div className="font-mono text-[11px] text-crimson-400 tracking-widest uppercase">
+                    Version 1.0.0
+                </div>
+            </div>
+        </div>
     )
 }

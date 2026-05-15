@@ -33,7 +33,7 @@ export interface Game {
     steamAppId?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'lutris' | 'heroic'
+    source: 'manual' | 'steam'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number

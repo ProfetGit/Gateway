@@ -3,7 +3,7 @@
   "productName": "Gateway",
   "version": "1.0.0",
   "author": "Gateway Team",
-  "description": "A unified game launcher for Steam, Lutris, and Heroic libraries.",
+  "description": "A Windows game launcher for your Steam library.",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",

@@ -1,31 +1,3 @@
-// Gamescope configuration options
-export interface GamescopeSettings {
-    enabled: boolean
-    // Resolution
-    width?: number           // -w: game render width
-    height?: number          // -h: game render height
-    outputWidth?: number     // -W: output/upscale width
-    outputHeight?: number    // -H: output/upscale height
-    // Display mode
-    fullscreen?: boolean     // -f: fullscreen
-    borderless?: boolean     // -b: borderless window
-    // Upscaling
-    scaler?: 'auto' | 'integer' | 'fit' | 'fill' | 'stretch'  // -S
-    filter?: 'linear' | 'nearest' | 'fsr' | 'nis'  // -F
-    fsr?: boolean            // --fsr (legacy, use filter instead)
-    fsrSharpness?: number    // --fsr-sharpness (0-20, default 2)
-    nisSharpness?: number    // --nis-sharpness (0-20)
-    // Frame limiting
-    fpsLimit?: number        // -r: frame limit
-    unfocusedFpsLimit?: number // -o: unfocused fps limit
-    // Other options
-    exposeWayland?: boolean  // --expose-wayland
-    hdr?: boolean            // --hdr-enabled
-    forceGrabCursor?: boolean // --force-grab-cursor
-    adaptiveSync?: boolean   // --adaptive-sync
-    vrr?: boolean            // Alias for adaptive sync
-}
-
 export interface Game {
     id: string
     title: string
@@ -33,13 +5,9 @@ export interface Game {
     localCoverPath?: string
     executablePath?: string
     steamAppId?: string
-    lutrisId?: number
-    lutrisSlug?: string
-    heroicAppName?: string
-    heroicRunner?: 'legendary' | 'gog' | 'sideload'
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'lutris' | 'heroic'
+    source: 'manual' | 'steam'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number // Bytes
@@ -47,15 +15,11 @@ export interface Game {
     launchArgs?: string
     heroImageUrl?: string
     logoImageUrl?: string
-    // Launch options
-    mangoHudEnabled?: boolean
-    gamescope?: GamescopeSettings
-    gamemodeEnabled?: boolean  // Feral GameMode support
     customEnvVars?: string     // Custom environment variables (VAR=value VAR2=value2)
 }
 
 export type FilterStatus = 'all' | 'installed'
-export type FilterPlatform = 'all' | 'steam' | 'lutris' | 'heroic'
+export type FilterPlatform = 'all' | 'steam'
 
 export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
 export type SortOrder = 'asc' | 'desc'
@@ -243,15 +207,6 @@ export interface ElectronAPI {
     getSteamStatus: () => Promise<SteamStatus>
     installSteamGame: (appId: string) => Promise<void>
     clearAndResync: () => Promise<{ success: boolean; error?: string; totalGames?: number; installedGames?: number }>
-
-    // Lutris integration
-    getLutrisStatus: () => Promise<{ installed: boolean; version: string | null; dataPath: string | null; gamesCount: number }>
-    syncLutris: () => Promise<Game[]>
-
-    // Heroic integration
-    getHeroicStatus: () => Promise<{ installed: boolean; version: string | null; dataPath: string | null; gamesCount: number; epicCount: number; gogCount: number; sideloadCount: number }>
-    syncHeroic: () => Promise<Game[]>
-    installHeroicGame: (appName: string, runner?: string) => Promise<{ success: boolean; error?: string }>
 
     // Steam authentication
     steamLogin: () => Promise<AuthState>
