@@ -1,18 +1,26 @@
 # Gateway
 
-A unified game launcher for Steam, Lutris, and Heroic libraries, with a deliberately opinionated OLED-first interface.
+A Windows game launcher for your Steam library, with a deliberately opinionated OLED-first interface.
 
-Gateway aggregates your games from multiple sources, surfaces live Steam catalog data (trending, free-to-keep deals), and tracks achievement progress across your entire library — without re-implementing a storefront. Local-first by design: your library lives in a JSON file on disk, covers are mirrored locally, and external APIs only fire when their data is needed.
+Gateway surfaces your Steam library alongside live catalog data (trending, free-to-keep deals) and tracks achievement progress across your games — without re-implementing a storefront. Local-first by design: your library lives in a JSON file on disk, covers are mirrored locally, and external APIs only fire when their data is needed.
+
+---
+
+## Screenshots
+
+![Home view — cinematic hero carousel with launch CTA, recently-played strip, and trending row](docs/screenshots/home.png)
+
+![Library view — full grid of owned games with sort, filter, and search](docs/screenshots/library.png)
 
 ---
 
 ## Features
 
-- **Library aggregation** — Steam (via local file scan), Lutris, and Heroic Games Launcher in one view. Manual entries supported.
+- **Steam library** — Local-file scan of installed games plus Web-API import of your full owned catalog.
 - **Trending row** — Live data from the Steam featured-categories API, with one-click open in the Steam client.
 - **Free-to-Keep deals** — Temporarily-free Steam games via the GamerPower API, with claim-state tracking. Gateway detects when you successfully claim a game and updates the badge automatically.
 - **Achievement Hunts** — Cross-game achievement progress with a sortable, filterable drawer (in progress / almost done / completed / untouched / all).
-- **Per-game detail** — Banner art, developer info, achievements tab, patch notes (Steam news API), launch options including Gamescope, MangoHud, GameMode, custom env vars, and VDF-serialized Steam launch flags.
+- **Per-game detail** — Banner art, developer info, achievements tab, patch notes (Steam news API), custom launch arguments.
 - **Asymmetric cinematic UI** — Custom design system (Crimson Void): OKLCH color palette, Chakra Petch + Red Hat Mono + Archivo Black typography, signature corner-bracket card vocabulary, scanline overlays. No shadcn, no glassmorphism, no purple gradients.
 
 ---
@@ -33,10 +41,10 @@ External APIs used: Steam Web API, Steam Store API, Steam featured-categories, G
 
 ## Requirements
 
+- **Windows 10/11**
 - **Node.js 18+** and **npm**
 - **Git**
 - A working **Steam installation** is required for the Steam library scanner to find local games.
-- Optional: **Lutris** (Linux) and/or **Heroic Games Launcher** if you want those sources included.
 - A **Steam Web API key** is required for achievement and ownership features. Get one at https://steamcommunity.com/dev/apikey. Without it, Gateway still works — Trending, Free Deals, and the local library scanner do not need a key, but Achievement Hunts and "Owned" tagging on trending cards will not populate.
 
 ---
@@ -73,13 +81,7 @@ Build artifacts:
 
 ## Configuration
 
-Gateway stores all user data in the Electron `userData` directory:
-
-| Platform | Path |
-|---|---|
-| Windows | `%APPDATA%\Gateway\gateway-data.json` |
-| macOS | `~/Library/Application Support/Gateway/gateway-data.json` |
-| Linux | `~/.config/Gateway/gateway-data.json` |
+Gateway stores all user data in the Electron `userData` directory at `%APPDATA%\Gateway\gateway-data.json`.
 
 The file holds your library, settings, and claim state. It is human-readable JSON — you can back it up, edit it, or version-control it.
 
@@ -99,7 +101,6 @@ electron/                    Main process (Node) + preload bridge
       steam/                 Trending, free deals, achievements, news, store API
       library/               Local library CRUD
       sync/                  Steam sync + claim-detection
-      lutris/, heroic/       External launcher scanners
 
 src/                         Renderer (React)
   App.tsx                    AppShell root — all modal overlays mount here
@@ -137,6 +138,5 @@ Bug reports and feature requests via GitHub issues. Please include OS, Electron/
 - Game catalog data from the [Steam Store API](https://store.steampowered.com/) and [Steam Web API](https://steamcommunity.com/dev).
 - Free-to-keep deal listings from [GamerPower](https://www.gamerpower.com/).
 - Cover art served via Steam CDN; mirrored locally for offline access.
-- Library import support for [Lutris](https://lutris.net/) and [Heroic Games Launcher](https://heroicgameslauncher.com/).
 
-This project is not affiliated with or endorsed by Valve, Lutris, or Heroic.
+This project is not affiliated with or endorsed by Valve.
