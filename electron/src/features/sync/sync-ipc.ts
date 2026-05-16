@@ -158,12 +158,8 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
         win?.webContents.send('games-updated', finalGames)
         mirrorAllCovers(store, win)
 
-        // Background-resolve any games STILL named "Game ${appId}" after bulk resolution.
-        resolveStragglersInBackground(store, win)
-
-        // Background-classify app types (game/dlc/application/etc.) for unclassified entries.
-        // Throttled, capped at 200/session — takes a few syncs to cover a large library.
-        resolveAppTypesInBackground(store, win)
+        // Background resolver: fixes placeholder names AND classifies app types in one pass.
+        resolveGamesInBackground(store, win)
 
         return { success: true, count: finalGames.length }
     }
@@ -171,155 +167,94 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
     return { success: apiResult.success, count: 0 }
 }
 
-// ─── Background straggler resolver ──────────────────────────────────────────
+// ─── Unified background resolver ─────────────────────────────────────────────
 //
-// Games whose names are still "Game ${appId}" after bulk resolution get their
-// names fetched one-by-one from Steam's appdetails endpoint. Steam rate-limits
-// this at ~200 requests / 5min, so we throttle at one call per 1.5s and cap
-// the queue at 100 games per sync. Failures are remembered for the rest of
-// the process lifetime so re-syncs don't re-attempt them.
+// Single pass resolves BOTH placeholder names ("Game ${appId}") AND missing
+// app types (game/dlc/application/etc.) in one API call per game. Running one
+// process eliminates rate-limit competition and the stale-snapshot race that
+// two concurrent resolvers caused. Reads store fresh immediately before each
+// write — no cached snapshot can get overwritten.
+//
+// Steam rate limit: ~200 req / 5min. At 1500ms/req we stay safely under.
+// Delisted / no-data responses are remembered in `permanentlyFailed` so we
+// don't waste the budget on retries across syncs.
 
-const stragglerFailedAppIds = new Set<string>()
-let stragglerResolverRunning = false
-const STRAGGLER_CAP = 100
-const STRAGGLER_DELAY_MS = 1500
+const resolverAttemptedThisSession = new Set<string>()
+const permanentlyFailed = new Set<string>()
+let backgroundResolverRunning = false
+const RESOLVER_DELAY_MS = 1500
 
-function resolveStragglersInBackground(store: JsonStore, win: BrowserWindow | null) {
-    if (stragglerResolverRunning) return
-    stragglerResolverRunning = true
+function resolveGamesInBackground(store: JsonStore, win: BrowserWindow | null) {
+    if (backgroundResolverRunning) return
+    backgroundResolverRunning = true
 
     void (async () => {
         try {
             const games = store.get('games')
-            const stragglers = games.filter(g =>
+            const toResolve = games.filter(g =>
                 g.source === 'steam' &&
                 g.steamAppId &&
-                g.title.startsWith('Game ') &&
-                !stragglerFailedAppIds.has(g.steamAppId)
-            ).slice(0, STRAGGLER_CAP)
+                !permanentlyFailed.has(g.steamAppId!) &&
+                !resolverAttemptedThisSession.has(g.steamAppId!) &&
+                (g.title.startsWith('Game ') || !g.appType)
+            )
 
-            if (stragglers.length === 0) return
-            console.log('[Main] Background-resolving', stragglers.length, 'straggler names...')
+            if (toResolve.length === 0) return
+            console.log('[Main] Background resolver: processing', toResolve.length, 'games (name/type)')
 
-            let resolved = 0
-            for (const game of stragglers) {
+            let updatedCount = 0
+            for (const game of toResolve) {
+                resolverAttemptedThisSession.add(game.steamAppId!)
                 try {
                     const url = `https://store.steampowered.com/api/appdetails?appids=${game.steamAppId}&filters=basic`
                     const res = await fetch(url, { headers: { Accept: 'application/json' } })
 
                     if (res.status === 429) {
-                        console.warn('[Main] Hit rate limit on stragglers, stopping. Resolved', resolved, 'so far')
-                        break
-                    }
-                    if (!res.ok) {
-                        stragglerFailedAppIds.add(game.steamAppId!)
-                        continue
-                    }
-
-                    const data = await res.json() as Record<string, { success: boolean; data?: { name?: string } }>
-                    const entry = data[game.steamAppId!]
-                    if (entry?.success && entry.data?.name) {
-                        const current = store.get('games')
-                        const updated = current.map(g =>
-                            g.id === game.id ? { ...g, title: entry.data!.name! } : g
-                        )
-                        store.set('games', updated)
-                        win?.webContents.send('games-updated', updated)
-                        resolved++
-                    } else {
-                        // Steam responded but no name — likely delisted. Remember
-                        // so we don't waste the rate limit on retries.
-                        stragglerFailedAppIds.add(game.steamAppId!)
-                    }
-                } catch (err) {
-                    console.warn('[Main] Straggler fetch failed for', game.steamAppId, err)
-                    stragglerFailedAppIds.add(game.steamAppId!)
-                }
-
-                await new Promise(resolve => setTimeout(resolve, STRAGGLER_DELAY_MS))
-            }
-
-            console.log('[Main] ✓ Background straggler resolution done.', resolved, 'names resolved.')
-        } catch (err) {
-            console.error('[Main] Background straggler resolver crashed:', err)
-        } finally {
-            stragglerResolverRunning = false
-        }
-    })()
-}
-
-
-// ─── Background app-type classifier ─────────────────────────────────────────
-//
-// Fetches Steam store type (game/dlc/application/etc.) for unclassified entries.
-// Runs after sync, throttled at one call per 1.5s, capped at 200 per session.
-// Only notifies the renderer when a non-game type is confirmed — this is the
-// signal that triggers the filter to hide that entry.
-
-const classifiedThisSession = new Set<string>()
-let typeClassifierRunning = false
-const TYPE_CAP = 200
-const TYPE_DELAY_MS = 1500
-
-function resolveAppTypesInBackground(store: JsonStore, win: BrowserWindow | null) {
-    if (typeClassifierRunning) return
-    typeClassifierRunning = true
-
-    void (async () => {
-        try {
-            const games = store.get('games')
-            const unclassified = games.filter(g =>
-                g.source === 'steam' &&
-                g.steamAppId &&
-                !g.appType &&
-                !classifiedThisSession.has(g.steamAppId!)
-            ).slice(0, TYPE_CAP)
-
-            if (unclassified.length === 0) return
-            console.log('[Main] Background type-classifying', unclassified.length, 'Steam entries...')
-
-            let classified = 0
-            for (const game of unclassified) {
-                classifiedThisSession.add(game.steamAppId!)
-                try {
-                    const url = `https://store.steampowered.com/api/appdetails?appids=${game.steamAppId}&filters=basic`
-                    const res = await fetch(url, { headers: { Accept: 'application/json' } })
-
-                    if (res.status === 429) {
-                        console.warn('[Main] Rate-limited during type classification, stopping at', classified, 'classified.')
+                        console.warn('[Main] Rate-limited in background resolver, stopping at', updatedCount, 'updated')
                         break
                     }
                     if (!res.ok) continue
 
-                    const data = await res.json() as Record<string, { success: boolean; data?: { type?: string } }>
+                    const data = await res.json() as Record<string, { success: boolean; data?: { name?: string; type?: string } }>
                     const entry = data[game.steamAppId!]
 
-                    if (entry?.success && entry.data?.type) {
-                        const appType = entry.data.type
-                        const current = store.get('games')
-                        const updated = current.map(g =>
-                            g.id === game.id ? { ...g, appType } : g
-                        )
-                        store.set('games', updated)
-                        classified++
+                    if (!entry?.success || !entry.data) {
+                        permanentlyFailed.add(game.steamAppId!)
+                        continue
+                    }
 
-                        // Notify renderer only for non-games — that's when the filter changes
-                        if (appType !== 'game') {
-                            win?.webContents.send('games-updated', updated)
-                        }
+                    const patch: Partial<Game> = {}
+                    if (entry.data.name && game.title.startsWith('Game ')) {
+                        patch.title = entry.data.name
+                    }
+                    if (entry.data.type && !game.appType) {
+                        patch.appType = entry.data.type
+                    }
+
+                    if (Object.keys(patch).length === 0) continue
+
+                    // Read fresh right before write — eliminates stale-snapshot overwrites
+                    const current = store.get('games')
+                    const next = current.map(g => g.id === game.id ? { ...g, ...patch } : g)
+                    store.set('games', next)
+                    updatedCount++
+
+                    // Notify renderer: name fixes always; type changes only when they'll hide a game
+                    if (patch.title || (patch.appType && patch.appType !== 'game')) {
+                        win?.webContents.send('games-updated', next)
                     }
                 } catch (err) {
-                    console.warn('[Main] Type classification failed for', game.steamAppId, err)
+                    console.warn('[Main] Background resolver failed for', game.steamAppId, err)
                 }
 
-                await new Promise(resolve => setTimeout(resolve, TYPE_DELAY_MS))
+                await new Promise(r => setTimeout(r, RESOLVER_DELAY_MS))
             }
 
-            console.log('[Main] ✓ Type classification batch done.', classified, 'entries classified.')
+            console.log('[Main] ✓ Background resolver done.', updatedCount, 'games updated.')
         } catch (err) {
-            console.error('[Main] Type classifier crashed:', err)
+            console.error('[Main] Background resolver crashed:', err)
         } finally {
-            typeClassifierRunning = false
+            backgroundResolverRunning = false
         }
     })()
 }
@@ -427,7 +362,6 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
     // ═══════════════════════════════════════════════════════════
 
     ipcMain.handle('get-achievements', async (_event, appId: string) => {
-        console.log('[Main] get-achievements called for appId:', appId)
         const auth = getAuthState()
         if (!auth.isLoggedIn || !auth.user) {
             return {
