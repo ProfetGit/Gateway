@@ -36,16 +36,6 @@ export function TopNavigation() {
                                     setFilterStatus('all')
                                 }
                             }}
-                            onMouseEnter={() => {
-                                if (item.id === 'library') {
-                                    useGameStore.getState().startPreloading()
-                                }
-                            }}
-                            onMouseLeave={() => {
-                                if (item.id === 'library') {
-                                    useGameStore.getState().stopPreloading()
-                                }
-                            }}
                             className={clsx(
                                 "relative group transition-all duration-500 ease-out-expo border outline-none",
                                 isScrolled && currentView === 'home'

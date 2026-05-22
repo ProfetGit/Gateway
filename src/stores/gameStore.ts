@@ -11,7 +11,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     if (typeof window !== 'undefined' && window.api && !_gamesUpdatedListenerRegistered) {
         _gamesUpdatedListenerRegistered = true
         window.api.onGamesUpdated((updatedGames) => {
-            set({ games: updatedGames })
+            set({ games: updatedGames, preloadState: { cursor: 0, isActive: false } })
         })
     }
 
@@ -43,7 +43,7 @@ export const useGameStore = create<GameStore>((set, get) => {
 
         setView: (view) => set({ currentView: view }),
 
-        setGames: (games) => set({ games }),
+        setGames: (games) => set({ games, preloadState: { cursor: 0, isActive: false } }),
 
         addGame: (game) => set((state) => ({
             games: [...state.games, game],
@@ -143,6 +143,10 @@ export const useGameStore = create<GameStore>((set, get) => {
                     preloadState: { ...state.preloadState, isActive: false }
                 }))
             }
+        },
+
+        resetPreload: () => {
+            set({ preloadState: { cursor: 0, isActive: false } })
         },
 
         startPreloading: () => {

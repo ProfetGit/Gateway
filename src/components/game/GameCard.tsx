@@ -31,6 +31,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
 
     const [imgSrc, setImgSrc] = useState(getInitialSrc)
     const [imageError, setImageError] = useState(false)
+    const [imgLoaded, setImgLoaded] = useState(false)
     const { openDetail, toggleFavorite, deleteGame } = useGameStore()
     const { open: openContextMenu } = useContextMenuStore()
 
@@ -54,12 +55,14 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
     useEffect(() => {
         setImgSrc(getInitialSrc())
         setImageError(false)
+        setImgLoaded(false)
     }, [game.coverUrl, game.localCoverPath]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleImageError = () => {
         const currentSrc = imgSrc || ''
 
         if (currentSrc.startsWith('gateway://') && game.coverUrl) {
+            setImgLoaded(false)
             setImgSrc(game.coverUrl)
             return
         }
@@ -70,8 +73,10 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
         }
 
         if (currentSrc.includes('library_600x900_2x.jpg')) {
+            setImgLoaded(false)
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/library_600x900.jpg`)
         } else if (currentSrc.includes('library_600x900.jpg')) {
+            setImgLoaded(false)
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/header.jpg`)
         } else {
             setImageError(true)
@@ -144,12 +149,13 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                     <img
                         src={imgSrc}
                         alt={game.title}
-                        loading="lazy"
                         decoding="async"
-                        className="w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-110"
+                        className={`w-full h-full object-cover group-hover:scale-110 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                         style={{
                             filter: game.isInstalled ? 'none' : 'grayscale(0.6) brightness(0.6)',
+                            transition: 'opacity 200ms ease-out, transform 500ms cubic-bezier(0.16, 1, 0.3, 1)',
                         }}
+                        onLoad={() => setImgLoaded(true)}
                         onError={handleImageError}
                     />
                 ) : (

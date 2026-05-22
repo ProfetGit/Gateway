@@ -2,8 +2,9 @@ import { VirtuosoGrid } from 'react-virtuoso'
 import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useFilteredGames, useGameStore } from '../../stores/gameStore'
+import { useUIStore } from '../../stores/uiStore'
 import { Gamepad2 } from 'lucide-react'
-import { forwardRef, memo, useEffect, useState } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { Game } from '../../types/game'
 
 // Memoized card wrapper — prevents re-renders unless game data changes.
@@ -21,8 +22,11 @@ const MemoizedGameCard = memo(function MemoizedGameCard({
 
 export function GameGrid() {
     const games = useFilteredGames()
+    const gridSize = useUIStore((s) => s.gridSize)
+    const startPreloading = useGameStore((s) => s.startPreloading)
     const [animateIn, setAnimateIn] = useState(true)
     const hasGames = games.length > 0
+    const gamesLength = games.length
 
     useEffect(() => {
         if (!hasGames) return
@@ -31,8 +35,28 @@ export function GameGrid() {
         return () => window.clearTimeout(id)
     }, [hasGames])
 
+    useEffect(() => {
+        if (gamesLength === 0) return
+        startPreloading()
+    }, [gamesLength, startPreloading])
+
+    const lastPreloadedIndex = useRef(0)
+
+    const handleRangeChanged = useCallback(
+        ({ endIndex }: { startIndex: number; endIndex: number }) => {
+            if (endIndex + 20 >= lastPreloadedIndex.current) {
+                lastPreloadedIndex.current = endIndex + 20
+                startPreloading()
+            }
+        },
+        [startPreloading]
+    )
+
     return (
-        <div className="flex-1 min-h-0 bg-void-pure relative">
+        <div
+            className="flex-1 min-h-0 bg-void-pure relative"
+            style={{ '--grid-min-size': `${gridSize}px` } as React.CSSProperties}
+        >
             {games.length === 0 ? (
                 <div className="absolute inset-0 overflow-y-auto">
                     <EmptyState />
@@ -42,8 +66,9 @@ export function GameGrid() {
                     style={{ height: '100%' }}
                     totalCount={games.length}
                     overscan={15}
-                    listClassName="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5 p-6 pb-24"
-                    itemClassName="min-h-[240px]"
+                    listClassName="game-grid-list"
+                    itemClassName="game-grid-item"
+                    rangeChanged={handleRangeChanged}
                     itemContent={(index) => (
                         <MemoizedGameCard
                             game={games[index]}

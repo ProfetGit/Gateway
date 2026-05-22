@@ -51,6 +51,7 @@ export interface GameStore {
     preloadState: PreloadState
     startPreloading: () => void
     stopPreloading: () => void
+    resetPreload: () => void
 
     // UI State
     currentView: ViewType

@@ -192,6 +192,18 @@
 
 @layer components {
 
+  .game-grid-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-size, 180px), 1fr));
+    gap: 1.25rem;
+    padding: 1.5rem;
+    padding-bottom: 6rem;
+  }
+
+  .game-grid-item {
+    min-height: calc(var(--grid-min-size, 180px) * 1.333);
+  }
+
   .glitch-border {
     position: relative;
   }
