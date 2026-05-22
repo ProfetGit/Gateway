@@ -7,7 +7,10 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(mkdir -p \"c:\\\\Users\\\\Emppu\\\\Documents\\\\Github\\\\Repositores\\\\Gateway\\\\.vscode\")",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(Get-ChildItem -Recurse -Force)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Emppu\\Documents\\Github\\Repositores\\Gateway"

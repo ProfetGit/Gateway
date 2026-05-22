@@ -192,7 +192,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
             {/* Installed indicator */}
             {game.isInstalled && (
                 <div className="absolute top-2.5 left-2.5 z-30 flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_oklch(0.72_0.17_165/0.8)]" />
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-emerald-glow" />
                 </div>
             )}
 
@@ -224,8 +224,8 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                         <defs>
                             {/* Installed gradient */}
                             <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="oklch(0.52 0.23 25)" />
-                                <stop offset="100%" stopColor="oklch(0.39 0.165 25)" />
+                                <stop offset="0%" stopColor="var(--color-crimson-600)" />
+                                <stop offset="100%" stopColor="var(--color-crimson-800)" />
                             </linearGradient>
 
                             {/* Uninstalled ghost background */}

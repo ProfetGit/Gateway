@@ -2,84 +2,9 @@
 
 @import "tailwindcss";
 
-/* ═══════════════════════════════════════════════════════════
-   THEME — Tailwind v4 CSS-first config.
-   All palette tokens are flat OKLCH (no <alpha-value>) — v4 wires
-   alpha modifiers (e.g. `bg-crimson-500/40`) through color-mix()
-   automatically, so the placeholder isn't needed.
-   ═══════════════════════════════════════════════════════════ */
-
-@theme {
-  /* Tinted black/white — `text-white` and `bg-black` resolve to these,
-     not pure #fff / #000. */
-  --color-white: oklch(0.98 0.003 25);
-  --color-black: oklch(0.08 0.005 25);
-
-  /* Void scale — OLED-optimized darks, hue locked at 25. */
-  --color-void-pure:     oklch(0.08 0.005 25);
-  --color-void-deep:     oklch(0.12 0.005 25);
-  --color-void-surface:  oklch(0.16 0.005 25);
-  --color-void-elevated: oklch(0.20 0.006 25);
-  --color-void-border:   oklch(0.26 0.008 25);
-
-  /* Crimson scale — primary brand. */
-  --color-crimson-50:  oklch(0.97 0.020 25);
-  --color-crimson-100: oklch(0.93 0.040 25);
-  --color-crimson-200: oklch(0.86 0.080 25);
-  --color-crimson-300: oklch(0.76 0.140 25);
-  --color-crimson-400: oklch(0.66 0.200 25);
-  --color-crimson-500: oklch(0.58 0.245 25);
-  --color-crimson-600: oklch(0.52 0.230 25);
-  --color-crimson-700: oklch(0.45 0.200 25);
-  --color-crimson-800: oklch(0.39 0.165 25);
-  --color-crimson-900: oklch(0.33 0.130 25);
-  --color-crimson-950: oklch(0.22 0.090 25);
-
-  /* Ember — pre-baked translucent variants for glow recipes. */
-  --color-ember-glow:  oklch(0.58 0.245 25 / 0.15);
-  --color-ember-pulse: oklch(0.58 0.245 25 / 0.08);
-  --color-ember-trace: oklch(0.58 0.245 25 / 0.03);
-
-  /* Text */
-  --color-text-primary:   oklch(0.98 0.003 25);
-  --color-text-secondary: oklch(0.72 0.005 25);
-  --color-text-muted:     oklch(0.48 0.006 25);
-  --color-text-ghost:     oklch(0.30 0.008 25);
-
-  /* Fonts */
-  --font-mono:    'Red Hat Mono', ui-monospace, monospace;
-  --font-display: 'Chakra Petch', system-ui, sans-serif;
-  --font-etched:  'Archivo Black', Impact, sans-serif;
-  --default-font-family: var(--font-display);
-
-  /* Shadows */
-  --shadow-crimson-glow:    0 0 20px oklch(0.58 0.245 25 / 0.30), 0 0 40px oklch(0.58 0.245 25 / 0.10);
-  --shadow-crimson-intense: 0 0 30px oklch(0.58 0.245 25 / 0.50), 0 0 60px oklch(0.58 0.245 25 / 0.20);
-  --shadow-void-lift:       0 10px 40px oklch(0.08 0.005 25 / 0.80);
-  --shadow-void-float:      0 20px 60px oklch(0.08 0.005 25 / 0.90);
-
-  /* Easing curves */
-  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-expo:   cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* Backdrop blur */
-  --backdrop-blur-void: 20px;
-
-  /* Animations — `animate-foo` resolves via these. */
-  --animate-pulse-slow:    pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-heartbeat:     heartbeat 2s ease-in-out infinite;
-  --animate-glitch:        glitch 0.3s ease-in-out;
-  --animate-materialize:   materialize 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-dematerialize: dematerialize 0.3s cubic-bezier(0.7, 0, 0.84, 0);
-  --animate-float:         float 6s ease-in-out infinite;
-  --animate-charge:        charge 0.15s ease-out;
-  --animate-release:       release 0.2s ease-out;
-  --animate-rift-open:     rift-open 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-rift-close:    rift-close 0.3s cubic-bezier(0.7, 0, 0.84, 0);
-  --animate-border-pulse:  border-pulse 2s ease-in-out infinite;
-}
+/* Design tokens — single source of truth for all colors, typography,
+   shadows, easing curves, and animation definitions. Edit there, not here. */
+@import "./styles/theme.css";
 
 /* v4 changed the default border color from gray-200 to currentColor.
    This preserves the v3 look so existing borders don't all turn red. */
