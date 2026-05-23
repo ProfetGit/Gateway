@@ -1,4 +1,5 @@
 import { ExternalLink, Star, Trash2 } from 'lucide-react'
+import { openSteamStore } from '../../../lib/api'
 import { Game } from '../../../types/game'
 import { FetchGameDetailsResult } from '../../../types/game'
 
@@ -78,7 +79,7 @@ export function GameDetailMetaStrip({
 
                 {selectedGame.steamAppId && (
                     <button
-                        onClick={() => window.api?.openSteamStore(selectedGame.steamAppId!)}
+                        onClick={() => openSteamStore(selectedGame.steamAppId!)}
                         title="Open in Steam"
                         className="p-2 border border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60 transition-all duration-100"
                     >

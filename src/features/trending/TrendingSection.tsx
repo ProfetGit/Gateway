@@ -7,6 +7,7 @@ import { useHorizontalScroller } from '../../components/shared/useHorizontalScro
 import { useGameStore } from '../../stores/gameStore'
 import type { Game } from '../../types/game'
 import type { TrendingGame, TrendingData } from '../../types/trending'
+import { getTrendingGames, openSteamStore } from '../../lib/api'
 
 interface TrendingSectionProps {
     onGameClick?: (gameId: number) => void
@@ -21,7 +22,7 @@ export function TrendingSection({ onGameClick }: TrendingSectionProps) {
         setIsLoading(true)
         setError(null)
         try {
-            const result = await window.api?.getTrendingGames()
+            const result = await getTrendingGames()
             if (result?.success && result.data) {
                 setData(result.data)
             } else {
@@ -45,7 +46,7 @@ export function TrendingSection({ onGameClick }: TrendingSectionProps) {
 
     const handleOpenInSteam = (gameId: number) => {
         // Open in Steam app directly
-        window.api?.openSteamStore(gameId)
+        openSteamStore(gameId)
     }
 
     return (

@@ -62,7 +62,6 @@ export interface GameStore {
     isSettingsOpen: boolean
     isAddModalOpen: boolean
     isHuntsDrawerOpen: boolean
-    isSetupWizardOpen: boolean
 
     // Actions
     setView: (view: ViewType) => void
@@ -89,8 +88,6 @@ export interface GameStore {
     closeAddModal: () => void
     openHuntsDrawer: () => void
     closeHuntsDrawer: () => void
-    openSetupWizard: () => void
-    closeSetupWizard: () => void
 }
 
 // Steam status type
@@ -250,7 +247,7 @@ export interface ElectronAPI {
         hasGames: boolean
     }>
     markSetupComplete: () => Promise<void>
-    setSteamApiKey: (key: string) => Promise<{ success: boolean; hasKey: boolean }>
+    setSteamApiKey: (key: string) => Promise<{ success: boolean; hasKey: boolean; error?: string }>
     getSteamApiKey: () => Promise<string>
 
     // Window controls
@@ -261,6 +258,7 @@ export interface ElectronAPI {
     // Events
     onGamesUpdated: (callback: (games: Game[]) => void) => () => void
     onGameClaimed: (callback: (data: { appId: string; owned: boolean }) => void) => () => void
+    onAuthStateUpdated: (callback: (state: AuthState) => void) => () => void
 }
 
 declare global {

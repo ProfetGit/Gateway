@@ -82,7 +82,7 @@ export function GameGrid() {
 }
 
 const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
-    const openSetupWizard = useGameStore((s) => s.openSetupWizard)
+    const openSettings = useGameStore((s) => s.openSettings)
 
     return (
         <motion.div
@@ -107,7 +107,7 @@ const EmptyState = forwardRef<HTMLDivElement>(function EmptyState(_props, ref) {
                 No games found
             </h2>
             <button
-                onClick={openSetupWizard}
+                onClick={openSettings}
                 className="relative z-10 text-sm font-mono text-crimson-500/80 uppercase tracking-widest border border-crimson-900/50 hover:border-crimson-500 hover:text-crimson-300 hover:bg-crimson-500/5 px-3 py-1 transition-[color,border-color,background-color] duration-200"
             >
                 Sync Library Now

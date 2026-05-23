@@ -10,7 +10,10 @@
       "Bash(git commit -m ' *)",
       "Bash(Get-ChildItem -Recurse -Force)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(Sort-Object)"
+      "Bash(Sort-Object)",
+      "Bash(rustc --version)",
+      "Bash(cargo --version)",
+      "Bash(cargo build *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Emppu\\Documents\\Github\\Repositores\\Gateway"

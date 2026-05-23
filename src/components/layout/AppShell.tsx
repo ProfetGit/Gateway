@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Minus, Square, X } from 'lucide-react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 interface AppShellProps {
     children: React.ReactNode
@@ -21,17 +22,17 @@ export function AppShell({ children }: AppShellProps) {
                 <div className="flex items-center gap-1 no-drag">
                     <WindowButton
                         icon={<Minus className="w-3 h-3" />}
-                        onClick={() => window.api?.minimizeWindow()}
+                        onClick={() => getCurrentWindow().minimize()}
                         hoverColor="text-text-primary"
                     />
                     <WindowButton
                         icon={<Square className="w-2.5 h-2.5" />}
-                        onClick={() => window.api?.maximizeWindow()}
+                        onClick={() => getCurrentWindow().toggleMaximize()}
                         hoverColor="text-text-primary"
                     />
                     <WindowButton
                         icon={<X className="w-3.5 h-3.5" />}
-                        onClick={() => window.api?.closeWindow()}
+                        onClick={() => getCurrentWindow().close()}
                         hoverColor="text-crimson-500"
                         hoverBg="bg-crimson-950/50"
                     />

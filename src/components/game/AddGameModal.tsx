@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, FolderOpen, Image } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
+import { selectExecutable, selectImage, addGame as apiAddGame } from '../../lib/api'
 
 export function AddGameModal() {
     const { isAddModalOpen, closeAddModal, addGame } = useGameStore()
@@ -12,7 +13,7 @@ export function AddGameModal() {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleSelectExecutable = async () => {
-        const path = await window.api?.selectExecutable()
+        const path = await selectExecutable()
         if (path) {
             setExecutablePath(path)
             // Auto-fill title from filename if empty
@@ -24,7 +25,7 @@ export function AddGameModal() {
     }
 
     const handleSelectImage = async () => {
-        const path = await window.api?.selectImage()
+        const path = await selectImage()
         if (path) {
             setCoverUrl(`file://${path}`)
         }
@@ -37,7 +38,7 @@ export function AddGameModal() {
         setIsSubmitting(true)
 
         try {
-            const newGame = await window.api?.addGame({
+            const newGame = await apiAddGame({
                 title: title.trim(),
                 coverUrl: coverUrl || undefined,
                 executablePath: executablePath || undefined,

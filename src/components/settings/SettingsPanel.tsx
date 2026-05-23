@@ -1,13 +1,18 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Trash2, LogIn, LogOut, RefreshCw, KeyRound, ExternalLink, Wand2, Check, ChevronDown, User as UserIcon, Library, Info } from 'lucide-react'
+import { X, Trash2, LogIn, LogOut, RefreshCw, KeyRound, ExternalLink, Check, ChevronDown, User as UserIcon, Library, Info } from 'lucide-react'
 import { useGameStore } from '../../stores/gameStore'
 import { useState, useEffect, useMemo } from 'react'
 import type { AuthState } from '../../types/game'
+import {
+    getAuthState, getSteamApiKey, setSteamApiKey, steamLogin, steamLogout,
+    clearAndResync, getGames, deleteGame as apiDeleteGame, openUrl,
+    onAuthStateUpdated,
+} from '../../lib/api'
 
 type TabId = 'account' | 'library' | 'about'
 
 export function SettingsPanel() {
-    const { isSettingsOpen, closeSettings, games, setGames, openSetupWizard } = useGameStore()
+    const { isSettingsOpen, closeSettings, games, setGames } = useGameStore()
     const [tab, setTab] = useState<TabId>('account')
     const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null })
     const [isLoggingIn, setIsLoggingIn] = useState(false)
@@ -20,24 +25,31 @@ export function SettingsPanel() {
 
     useEffect(() => {
         if (isSettingsOpen) {
-            window.api?.getAuthState().then(setAuthState)
-            window.api?.getSteamApiKey().then((k) => {
+            getAuthState().then(setAuthState).catch(() => {})
+            getSteamApiKey().then((k) => {
                 setHasStoredKey(!!k)
                 setApiKey('')
                 setApiKeySaved(false)
                 setApiKeyError(null)
                 setKeyExpanded(false)
-            })
+            }).catch(() => {})
             setTab('account')
         }
     }, [isSettingsOpen])
+
+    // Refresh avatar when backend backfills it after API key is saved
+    useEffect(() => {
+        let unlisten: (() => void) | undefined
+        onAuthStateUpdated((state) => setAuthState(state)).then((fn) => { unlisten = fn })
+        return () => { unlisten?.() }
+    }, [])
 
     const handleSaveApiKey = async () => {
         const trimmed = apiKey.trim()
         if (!trimmed) { setApiKeyError('Paste a key first'); return }
         if (!/^[A-F0-9]{32}$/i.test(trimmed)) { setApiKeyError('Keys are 32 hex characters'); return }
         setApiKeyError(null)
-        const result = await window.api?.setSteamApiKey(trimmed)
+        const result = await setSteamApiKey(trimmed)
         if (result?.success) {
             setHasStoredKey(true)
             setApiKey('')
@@ -47,7 +59,7 @@ export function SettingsPanel() {
     }
 
     const handleClearApiKey = async () => {
-        await window.api?.setSteamApiKey('')
+        await setSteamApiKey('')
         setHasStoredKey(false)
         setApiKey('')
     }
@@ -55,10 +67,10 @@ export function SettingsPanel() {
     const handleSteamLogin = async () => {
         setIsLoggingIn(true)
         try {
-            const state = await window.api?.steamLogin()
+            const state = await steamLogin()
             if (state) {
                 setAuthState(state)
-                const allGames = await window.api?.getGames()
+                const allGames = await getGames()
                 if (allGames) setGames(allGames)
             }
         } catch (error) {
@@ -69,18 +81,18 @@ export function SettingsPanel() {
     }
 
     const handleSteamLogout = async () => {
-        const state = await window.api?.steamLogout()
+        const state = await steamLogout()
         if (state) setAuthState(state)
     }
 
     const handleSyncLibrary = async () => {
         setIsFetching(true)
         try {
-            const result = await window.api?.clearAndResync()
+            const result = await clearAndResync()
             if (result && !result.success) {
                 alert(result.error || "Couldn't refresh your Steam library")
             }
-            const allGames = await window.api?.getGames()
+            const allGames = await getGames()
             if (allGames) setGames(allGames)
         } catch (error) {
             console.error('Sync failed:', error)
@@ -93,7 +105,7 @@ export function SettingsPanel() {
     const handleClearLibrary = async () => {
         if (confirm('Are you sure you want to clear all games from your library? This cannot be undone.')) {
             for (const game of games) {
-                await window.api?.deleteGame(game.id)
+                await apiDeleteGame(game.id)
             }
             setGames([])
         }
@@ -173,7 +185,6 @@ export function SettingsPanel() {
                                         apiKeySaved={apiKeySaved}
                                         onSaveKey={handleSaveApiKey}
                                         onClearKey={handleClearApiKey}
-                                        onOpenSetup={() => { closeSettings(); openSetupWizard() }}
                                     />
                                 )}
 
@@ -242,9 +253,8 @@ function AccountTab(props: {
     apiKeySaved: boolean
     onSaveKey: () => void
     onClearKey: () => void
-    onOpenSetup: () => void
 }) {
-    const { authState, isLoggingIn, onLogin, onLogout, hasStoredKey, keyExpanded, setKeyExpanded, apiKey, setApiKey, setApiKeyError, setApiKeySaved, apiKeyError, apiKeySaved, onSaveKey, onClearKey, onOpenSetup } = props
+    const { authState, isLoggingIn, onLogin, onLogout, hasStoredKey, keyExpanded, setKeyExpanded, apiKey, setApiKey, setApiKeyError, setApiKeySaved, apiKeyError, apiKeySaved, onSaveKey, onClearKey } = props
 
     return (
         <div className="space-y-4">
@@ -293,21 +303,6 @@ function AccountTab(props: {
                     </div>
                 )}
             </div>
-
-            {/* Setup wizard row */}
-            <button
-                onClick={onOpenSetup}
-                className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] border border-white/10 hover:border-crimson-500/40 hover:bg-white/[0.04] transition-colors duration-100 group"
-            >
-                <div className="flex items-center gap-3">
-                    <Wand2 className="w-4 h-4 text-white/50 group-hover:text-crimson-400 transition-colors duration-100" />
-                    <div className="text-left">
-                        <div className="font-mono text-xs uppercase tracking-widest font-bold text-white/80">Setup wizard</div>
-                        <div className="font-mono text-[10px] text-white/40 mt-0.5">Walk through first-time setup again</div>
-                    </div>
-                </div>
-                <ChevronDown className="w-4 h-4 text-white/30 -rotate-90 group-hover:text-crimson-400 transition-colors duration-100" />
-            </button>
 
             {/* Steam Key — accordion */}
             <div className="bg-white/[0.02] border border-white/10">
@@ -371,7 +366,7 @@ function AccountTab(props: {
                                         <span className="text-red-400 uppercase tracking-widest">{apiKeyError}</span>
                                     ) : (
                                         <button
-                                            onClick={() => window.api?.openUrl('https://steamcommunity.com/dev/apikey')}
+                                            onClick={() => openUrl('https://steamcommunity.com/dev/apikey')}
                                             className="text-white/40 hover:text-crimson-300 transition-colors duration-100 uppercase tracking-widest flex items-center gap-1.5"
                                         >
                                             Get a key from Steam

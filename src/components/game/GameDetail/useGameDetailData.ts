@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { getGameDetails, getAchievements, getGameNews } from '../../../lib/api'
 import {
     FetchAchievementsResult,
     FetchNewsResult,
@@ -76,7 +77,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
         fetchedDetailsRef.current = selectedGame.steamAppId
         setDetailsLoading(true)
 
-        window.api?.getGameDetails(selectedGame.steamAppId)
+        getGameDetails(selectedGame.steamAppId)
             .then(result => setGameDetails(result))
             .catch(error => {
                 console.error('Failed to fetch game details:', error)
@@ -93,7 +94,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
         fetchedAchievementsRef.current = selectedGame.steamAppId
         setAchievementsLoading(true)
 
-        window.api?.getAchievements(selectedGame.steamAppId)
+        getAchievements(selectedGame.steamAppId)
             .then(result => setAchievementsData(result))
             .catch(() => setAchievementsData({ success: false, achievements: [], totalAchievements: 0, unlockedCount: 0 }))
             .finally(() => setAchievementsLoading(false))
@@ -107,7 +108,7 @@ export function useGameDetailData(selectedGame: Game | null, activeTab: string):
         fetchedNewsRef.current = selectedGame.steamAppId
         setNewsLoading(true)
 
-        window.api?.getGameNews(selectedGame.steamAppId, 10)
+        getGameNews(selectedGame.steamAppId, 10)
             .then(result => setNewsData(result))
             .catch(() => setNewsData({ success: false, news: [], totalCount: 0 }))
             .finally(() => setNewsLoading(false))

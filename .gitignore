@@ -5,6 +5,11 @@ node_modules/
 dist/
 dist-electron/
 release/
+out/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
 
 # Logs
 logs
@@ -15,7 +20,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -26,21 +31,18 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Environment files
+# Environment
 .env
 .env.local
 .env.*.local
 
-# OS files
+# OS
 Thumbs.db
 
-# TypeScript cache
+# TypeScript
 *.tsbuildinfo
 
 # Vite
 *.local
-
-# Electron
-out/
 
 todo.md

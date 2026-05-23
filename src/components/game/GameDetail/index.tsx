@@ -1,6 +1,7 @@
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { X, Gamepad2, Trophy, Newspaper } from 'lucide-react'
 import { useGameStore } from '../../../stores/gameStore'
+import { launchGame, installSteamGame, deleteGame as apiDeleteGame } from '../../../lib/api'
 import { useState, useMemo, useCallback } from 'react'
 import { AchievementsTab } from '../AchievementsTab'
 import { PatchNotesTab } from '../PatchNotesTab'
@@ -24,14 +25,14 @@ export function GameDetail() {
     } = useGameDetailData(selectedGame, activeTab)
 
     const handlePlay = useCallback(async () => {
-        if (selectedGame) window.api?.launchGame(selectedGame)
+        if (selectedGame) launchGame(selectedGame)
     }, [selectedGame])
 
     const handleInstall = useCallback(async () => {
         if (!selectedGame) return
         setIsInstalling(true)
         try {
-            if (selectedGame.steamAppId) await window.api?.installSteamGame(selectedGame.steamAppId)
+            if (selectedGame.steamAppId) await installSteamGame(selectedGame.steamAppId)
         } catch (err) { console.error(err) }
         finally { setTimeout(() => setIsInstalling(false), 2000) }
     }, [selectedGame])
@@ -39,7 +40,7 @@ export function GameDetail() {
     const handleDelete = useCallback(async () => {
         if (!selectedGame) return
         if (isDeleting) {
-            await window.api?.deleteGame(selectedGame.id)
+            await apiDeleteGame(selectedGame.id)
             deleteGame(selectedGame.id)
             closeDetail()
         } else {

@@ -13,7 +13,7 @@ export function TopNavigation() {
     const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null })
 
     useEffect(() => {
-        window.api?.getAuthState().then(setAuthState)
+        import('../../lib/api').then(({ getAuthState }) => getAuthState().then(setAuthState).catch(() => {}))
     }, [])
 
     const navItems = [

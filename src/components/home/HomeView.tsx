@@ -7,6 +7,7 @@ import { TrendingSection } from '../../features/trending'
 import { FreeDealsSection } from '../../features/free-deals'
 import { AchievementHuntsSection } from '../../features/achievement-hunts'
 import type { Game } from '../../types/game'
+import { launchGame } from '../../lib/api'
 
 export function HomeView() {
     const { games, openDetail } = useGameStore()
@@ -120,7 +121,7 @@ function WideHeroCarousel({ games, onOpenDetail }: WideHeroCarouselProps) {
 
     const handlePlay = async (e: React.MouseEvent, game: Game) => {
         e.stopPropagation()
-        await window.api?.launchGame(game)
+        await launchGame(game)
     }
 
     return (

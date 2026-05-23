@@ -4,6 +4,7 @@ import { Gift, Sparkles, Clock, Check } from 'lucide-react'
 import { StoreCard } from '../../components/shared/StoreCard'
 import { CarouselNav } from '../../components/shared/CarouselNav'
 import { useHorizontalScroller } from '../../components/shared/useHorizontalScroller'
+import { getFreeDeals, checkGameOwned, onGameClaimed, openSteamStoreClaim, openUrl } from '../../lib/api'
 import type { FreeDeal, FreeDealsData, FetchFreeDealsResult } from '../../types/freeDeals'
 
 interface FreeDealsSectionProps {
@@ -20,7 +21,7 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
         setIsLoading(true)
         setError(null)
         try {
-            const result: FetchFreeDealsResult = await window.api?.getFreeDeals()
+            const result: FetchFreeDealsResult = await getFreeDeals()
             if (result?.success && result.data) {
                 setData(result.data)
 
@@ -32,7 +33,7 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
                 if (appIds.length > 0) {
                     const newClaimed = new Set<string>()
                     for (const appId of appIds) {
-                        const res = await window.api?.checkGameOwned(appId)
+                        const res = await checkGameOwned(appId)
                         if (res) {
                             newClaimed.add(appId)
                         }
@@ -55,13 +56,13 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
 
     // Listen for game claimed events (after focus returns)
     React.useEffect(() => {
-        const unsubscribe = window.api?.onGameClaimed?.((data: { appId: string; owned: boolean }) => {
-            console.log('[FreeDeals] Game claimed event:', data)
+        let unlisten: (() => void) | undefined
+        onGameClaimed((data: { appId: string; owned: boolean }) => {
             if (data.owned) {
                 setClaimedIds(prev => new Set([...prev, data.appId]))
             }
-        })
-        return () => unsubscribe?.()
+        }).then(fn => { unlisten = fn })
+        return () => { unlisten?.() }
     }, [])
 
     // Don't render if no deals and not loading
@@ -71,11 +72,9 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
 
     const handleClaimGame = (steamAppId: string | null, claimUrl: string) => {
         if (steamAppId) {
-            // Open in Steam app and track for claim detection
-            window.api?.openSteamStoreClaim(steamAppId)
+            openSteamStoreClaim(steamAppId)
         } else {
-            // Fallback to browser
-            window.api?.openUrl(claimUrl)
+            openUrl(claimUrl)
         }
     }
 

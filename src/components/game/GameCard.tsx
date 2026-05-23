@@ -3,6 +3,7 @@ import { Play, Download, Trash2, Info, Star, ExternalLink, StarOff } from 'lucid
 import { useGameStore } from '../../stores/gameStore'
 import { useContextMenuStore } from '../../stores/contextMenuStore'
 import type { Game } from '../../types/game'
+import { launchGame, installSteamGame, openSteamStore, uninstallGame } from '../../lib/api'
 
 /**
  * GAME CARD DESIGN PRINCIPLES (Premium + Performance)
@@ -37,13 +38,13 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
 
     const handlePlay = async (e: React.MouseEvent) => {
         e.stopPropagation()
-        await window.api?.launchGame(game)
+        await launchGame(game)
     }
 
     const handleInstall = async (e: React.MouseEvent) => {
         e.stopPropagation()
         if (game.steamAppId) {
-            await window.api?.installSteamGame(game.steamAppId)
+            await installSteamGame(game.steamAppId)
         }
     }
 
@@ -115,7 +116,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                     ...(game.steamAppId ? [{
                         label: 'View in Steam Store',
                         icon: <ExternalLink className="w-4 h-4" />,
-                        onClick: () => window.api?.openSteamStore(game.steamAppId!)
+                        onClick: () => openSteamStore(game.steamAppId!)
                     }] : []),
                     {
                         label: game.isInstalled ? 'Uninstall' : 'Install',
@@ -123,7 +124,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                         onClick: () => {
                             if (game.isInstalled) {
                                 if (game.steamAppId) {
-                                    window.api?.uninstallGame(game)
+                                    uninstallGame(game)
                                 }
                             } else {
                                 handleInstall(e)

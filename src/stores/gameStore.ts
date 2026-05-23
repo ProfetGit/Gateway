@@ -2,18 +2,21 @@ import { create } from 'zustand'
 import { useMemo } from 'react'
 import type { GameStore } from '../types/game'
 import { filterAndSortGames } from '../lib/gameFilters'
+import { onGamesUpdated, updateGame as apiUpdateGame } from '../lib/api'
 
-let _gamesUpdatedListenerRegistered = false
+let _unlistenGamesUpdated: (() => void) | undefined
+
+// Register the games-updated listener once; re-register on HMR if needed.
+if (typeof window !== 'undefined') {
+    onGamesUpdated((updatedGames) => {
+        useGameStore.setState({ games: updatedGames, preloadState: { cursor: 0, isActive: false } })
+    }).then((unlisten) => {
+        _unlistenGamesUpdated?.()
+        _unlistenGamesUpdated = unlisten
+    })
+}
 
 export const useGameStore = create<GameStore>((set, get) => {
-    // Listen for updates from main process (e.g. cover mirroring completion).
-    // Guard prevents duplicate listeners on HMR re-evaluation.
-    if (typeof window !== 'undefined' && window.api && !_gamesUpdatedListenerRegistered) {
-        _gamesUpdatedListenerRegistered = true
-        window.api.onGamesUpdated((updatedGames) => {
-            set({ games: updatedGames, preloadState: { cursor: 0, isActive: false } })
-        })
-    }
 
     return {
         games: [],
@@ -39,8 +42,6 @@ export const useGameStore = create<GameStore>((set, get) => {
         isSettingsOpen: false,
         isAddModalOpen: false,
         isHuntsDrawerOpen: false,
-        isSetupWizardOpen: false,
-
         setView: (view) => set({ currentView: view }),
 
         setGames: (games) => set({ games, preloadState: { cursor: 0, isActive: false } }),
@@ -105,8 +106,7 @@ export const useGameStore = create<GameStore>((set, get) => {
             const game = games.find((g) => g.id === id)
             if (game) {
                 updateGame(id, { isFavorite: !game.isFavorite })
-                // Persist to electron
-                window.api?.updateGame(id, { isFavorite: !game.isFavorite })
+                apiUpdateGame(id, { isFavorite: !game.isFavorite }).catch(() => {})
             }
         },
 
@@ -212,16 +212,6 @@ export const useGameStore = create<GameStore>((set, get) => {
         }),
 
         closeHuntsDrawer: () => set({ isHuntsDrawerOpen: false }),
-
-        openSetupWizard: () => set({
-            isSetupWizardOpen: true,
-            isDetailOpen: false,
-            isSettingsOpen: false,
-            isAddModalOpen: false,
-            isHuntsDrawerOpen: false,
-        }),
-
-        closeSetupWizard: () => set({ isSetupWizardOpen: false }),
     }
 })
 

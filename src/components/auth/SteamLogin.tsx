@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { LogIn, LogOut, User } from 'lucide-react'
 import type { AuthState } from '../../types/game'
+import { getAuthState, steamLogin, steamLogout } from '../../lib/api'
 
 interface SteamLoginProps {
     onLoginChange?: (authState: AuthState) => void
@@ -16,7 +17,7 @@ export function SteamLogin({ onLoginChange }: SteamLoginProps) {
 
     // Check auth state on mount
     useEffect(() => {
-        window.api?.getAuthState().then(state => {
+        getAuthState().then(state => {
             setAuthState(state)
             onLoginChange?.(state)
         })
@@ -25,7 +26,7 @@ export function SteamLogin({ onLoginChange }: SteamLoginProps) {
     const handleLogin = async () => {
         setIsLoading(true)
         try {
-            const state = await window.api?.steamLogin()
+            const state = await steamLogin()
             if (state) {
                 setAuthState(state)
                 onLoginChange?.(state)
@@ -38,7 +39,7 @@ export function SteamLogin({ onLoginChange }: SteamLoginProps) {
     }
 
     const handleLogout = async () => {
-        const state = await window.api?.steamLogout()
+        const state = await steamLogout()
         if (state) {
             setAuthState(state)
             onLoginChange?.(state)

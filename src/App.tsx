@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getSetupState, getGames } from './lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppShell } from './components/layout/AppShell'
 import { TopNavigation } from './components/layout/TopNavigation'
@@ -10,19 +11,33 @@ import { SettingsPanel } from './components/settings/SettingsPanel'
 import { HomeView } from './components/home/HomeView'
 import { ContextMenu } from './components/shared/ContextMenu'
 import { AchievementHuntsDrawer } from './features/achievement-hunts'
-import { SetupWizard } from './components/setup/SetupWizard'
+import { OnboardingScreen } from './components/onboarding/OnboardingScreen'
 import { useGameStore } from './stores/gameStore'
 
 function App() {
-  const { setGames, currentView, openSetupWizard } = useGameStore()
+  const { setGames, currentView } = useGameStore()
   const [displayedView, setDisplayedView] = useState(currentView)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [setupChecked, setSetupChecked] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  // Show onboarding on first run, or if the user has no account and no games
+  // (covers data loss / fresh reinstall after a previous setup).
+  useEffect(() => {
+    getSetupState().then((state) => {
+      if (state && (!state.hasCompletedSetup || (!state.isSteamLoggedIn && !state.hasGames))) {
+        setShowOnboarding(true)
+      }
+      setSetupChecked(true)
+    }).catch(() => setSetupChecked(true))
+  }, [])
 
   // Load games from store on mount (no API call)
   useEffect(() => {
+    if (!setupChecked || showOnboarding) return
     const loadGames = async () => {
       try {
-        const games = await window.api?.getGames()
+        const games = await getGames()
         if (games) {
           setGames(games)
         }
@@ -31,20 +46,7 @@ function App() {
       }
     }
     loadGames()
-  }, [setGames])
-
-  // Auto-open the setup wizard on first launch only. After the user dismisses
-  // it (skip or complete), hasCompletedSetup persists so it never auto-opens
-  // again. Re-openable from Settings → Steam Web API Key section.
-  useEffect(() => {
-    const checkFirstRun = async () => {
-      const state = await window.api?.getSetupState()
-      if (state && !state.hasCompletedSetup) {
-        openSetupWizard()
-      }
-    }
-    checkFirstRun()
-  }, [openSetupWizard])
+  }, [setGames, setupChecked, showOnboarding])
 
   // Handle view transition with fade
   useEffect(() => {
@@ -67,6 +69,20 @@ function App() {
       return () => clearTimeout(timer)
     }
   }, [displayedView, currentView, isTransitioning])
+
+  if (!setupChecked) return null
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        onComplete={() => {
+          setShowOnboarding(false)
+          // Load games that were synced during onboarding
+          getGames().then((games) => { if (games) setGames(games) }).catch(() => {})
+        }}
+      />
+    )
+  }
 
   return (
     <AppShell>
@@ -113,7 +129,6 @@ function App() {
       <AddGameModal />
       <SettingsPanel />
       <AchievementHuntsDrawer />
-      <SetupWizard />
       <ContextMenu />
     </AppShell>
   )

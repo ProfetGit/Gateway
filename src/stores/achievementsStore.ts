@@ -84,7 +84,7 @@ export const useAchievementsStore = create<AchievementsStore>()(
                         const idx = cursor++
                         const appId = needsFetch[idx]
                         try {
-                            const result = await window.api?.getAchievements(appId)
+                            const result = await import('../lib/api').then(m => m.getAchievements(appId))
                             if (result?.success && result.totalAchievements > 0) {
                                 // Floor (not round) so 199/200 stays 99%, not 100%.
                                 // Round would mask "closest to finishing" games as completed
