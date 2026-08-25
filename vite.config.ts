@@ -2,42 +2,44 @@ import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-
-// Tauri dev server always binds to the port in tauri.conf.json devUrl.
-// TAURI_ENV_DEV_HOST is set when running on mobile/remote hosts.
-const host = process.env.TAURI_ENV_DEV_HOST
+import electron from 'vite-plugin-electron/simple'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    electron({
+      main: {
+        // Shortcut of `build.lib.entry`.
+        entry: 'electron/main.ts',
+      },
+      preload: {
+        // Preload scripts may contain Web assets, so use
+        // `build.rollupOptions.input` instead of `build.lib.entry`.
+        input: path.join(__dirname, 'electron/preload.ts'),
+        vite: {
+          build: {
+            rollupOptions: {
+              output: {
+                format: 'cjs', // Force CJS output for better compat with electron main
+                entryFileNames: '[name].cjs',
+              },
+            },
+          },
+        },
+      },
+      // Polyfill the Electron and Node.js API for the renderer process.
+      renderer: process.env.NODE_ENV === 'test' ? undefined : {},
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-
-  // Vite options tuned for Tauri dev + build
   clearScreen: false,
   server: {
     port: 5173,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: 'ws',
-          host,
-          port: 5183,
-        }
-      : undefined,
-    watch: {
-      // Ignore Tauri src dir to avoid rebuild loops
-      ignored: ['**/src-tauri/**'],
-    },
-  },
-  envPrefix: ['VITE_', 'TAURI_ENV_'],
-  build: {
-    // Produce ES2021 for Chromium-based webviews
-    target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
-    minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
-    sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
 })
