@@ -1,5 +1,4 @@
 /// Steam local file service — VDF parsing, install detection, Steam path lookup.
-/// Windows-only (matches target platform stated in CLAUDE.md).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -165,6 +164,15 @@ fn get_candidate_steam_paths() -> Vec<String> {
             .unwrap_or_else(|_| "C:\\Program Files".to_string());
         paths.push(format!("{}\\Steam", pf86));
         paths.push(format!("{}\\Steam", pf));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            paths.push(format!("{}/.steam/steam", home));
+            paths.push(format!("{}/.local/share/Steam", home));
+            paths.push(format!("{}/.var/app/com.valvesoftware.Steam/.local/share/Steam", home));
+        }
     }
 
     paths
