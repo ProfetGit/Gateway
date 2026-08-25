@@ -1,9 +1,9 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, Target, ArrowUpRight } from 'lucide-react'
-import { AchievementHuntCard } from '../../components/shared/AchievementHuntCard'
-import { useGameStore } from '../../stores/gameStore'
-import { useAchievementsStore } from '../../stores/achievementsStore'
+import { AchievementHuntCard } from '@/components/ui/cards/AchievementHuntCard'
+import { useGameStore } from '@/features/game-library/game-store'
+import { useAchievementsStore } from './achievements-store'
 
 // Show the top N closest-to-finishing games. Upper bound is "not yet 100%
 // done" — checked via unlocked < total so rounding can't push a near-complete
