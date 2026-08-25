@@ -135,9 +135,13 @@ app.whenReady().then(() => {
   })
 
   // Refresh the logged-in user's display data in the background.
-  refreshSessionOnStartup().catch((err) => {
-    console.warn('[Main] Session refresh skipped:', err)
-  })
+  refreshSessionOnStartup()
+    .then((fresh) => {
+      if (fresh) win?.webContents.send('auth-state-updated', fresh)
+    })
+    .catch((err) => {
+      console.warn('[Main] Session refresh skipped:', err)
+    })
 
   const getMainWindow = () => win
 

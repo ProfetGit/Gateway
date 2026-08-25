@@ -50,11 +50,12 @@ export function initAuth(store: AuthStore): void {
  * Refresh display data (avatar, username) for a returning user. Called
  * once from main.ts after initAuth.
  */
-export async function refreshSessionOnStartup(): Promise<void> {
-    if (!authState.isLoggedIn || !authState.user) return
+export async function refreshSessionOnStartup(): Promise<AuthState | null> {
+    if (!authState.isLoggedIn || !authState.user) return null
     const fresh = await resolveCurrentUser(authState.user.steamId)
     authState = { isLoggedIn: true, user: fresh }
     saveAuthState()
+    return authState
 }
 
 export function setSteamApiKey(key: string): void {

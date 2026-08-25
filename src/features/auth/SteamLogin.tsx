@@ -5,6 +5,7 @@ import type { AuthState } from './api/auth-schema'
 import { getAuthState } from './api/get-auth-state'
 import { steamLogin } from './api/steam-login'
 import { steamLogout } from './api/steam-logout'
+import { onAuthStateUpdated } from './api/on-auth-state-updated'
 
 interface SteamLoginProps {
     onLoginChange?: (authState: AuthState) => void
@@ -23,6 +24,16 @@ export function SteamLogin({ onLoginChange }: SteamLoginProps) {
             setAuthState(state)
             onLoginChange?.(state)
         })
+    }, [onLoginChange])
+
+    // Pick up background refreshes (e.g. startup avatar/username resync)
+    useEffect(() => {
+        let unlisten: (() => void) | undefined
+        onAuthStateUpdated((state) => {
+            setAuthState(state)
+            onLoginChange?.(state)
+        }).then((fn) => { unlisten = fn })
+        return () => { unlisten?.() }
     }, [onLoginChange])
 
     const handleLogin = async () => {
