@@ -55,7 +55,7 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
 
     // Launch game
     ipcMain.handle('launch_game', async (_event, { game }: { game: Game }) => {
-        const { spawn, exec } = await import('child_process')
+        const { spawn } = await import('child_process')
 
         const envPrefix = game.customEnvVars?.trim() ?? ''
         const args = game.launchArgs || ''
@@ -65,38 +65,29 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         if (game.steamAppId) {
             await shell.openExternal(`steam://rungameid/${game.steamAppId}`)
         } else if (game.executablePath) {
-            if (process.platform === 'win32') {
-                const cmd = envPrefix
-                    ? `${envPrefix} "${game.executablePath}" ${args}`
-                    : `"${game.executablePath}" ${args}`
-                exec(cmd, (error) => {
-                    if (error) console.error('Failed to launch game:', error)
-                })
-            } else {
-                const env: NodeJS.ProcessEnv = { ...process.env }
-                for (const pair of envPrefix.split(/\s+/).filter(Boolean)) {
-                    const eq = pair.indexOf('=')
-                    if (eq > 0) env[pair.slice(0, eq)] = pair.slice(eq + 1)
-                }
-                const argv = args.split(/\s+/).filter(Boolean)
-                const isWindowsExe = /\.(exe|msi|bat)$/i.test(game.executablePath)
+            const env: NodeJS.ProcessEnv = { ...process.env }
+            for (const pair of envPrefix.split(/\s+/).filter(Boolean)) {
+                const eq = pair.indexOf('=')
+                if (eq > 0) env[pair.slice(0, eq)] = pair.slice(eq + 1)
+            }
+            const argv = args.split(/\s+/).filter(Boolean)
+            const isWindowsExe = /\.(exe|msi|bat)$/i.test(game.executablePath)
 
-                if (isWindowsExe) {
-                    // Windows executable — needs wine.
-                    const wine = spawn('wine', [game.executablePath, ...argv], { env, detached: true, stdio: 'ignore' })
-                    wine.on('error', (error) => {
-                        console.error('Failed to launch via wine (is wine installed?):', error)
-                    })
-                    wine.unref()
-                } else {
-                    // Native Linux binary/script (e.g. a Lutris/Bottles/faugus-launcher
-                    // shortcut imported from Steam) — run it directly, no wine.
-                    const proc = spawn(game.executablePath, argv, { env, detached: true, stdio: 'ignore' })
-                    proc.on('error', (error) => {
-                        console.error('Failed to launch game:', error)
-                    })
-                    proc.unref()
-                }
+            if (isWindowsExe) {
+                // Windows executable — needs wine.
+                const wine = spawn('wine', [game.executablePath, ...argv], { env, detached: true, stdio: 'ignore' })
+                wine.on('error', (error) => {
+                    console.error('Failed to launch via wine (is wine installed?):', error)
+                })
+                wine.unref()
+            } else {
+                // Native Linux binary/script (e.g. a Lutris/Bottles/faugus-launcher
+                // shortcut imported from Steam) — run it directly, no wine.
+                const proc = spawn(game.executablePath, argv, { env, detached: true, stdio: 'ignore' })
+                proc.on('error', (error) => {
+                    console.error('Failed to launch game:', error)
+                })
+                proc.unref()
             }
         }
 

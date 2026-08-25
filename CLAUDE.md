@@ -98,7 +98,16 @@ This is also, functionally, Gateway's routing layer — there is no router, and 
 
 ### Game sources
 
-`Game.source` is one of `'manual' | 'steam'`. Steam-specific operations (achievements, news, hero images, store links) gate on `game.steamAppId` being present. Target platform is Windows only — Linux launch wrappers (Gamescope, MangoHud, Feral GameMode) are not part of the product surface.
+`Game.source` is one of `'manual' | 'steam' | 'shortcut' | 'heroic' | 'lutris'`. Steam-specific operations (achievements, news, hero images, store links) gate on `game.steamAppId` being present.
+
+**Target platform is Linux only.** No `process.platform` branches — there is no Windows or macOS path to preserve. Note that wine-prefix-relative paths (`users/steamuser/AppData/Roaming/...` in `achievement-file-locations.ts`) are *Linux* code: they resolve inside a wine/Proton prefix, and deleting them breaks achievement tracking for emulated titles. The `Windows NT 10.0` User-Agent in `steamHttp.ts` is likewise a deliberate scraping spoof, not platform support.
+
+Heroic and Lutris libraries are imported read-only by scanning their local config — Heroic's `~/.config/heroic` (plus the Flatpak path), Lutris via `lutris --list-games --json`. Launching hands off to those launchers via `heroic://launch/<runner>/<appName>` and `lutris:rungameid/<id>`. Launch target resolution lives in one pure function, `electron/src/features/library/resolve-launch.ts` — **Heroic and Lutris must be checked before `steamAppId`**, since both scanners may attach a metadata-only appId and `steam://rungameid` on an unowned game fails silently.
+
+### Enforcement gaps worth knowing
+
+- **`electron/` is neither typechecked nor linted.** `tsconfig.json` has `include: ["src"]` and `eslint.config.js` ignores `electron/**`. So the 200-line `max-lines` cap constrains renderer code only, unused imports in main-process code are never flagged, and `npx tsc --noEmit` proves nothing about `electron/`. Use `npx vite build` to catch broken main-process imports.
+- **`boundaries/dependencies` is not actually firing.** `SettingsPanel.tsx` imports from `features/game-library` and `features/onboarding` — neither is on the exemption list above — and eslint reports it clean. The rule likely needs `settings.boundaries/include`. Treat the exemption list as documentation of intent, not as enforced.
 
 ## Design system (enforced)
 

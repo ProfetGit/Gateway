@@ -1,24 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { filterAndSortGames } from './game-filters'
-import type { Game, FilterState } from './game-library-types'
-
-const DEFAULT_FILTERS: FilterState = {
-    status: 'all',
-    platform: 'all',
-    onlyFavorites: false,
-    search: '',
-    sortBy: 'alphabetical',
-    sortOrder: 'asc',
-}
-
-function makeGame(overrides: Partial<Game> & { id: string; title: string }): Game {
-    return {
-        isInstalled: false,
-        isFavorite: false,
-        source: 'manual',
-        ...overrides,
-    }
-}
+import { DEFAULT_FILTERS, makeGame } from './game-test-fixtures'
 
 describe('filterAndSortGames', () => {
     describe('search filter', () => {

@@ -3,7 +3,7 @@
   "productName": "Gateway",
   "version": "1.0.0",
   "author": "ProfetGit",
-  "description": "A Windows game launcher for your Steam library.",
+  "description": "A Linux game launcher for your Steam, Heroic, and Lutris libraries.",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
