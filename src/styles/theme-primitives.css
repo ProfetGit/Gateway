@@ -1,0 +1,37 @@
+/* Raw color palette. Named by hue/scale, never referenced directly by a
+   component — only theme-semantic.css and the @theme inline mapping in
+   theme.css may reference these. */
+:root {
+  /* Tinted black/white — `text-white` and `bg-black` resolve to these,
+     not pure #fff / #000. */
+  --white: oklch(0.98 0.003 25);
+  --black: oklch(0.08 0.005 25);
+
+  /* Void scale — OLED-optimized darks, hue locked at 25. */
+  --void-pure:     oklch(0.08 0.005 25);
+  --void-deep:     oklch(0.12 0.005 25);
+  --void-surface:  oklch(0.16 0.005 25);
+  --void-elevated: oklch(0.20 0.006 25);
+  --void-border:   oklch(0.26 0.008 25);
+
+  /* Crimson scale — primary brand. */
+  --crimson-50:  oklch(0.97 0.020 25);
+  --crimson-100: oklch(0.93 0.040 25);
+  --crimson-200: oklch(0.86 0.080 25);
+  --crimson-300: oklch(0.76 0.140 25);
+  --crimson-400: oklch(0.66 0.200 25);
+  --crimson-500: oklch(0.58 0.245 25);
+  --crimson-600: oklch(0.52 0.230 25);
+  --crimson-700: oklch(0.45 0.200 25);
+  --crimson-800: oklch(0.39 0.165 25);
+  --crimson-900: oklch(0.33 0.130 25);
+  --crimson-950: oklch(0.22 0.090 25);
+
+  /* Ember — pre-baked translucent variants for glow recipes. */
+  --ember-glow:  oklch(0.58 0.245 25 / 0.15);
+  --ember-pulse: oklch(0.58 0.245 25 / 0.08);
+  --ember-trace: oklch(0.58 0.245 25 / 0.03);
+
+  /* Emerald — installed game indicator. */
+  --emerald-500: oklch(0.72 0.17 165);
+}

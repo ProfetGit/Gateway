@@ -27,5 +27,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check for leaked secrets
+        run: npm run check:secrets
+
       - name: Test
         run: npm test

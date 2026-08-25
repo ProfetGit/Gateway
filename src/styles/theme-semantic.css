@@ -1,0 +1,14 @@
+/* Semantic tokens. Named by role, not by color — this is the layer
+   components consume (via the @theme inline mapping in theme.css).
+   Gateway is single-theme (OLED dark) today; this layer is still kept
+   separate from theme-primitives.css so a future light/dark toggle only
+   needs a `.dark { ... }` override block added here, nothing else. */
+:root {
+  --text-primary:   var(--white);
+  --text-secondary: oklch(0.72 0.005 25);
+  --text-muted:     oklch(0.48 0.006 25);
+  --text-ghost:     oklch(0.30 0.008 25);
+
+  --brand-primary:    var(--crimson-500);
+  --status-installed: var(--emerald-500);
+}
