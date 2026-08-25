@@ -12,6 +12,8 @@ import {
     hasApiKey,
     fetchPlayerAchievements
 } from '../../../steamAuth'
+import { performHeroicSync } from '../heroic/heroic-sync'
+import { performLutrisSync } from '../lutris/lutris-sync'
 import { Game } from '../../shared/types'
 
 // ═══════════════════════════════════════════════════════════
@@ -134,6 +136,7 @@ export async function performSteamSync(store: JsonStore, steamId: string, win: B
 const resolverAttemptedThisSession = new Set<string>()
 const permanentlyFailed = new Set<string>()
 let backgroundResolverRunning = false
+let syncAllInFlight = false
 const RESOLVER_DELAY_MS = 1500
 
 function resolveGamesInBackground(store: JsonStore, win: BrowserWindow | null) {
@@ -264,6 +267,10 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
         console.log('[Main] Cleared all games from store')
 
         const result = await performSteamSync(store, auth.user.steamId, getMainWindow())
+        // The clear wipes every source, so rebuild all of them — not just Steam.
+        await performHeroicSync(store)
+        await performLutrisSync(store)
+
         const games = store.get('games')
         return {
             success: result.success,
@@ -283,6 +290,37 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
             mirrorAllCovers(store, getMainWindow())
         }
         return store.get('games')
+    })
+
+    // Refresh every source. Sequential and guarded on purpose: all three syncs
+    // read-modify-write store.get('games'), and performSteamSync additionally
+    // kicks off mirrorAllCovers and resolveGamesInBackground on their own
+    // timers. Running them concurrently loses rows to last-write-wins.
+    ipcMain.handle('sync_all_sources', async () => {
+        if (syncAllInFlight) {
+            console.log('[Main] sync_all_sources already running, ignoring')
+            return store.get('games')
+        }
+        syncAllInFlight = true
+        try {
+            const auth = getAuthState()
+            if (auth.isLoggedIn && auth.user) {
+                await performSteamSync(store, auth.user.steamId, null)
+            } else {
+                steamService.initialize()
+                steamService.syncWithStore(store)
+            }
+            await performHeroicSync(store)
+            await performLutrisSync(store)
+
+            // One emit, once everything has settled.
+            const games = store.get('games')
+            getMainWindow()?.webContents.send('games-updated', games)
+            void mirrorAllCovers(store, getMainWindow())
+            return games
+        } finally {
+            syncAllInFlight = false
+        }
     })
 
     // ═══════════════════════════════════════════════════════════

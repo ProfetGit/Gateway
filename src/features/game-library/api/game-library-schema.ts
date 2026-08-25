@@ -64,6 +64,23 @@ export const LaunchResultSchema = z.object({
   error: z.string().optional(),
 })
 
+export const HeroicStatusSchema = z.object({
+  installed: z.boolean(),
+  dataPath: z.string().nullable(),
+  gamesCount: z.number(),
+  epicCount: z.number(),
+  gogCount: z.number(),
+  sideloadCount: z.number(),
+})
+export type HeroicStatus = z.infer<typeof HeroicStatusSchema>
+
+export const LutrisStatusSchema = z.object({
+  installed: z.boolean(),
+  gamesCount: z.number(),
+  installedCount: z.number(),
+})
+export type LutrisStatus = z.infer<typeof LutrisStatusSchema>
+
 export const ClearAndResyncResultSchema = z.object({
   success: z.boolean(),
   error: z.string().optional(),

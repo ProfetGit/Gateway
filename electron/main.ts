@@ -13,6 +13,8 @@ import { setupNotificationHandlers } from './src/features/notifications/notifica
 import { refreshAchievementWatchers, stopAchievementWatchers } from './src/features/achievements/achievement-watcher'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
 import { setupSetupHandlers } from './src/features/setup/setup-ipc'
+import { setupHeroicHandlers } from './src/features/heroic/heroic-ipc'
+import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -152,6 +154,8 @@ app.whenReady().then(() => {
   setupLibraryHandlers(store, getMainWindow)
   setupSyncHandlers(store, getMainWindow)
   setupSetupHandlers(store, getMainWindow)
+  setupHeroicHandlers(store, getMainWindow)
+  setupLutrisHandlers(store, getMainWindow)
 
   // Window controls — title-bar buttons in the renderer use these.
   ipcMain.handle('window_minimize', () => win?.minimize())
