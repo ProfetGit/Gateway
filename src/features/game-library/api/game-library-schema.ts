@@ -7,9 +7,13 @@ export const GameSchema = z.object({
   localCoverPath: z.string().optional(),
   executablePath: z.string().optional(),
   steamAppId: z.string().optional(),
+  metadataAppId: z.string().optional(),
+  manualUnlocks: z.record(z.string(), z.number()).optional(),
+  winePrefix: z.string().optional(),
+  shortcutId: z.string().optional(),
   isInstalled: z.boolean(),
   isFavorite: z.boolean(),
-  source: z.enum(['manual', 'steam']),
+  source: z.enum(['manual', 'steam', 'shortcut']),
   playtime: z.number().optional(),
   lastPlayed: z.string().optional(),
   sizeOnDisk: z.number().optional(),
@@ -19,6 +23,18 @@ export const GameSchema = z.object({
   logoImageUrl: z.string().optional(),
   customEnvVars: z.string().optional(),
   appType: z.enum(['game', 'dlc', 'application', 'music', 'demo', 'mod']).optional(),
+})
+
+export const SteamAppSearchHitSchema = z.object({
+  appId: z.string(),
+  name: z.string(),
+})
+
+export const SearchSteamAppsResultSchema = z.object({
+  success: z.boolean(),
+  results: z.array(SteamAppSearchHitSchema),
+  error: z.string().optional(),
+  errorCode: z.enum(['API_ERROR', 'NETWORK_ERROR']).optional(),
 })
 
 export const SteamStatusSchema = z.object({

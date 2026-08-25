@@ -1,15 +1,13 @@
 import { useState, useEffect, memo } from 'react'
-import { Play, Download, Trash2, Info, Star, ExternalLink, StarOff } from 'lucide-react'
 import { useGameStore } from '../game-store'
 import { useContextMenuStore } from '@/components/ui/context-menu/context-menu-store'
 import type { Game } from '../game-library-types'
 import { launchGame } from '../api/launch-game'
 import { installSteamGame } from '../api/install-steam-game'
-import { openSteamStore } from '@/lib/api/navigation'
-import { uninstallGame } from '../api/uninstall-game'
 import { GameCardCoverArt } from './GameCardCoverArt'
 import { GameCardBadges } from './GameCardBadges'
 import { GameCardHoverActions } from './GameCardHoverActions'
+import { useGameCardMenu } from './use-game-card-menu'
 
 /**
  * GAME CARD DESIGN PRINCIPLES (Premium + Performance)
@@ -39,7 +37,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
     const [imgSrc, setImgSrc] = useState(getInitialSrc)
     const [imageError, setImageError] = useState(false)
     const [imgLoaded, setImgLoaded] = useState(false)
-    const { openDetail, toggleFavorite, deleteGame } = useGameStore()
+    const { openDetail, toggleFavorite } = useGameStore()
     const { open: openContextMenu } = useContextMenuStore()
 
     const handlePlay = async (e: React.MouseEvent) => {
@@ -53,6 +51,11 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
             await installSteamGame(game.steamAppId)
         }
     }
+
+    const buildMenu = useGameCardMenu(game, {
+        onPlay: () => { void launchGame(game) },
+        onInstall: () => { if (game.steamAppId) void installSteamGame(game.steamAppId) },
+    })
 
     const handleFavorite = (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -103,47 +106,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
             onContextMenu={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                openContextMenu(e.clientX, e.clientY, [
-                    {
-                        label: 'Play',
-                        icon: <Play className="w-4 h-4" />,
-                        onClick: () => handlePlay(e)
-                    },
-                    {
-                        label: game.isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
-                        icon: game.isFavorite ? <StarOff className="w-4 h-4" /> : <Star className="w-4 h-4" />,
-                        onClick: () => toggleFavorite(game.id)
-                    },
-                    {
-                        label: 'View Details',
-                        icon: <Info className="w-4 h-4" />,
-                        onClick: () => openDetail(game)
-                    },
-                    ...(game.steamAppId ? [{
-                        label: 'View in Steam Store',
-                        icon: <ExternalLink className="w-4 h-4" />,
-                        onClick: () => openSteamStore(game.steamAppId!)
-                    }] : []),
-                    {
-                        label: game.isInstalled ? 'Uninstall' : 'Install',
-                        icon: <Download className="w-4 h-4" />,
-                        onClick: () => {
-                            if (game.isInstalled) {
-                                if (game.steamAppId) {
-                                    uninstallGame(game)
-                                }
-                            } else {
-                                handleInstall(e)
-                            }
-                        }
-                    },
-                    {
-                        label: 'Remove from Library',
-                        icon: <Trash2 className="w-4 h-4" />,
-                        danger: true,
-                        onClick: () => deleteGame(game.id)
-                    }
-                ])
+                openContextMenu(e.clientX, e.clientY, buildMenu())
             }}
         >
             <GameCardCoverArt

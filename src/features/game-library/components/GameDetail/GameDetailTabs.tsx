@@ -2,8 +2,9 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Gamepad2, Newspaper, Trophy } from 'lucide-react'
 import { AchievementsTab } from '../AchievementsTab'
 import { PatchNotesTab } from '../PatchNotesTab'
-import { EmptyState } from './StatCards'
+import { GameDetailNoMatch } from './GameDetailNoMatch'
 import { GameDetailOverview } from './GameDetailOverview'
+import { getMetadataAppId } from '../../get-metadata-app-id'
 import type { FetchGameDetailsResult, FetchNewsResult, Game } from '../../game-library-types'
 import type { FetchAchievementsResult } from '@/features/achievements/api/achievements-schema'
 
@@ -19,6 +20,8 @@ export type GameDetailTabsProps = {
     detailsLoading: boolean
     achievementsData: FetchAchievementsResult | null
     achievementsLoading: boolean
+    toggleAchievement?: (apiname: string) => void
+    isManualAchievements: boolean
     newsData: FetchNewsResult | null
     newsLoading: boolean
     formattedPlaytime: string
@@ -27,7 +30,8 @@ export type GameDetailTabsProps = {
 
 export function GameDetailTabs({
     game, activeTab, setActiveTab, gameDetails, detailsLoading,
-    achievementsData, achievementsLoading, newsData, newsLoading,
+    achievementsData, achievementsLoading, toggleAchievement, isManualAchievements,
+    newsData, newsLoading,
     formattedPlaytime, formattedLastPlayed,
 }: GameDetailTabsProps) {
     return (
@@ -80,10 +84,20 @@ export function GameDetailTabs({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            {game.steamAppId ? (
-                                <AchievementsTab data={achievementsData} isLoading={achievementsLoading} />
+                            {getMetadataAppId(game) ? (
+                                <AchievementsTab
+                                    gameId={game.id}
+                                    data={achievementsData}
+                                    isLoading={achievementsLoading}
+                                    onToggle={toggleAchievement}
+                                    isManual={isManualAchievements}
+                                />
                             ) : (
-                                <EmptyState icon={<Trophy size={32} />} message="No achievements for this game" />
+                                <GameDetailNoMatch
+                                    game={game}
+                                    icon={<Trophy size={32} />}
+                                    message="Match this to a Steam game to see its achievements."
+                                />
                             )}
                         </motion.div>
                     )}
@@ -94,10 +108,14 @@ export function GameDetailTabs({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                         >
-                            {game.steamAppId ? (
+                            {getMetadataAppId(game) ? (
                                 <PatchNotesTab data={newsData} isLoading={newsLoading} />
                             ) : (
-                                <EmptyState icon={<Newspaper size={32} />} message="No news for this game" />
+                                <GameDetailNoMatch
+                                    game={game}
+                                    icon={<Newspaper size={32} />}
+                                    message="Match this to a Steam game to see its news."
+                                />
                             )}
                         </motion.div>
                     )}

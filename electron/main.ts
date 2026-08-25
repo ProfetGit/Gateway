@@ -6,7 +6,11 @@ import { mirrorAllCovers } from './src/shared/utils'
 import { STEAM_API_KEY } from './src/shared/constants'
 import { setSteamApiKey, initAuth, refreshSessionOnStartup } from './steamAuth'
 import { setupSteamApiHandlers } from './src/features/steam/steam-api'
+import { setupSteamSearchHandlers } from './src/features/steam/steam-search'
+import { setupAchievementsHandlers } from './src/features/achievements/achievements-ipc'
 import { setupLibraryHandlers } from './src/features/library/library-ipc'
+import { setupNotificationHandlers } from './src/features/notifications/notifications-ipc'
+import { refreshAchievementWatchers, stopAchievementWatchers } from './src/features/achievements/achievement-watcher'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
 import { setupSetupHandlers } from './src/features/setup/setup-ipc'
 
@@ -87,15 +91,22 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   store = new JsonStore()
 
-  // Register custom protocol for local cover art — mirrors the Tauri
-  // backend's gateway:// scheme handler (same path layout, mime-by-extension,
-  // and cache header).
+  // Register custom protocol for local art — mirrors the Tauri backend's
+  // gateway:// scheme handler (same path layout, mime-by-extension, and
+  // cache header). cover/hero/logo each map to their own assets subfolder.
+  const GATEWAY_ART_SUBDIRS: Record<string, string> = {
+    cover: 'covers',
+    hero: 'heroes',
+    logo: 'logos',
+  }
+
   protocol.handle('gateway', (request) => {
     const url = request.url.replace('gateway://', '')
     const [type, fileName] = url.split('/')
+    const subDir = GATEWAY_ART_SUBDIRS[type]
 
-    if (type === 'cover' && fileName) {
-      const filePath = path.join(store.getDataDir(), 'assets', 'covers', fileName)
+    if (subDir && fileName) {
+      const filePath = path.join(store.getDataDir(), 'assets', subDir, fileName)
       return net.fetch(`file://${filePath}`).then((res) => {
         if (!res.ok) return new Response('Not Found', { status: 404 })
         const mime = fileName.endsWith('.png') ? 'image/png' : 'image/jpeg'
@@ -131,6 +142,9 @@ app.whenReady().then(() => {
   const getMainWindow = () => win
 
   setupSteamApiHandlers()
+  setupSteamSearchHandlers()
+  setupAchievementsHandlers(store, getMainWindow)
+  setupNotificationHandlers(getMainWindow)
   setupLibraryHandlers(store, getMainWindow)
   setupSyncHandlers(store, getMainWindow)
   setupSetupHandlers(store, getMainWindow)
@@ -148,4 +162,11 @@ app.whenReady().then(() => {
 
   // Initial mirroring
   setTimeout(() => mirrorAllCovers(store, win), 5000)
+
+  // Watch for achievements unlocked by games Steam can't report on.
+  setTimeout(() => refreshAchievementWatchers(store, win), 6000)
+})
+
+app.on('will-quit', () => {
+  stopAchievementWatchers()
 })

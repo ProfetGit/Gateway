@@ -74,6 +74,10 @@ export function hasApiKey(): boolean {
     return !!steamApiKey
 }
 
+export function getSteamApiKey(): string | null {
+    return steamApiKey
+}
+
 function saveAuthState(): void {
     if (authStore) authStore.set('steamAuth', authState)
 }
@@ -258,7 +262,7 @@ export async function fetchPlayerAchievements(
     }
 }
 
-async function fetchAchievementsViaXml(
+export async function fetchAchievementsViaXml(
     steamId: string,
     appId: string
 ): Promise<FetchAchievementsResult> {

@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion'
-import { Trophy, Lock } from 'lucide-react'
+import { Trophy, Lock, Check } from 'lucide-react'
 import type { Achievement } from '@/features/achievements/api/achievements-schema'
 
 interface AchievementCardProps {
     achievement: Achievement
     index: number
+    /** Manually-tracked games only. When absent the card renders no control at
+     *  all, so a Steam-tracked achievement can't be toggled by mistake. */
+    onToggle?: () => void
 }
 
 function formatDate(timestamp: number): string {
@@ -16,7 +19,7 @@ function formatDate(timestamp: number): string {
     })
 }
 
-export function AchievementCard({ achievement, index }: AchievementCardProps) {
+export function AchievementCard({ achievement, index, onToggle }: AchievementCardProps) {
     return (
         <motion.div
             className={`
@@ -81,22 +84,49 @@ export function AchievementCard({ achievement, index }: AchievementCardProps) {
                     {achievement.description || (achievement.achieved ? 'Achievement unlocked' : 'Hidden achievement')}
                 </p>
 
-                {/* Unlock date */}
-                {achievement.achieved && achievement.unlocktime > 0 && (
-                    <p className="text-[10px] font-mono text-crimson-500/80 mt-2 uppercase tracking-wider">
-                        Unlocked {formatDate(achievement.unlocktime)}
-                    </p>
-                )}
+                <div className="flex items-center gap-2 mt-2">
+                    {/* Unlock date */}
+                    {achievement.achieved && achievement.unlocktime > 0 && (
+                        <p className="text-[10px] font-mono text-crimson-500/80 uppercase tracking-wider">
+                            Unlocked {formatDate(achievement.unlocktime)}
+                        </p>
+                    )}
+                    {achievement.globalPercent !== undefined && (
+                        <p className="text-[10px] font-mono text-white/30 uppercase tracking-wider">
+                            {Math.round(achievement.globalPercent)}% of players
+                        </p>
+                    )}
+                </div>
             </div>
 
-            {/* Status indicator */}
-            <div className="absolute top-3 right-3">
-                {achievement.achieved ? (
-                    <div className="w-2 h-2 rounded-full bg-crimson-500 shadow-[0_0_8px_oklch(0.58_0.245_25/0.6)]" />
-                ) : (
-                    <Lock className="w-3 h-3 text-white/20" />
-                )}
-            </div>
+            {/* Status indicator — a real control only when tracking is manual */}
+            {onToggle ? (
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-pressed={achievement.achieved}
+                    title={achievement.achieved ? 'Mark as locked' : 'Mark as unlocked'}
+                    className={`absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded border transition-colors duration-100 ease-out-expo ${
+                        achievement.achieved
+                            ? 'border-crimson-500/50 bg-crimson-500/15 hover:border-crimson-400'
+                            : 'border-void-border bg-void-surface/80 hover:border-white/40'
+                    }`}
+                >
+                    {achievement.achieved ? (
+                        <Check className="w-3.5 h-3.5 text-crimson-400" />
+                    ) : (
+                        <Lock className="w-3 h-3 text-white/25" />
+                    )}
+                </button>
+            ) : (
+                <div className="absolute top-3 right-3">
+                    {achievement.achieved ? (
+                        <div className="w-2 h-2 rounded-full bg-crimson-500 shadow-[0_0_8px_oklch(0.58_0.245_25/0.6)]" />
+                    ) : (
+                        <Lock className="w-3 h-3 text-white/20" />
+                    )}
+                </div>
+            )}
         </motion.div>
     )
 }

@@ -7,6 +7,7 @@ import { deleteGame as apiDeleteGame } from '../../api/delete-game'
 import { useState, useMemo, useCallback } from 'react'
 import { backdropVariants, containerVariants } from './game-detail-animations'
 import { useGameDetailData } from './use-game-detail-data'
+import { getMetadataAppId } from '../../get-metadata-app-id'
 import { GameDetailHero } from './GameDetailHero'
 import { GameDetailMetaStrip } from './GameDetailSidebar'
 import { GameDetailCoverCard } from './GameDetailCoverCard'
@@ -19,7 +20,8 @@ export function GameDetail() {
     const [activeTab, setActiveTab] = useState<GameDetailTabType>('overview')
 
     const {
-        achievementsData, achievementsLoading, newsData, newsLoading,
+        achievementsData, achievementsLoading, toggleAchievement, isManualAchievements,
+        newsData, newsLoading,
         gameDetails, detailsLoading, imgSrc, bannerSrc, setImgSrc, setBannerSrc
     } = useGameDetailData(selectedGame, activeTab)
 
@@ -48,10 +50,12 @@ export function GameDetail() {
         }
     }, [selectedGame, isDeleting, deleteGame, closeDetail])
 
+    const metadataAppId = getMetadataAppId(selectedGame)
+
     const handleImageError = useCallback(() => {
         if (!imgSrc) return
-        if (selectedGame?.steamAppId && imgSrc.includes('library_600x900_2x.jpg')) {
-            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_600x900.jpg`)
+        if (metadataAppId && imgSrc.includes('library_600x900_2x.jpg')) {
+            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${metadataAppId}/library_600x900.jpg`)
         } else if (bannerSrc && imgSrc !== bannerSrc) {
             // Cover CDN exhausted — use banner as portrait fallback
             setImgSrc(bannerSrc)
@@ -59,20 +63,20 @@ export function GameDetail() {
             setImgSrc(undefined)
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedGame?.steamAppId, imgSrc, bannerSrc])
+    }, [metadataAppId, imgSrc, bannerSrc])
 
     const handleBannerError = useCallback(() => {
-        if (!selectedGame?.steamAppId || !bannerSrc) {
+        if (!metadataAppId || !bannerSrc) {
             setBannerSrc(undefined)
             return
         }
         if (bannerSrc.includes('library_hero.jpg')) {
-            setBannerSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/header.jpg`)
+            setBannerSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${metadataAppId}/header.jpg`)
         } else {
             setBannerSrc(undefined)
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedGame?.steamAppId, bannerSrc])
+    }, [metadataAppId, bannerSrc])
 
     const formattedPlaytime = useMemo(() => {
         if (!selectedGame?.playtime) return '0h'
@@ -179,6 +183,8 @@ export function GameDetail() {
                             detailsLoading={detailsLoading}
                             achievementsData={achievementsData}
                             achievementsLoading={achievementsLoading}
+                            toggleAchievement={toggleAchievement}
+                            isManualAchievements={isManualAchievements}
                             newsData={newsData}
                             newsLoading={newsLoading}
                             formattedPlaytime={formattedPlaytime}

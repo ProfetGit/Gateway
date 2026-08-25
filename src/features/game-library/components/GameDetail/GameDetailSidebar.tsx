@@ -1,5 +1,6 @@
-import { ExternalLink, Star, Trash2 } from 'lucide-react'
+import { ExternalLink, Link2, Star, Trash2 } from 'lucide-react'
 import { openSteamStore } from '@/lib/api/navigation'
+import { useSteamMatchStore } from '../../steam-match-store'
 import { Game, FetchGameDetailsResult } from '../../game-library-types'
 
 interface GameDetailMetaStripProps {
@@ -33,6 +34,7 @@ export function GameDetailMetaStrip({
     toggleFavorite,
     handleDelete
 }: GameDetailMetaStripProps) {
+    const openSteamMatch = useSteamMatchStore((s) => s.open)
     const source = selectedGame.source
         ? selectedGame.source.charAt(0).toUpperCase() + selectedGame.source.slice(1)
         : 'Local'
@@ -76,13 +78,25 @@ export function GameDetailMetaStrip({
                     <Star size={15} className={selectedGame.isFavorite ? 'fill-crimson-400' : ''} />
                 </button>
 
-                {selectedGame.steamAppId && (
+                {selectedGame.steamAppId ? (
                     <button
                         onClick={() => openSteamStore(selectedGame.steamAppId!)}
                         title="Open in Steam"
                         className="p-2 border border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60 transition-all duration-100"
                     >
                         <ExternalLink size={15} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => openSteamMatch(selectedGame)}
+                        title={selectedGame.metadataAppId ? 'Change Steam match' : 'Match to Steam game'}
+                        className={`p-2 border transition-all duration-100 ${
+                            selectedGame.metadataAppId
+                                ? 'border-crimson-500/40 bg-crimson-500/10 text-crimson-400'
+                                : 'border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60'
+                        }`}
+                    >
+                        <Link2 size={15} />
                     </button>
                 )}
 

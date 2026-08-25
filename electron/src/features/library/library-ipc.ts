@@ -24,7 +24,15 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         const games = store.get('games')
         const index = games.findIndex(g => g.id === id)
         if (index !== -1) {
-            games[index] = { ...games[index], ...updates }
+            const merged = { ...games[index], ...updates } as Game
+            // An explicit `undefined` means "clear this field" (e.g. removing a
+            // Steam match). Spreading leaves the key present-but-undefined,
+            // which JSON.stringify would drop silently on write but which keeps
+            // the stale value visible in the object returned to the renderer.
+            for (const key of Object.keys(updates) as Array<keyof Game>) {
+                if (updates[key] === undefined) delete merged[key]
+            }
+            games[index] = merged
             store.set('games', games)
             return games[index]
         }
@@ -52,6 +60,8 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         const envPrefix = game.customEnvVars?.trim() ?? ''
         const args = game.launchArgs || ''
 
+        // steamAppId only — metadataAppId is a metadata match, NOT ownership,
+        // so steam://rungameid would fail for it.
         if (game.steamAppId) {
             await shell.openExternal(`steam://rungameid/${game.steamAppId}`)
         } else if (game.executablePath) {
@@ -63,18 +73,30 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
                     if (error) console.error('Failed to launch game:', error)
                 })
             } else {
-                // Non-Windows: run the Windows executable via wine.
                 const env: NodeJS.ProcessEnv = { ...process.env }
                 for (const pair of envPrefix.split(/\s+/).filter(Boolean)) {
                     const eq = pair.indexOf('=')
                     if (eq > 0) env[pair.slice(0, eq)] = pair.slice(eq + 1)
                 }
                 const argv = args.split(/\s+/).filter(Boolean)
-                const wine = spawn('wine', [game.executablePath, ...argv], { env, detached: true, stdio: 'ignore' })
-                wine.on('error', (error) => {
-                    console.error('Failed to launch via wine (is wine installed?):', error)
-                })
-                wine.unref()
+                const isWindowsExe = /\.(exe|msi|bat)$/i.test(game.executablePath)
+
+                if (isWindowsExe) {
+                    // Windows executable — needs wine.
+                    const wine = spawn('wine', [game.executablePath, ...argv], { env, detached: true, stdio: 'ignore' })
+                    wine.on('error', (error) => {
+                        console.error('Failed to launch via wine (is wine installed?):', error)
+                    })
+                    wine.unref()
+                } else {
+                    // Native Linux binary/script (e.g. a Lutris/Bottles/faugus-launcher
+                    // shortcut imported from Steam) — run it directly, no wine.
+                    const proc = spawn(game.executablePath, argv, { env, detached: true, stdio: 'ignore' })
+                    proc.on('error', (error) => {
+                        console.error('Failed to launch game:', error)
+                    })
+                    proc.unref()
+                }
             }
         }
 

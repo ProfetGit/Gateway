@@ -2,6 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { v4 as uuidv4 } from 'uuid'
+import { parseShortcutsVdf } from './shortcuts-vdf'
+import { resolveWinePrefix } from './resolve-wine-prefix'
+import { mirrorLocalArt } from '../../shared/utils'
 
 // ═══════════════════════════════════════════════════════════
 // Types
@@ -29,11 +32,16 @@ export interface Game {
     id: string
     title: string
     coverUrl?: string
+    localCoverPath?: string
     executablePath?: string
     steamAppId?: string
+    metadataAppId?: string
+    manualUnlocks?: Record<string, number>
+    winePrefix?: string
+    shortcutId?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam'
+    source: 'manual' | 'steam' | 'shortcut'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number
@@ -446,6 +454,54 @@ function steamID64to32(steamId64: string): string {
 }
 
 /**
+ * Resolve the userdata/<accountId> folder for a given SteamID64 — prefers the
+ * exact account ID, falls back to whichever numbered folder has the most
+ * recently modified localconfig.vdf (e.g. when the ID mapping is stale).
+ */
+function resolveUserdataFolder(steamPath: string, userId: string): string | null {
+    const userdataPath = path.join(steamPath, 'userdata')
+    if (!fs.existsSync(userdataPath)) {
+        console.log('[SteamService] userdata folder does not exist')
+        return null
+    }
+
+    const accountId = steamID64to32(userId)
+    if (accountId) {
+        const potentialPath = path.join(userdataPath, accountId)
+        if (fs.existsSync(potentialPath)) {
+            console.log('[SteamService] Found specific userdata folder for AccountID:', accountId)
+            return accountId
+        }
+    }
+
+    console.log('[SteamService] Specific userdata folder not found, looking for most recent...')
+    try {
+        const folders = fs.readdirSync(userdataPath).filter(f => {
+            return fs.statSync(path.join(userdataPath, f)).isDirectory() && /^\d+$/.test(f)
+        })
+
+        let newestTime = 0
+        let newestFolder: string | null = null
+
+        for (const folder of folders) {
+            const configPath = path.join(userdataPath, folder, 'config/localconfig.vdf')
+            if (fs.existsSync(configPath)) {
+                const stats = fs.statSync(configPath)
+                if (stats.mtimeMs > newestTime) {
+                    newestTime = stats.mtimeMs
+                    newestFolder = folder
+                }
+            }
+        }
+
+        return newestFolder
+    } catch (error) {
+        console.error('[SteamService] Failed to scan userdata folders:', error)
+        return null
+    }
+}
+
+/**
  * Get owned games from user's local config
  * This includes games that may not be installed
  */
@@ -453,46 +509,7 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
     const userdataPath = path.join(steamPath, 'userdata')
     console.log('[SteamService] Looking for userdata in:', userdataPath)
 
-    if (!fs.existsSync(userdataPath)) {
-        console.log('[SteamService] userdata folder does not exist')
-        return []
-    }
-
-    let targetFolder: string | null = null
-    const accountId = steamID64to32(userId)
-
-    if (accountId) {
-        const potentialPath = path.join(userdataPath, accountId)
-        if (fs.existsSync(potentialPath)) {
-            console.log('[SteamService] Found specific userdata folder for AccountID:', accountId)
-            targetFolder = accountId
-        }
-    }
-
-    // Fallback: Find most recently modified config
-    if (!targetFolder) {
-        console.log('[SteamService] Specific userdata folder not found, looking for most recent...')
-        try {
-            const folders = fs.readdirSync(userdataPath).filter(f => {
-                return fs.statSync(path.join(userdataPath, f)).isDirectory() && /^\d+$/.test(f)
-            })
-
-            let newestTime = 0
-
-            for (const folder of folders) {
-                const configPath = path.join(userdataPath, folder, 'config/localconfig.vdf')
-                if (fs.existsSync(configPath)) {
-                    const stats = fs.statSync(configPath)
-                    if (stats.mtimeMs > newestTime) {
-                        newestTime = stats.mtimeMs
-                        targetFolder = folder
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[SteamService] Failed to scan userdata folders:', error)
-        }
-    }
+    const targetFolder = resolveUserdataFolder(steamPath, userId)
 
     if (!targetFolder) {
         console.log('[SteamService] Could not determine target userdata folder')
@@ -563,6 +580,77 @@ export function getOwnedGames(steamPath: string, userId: string): OwnedGameInfo[
 
     console.log('[SteamService] Found', ownedGames.length, 'owned games with playtime data')
     return ownedGames
+}
+
+// ═══════════════════════════════════════════════════════════
+// Non-Steam Shortcuts ("Add a Non-Steam Game")
+// ═══════════════════════════════════════════════════════════
+//
+// These never appear in GetOwnedGames or any other Steam Web API response —
+// they're local-only shortcuts Steam stores per-user in shortcuts.vdf, not
+// owned catalog apps. This is the only way to surface them.
+
+export interface NonSteamGameInfo {
+    localId: string
+    name: string
+    exe: string
+    launchOptions?: string
+    coverSourcePath?: string
+    heroSourcePath?: string
+    logoSourcePath?: string
+}
+
+// Steam writes custom shortcut artwork (fetched from SteamGridDB by Steam
+// itself, or by third-party launchers like Lutris/Bottles/faugus-launcher
+// that populate the same convention) to userdata/<id>/config/grid/, keyed
+// by the shortcut's local appid. Reading it directly means non-Steam games
+// get real cover/hero/logo art for free — no API key, no network call.
+const GRID_ART_EXTENSIONS = ['png', 'jpg', 'jpeg']
+
+function findGridArt(gridDir: string, baseName: string): string | undefined {
+    for (const ext of GRID_ART_EXTENSIONS) {
+        const candidate = path.join(gridDir, `${baseName}.${ext}`)
+        if (fs.existsSync(candidate)) {
+            return candidate
+        }
+    }
+    return undefined
+}
+
+function resolveShortcutArtPaths(gridDir: string, shortcutId: string) {
+    return {
+        // Portrait grid ("p") matches Gateway's 3:4 cover slot; fall back to
+        // the landscape grid if that's all the launcher wrote.
+        coverSourcePath: findGridArt(gridDir, `${shortcutId}p`) ?? findGridArt(gridDir, shortcutId),
+        heroSourcePath: findGridArt(gridDir, `${shortcutId}_hero`),
+        logoSourcePath: findGridArt(gridDir, `${shortcutId}_logo`),
+    }
+}
+
+export function getNonSteamShortcuts(steamPath: string, userId: string): NonSteamGameInfo[] {
+    const targetFolder = resolveUserdataFolder(steamPath, userId)
+    if (!targetFolder) return []
+
+    const shortcutsPath = path.join(steamPath, 'userdata', targetFolder, 'config/shortcuts.vdf')
+    const gridDir = path.join(steamPath, 'userdata', targetFolder, 'config/grid')
+    console.log('[SteamService] Looking for non-Steam shortcuts at:', shortcutsPath)
+
+    try {
+        const shortcuts = parseShortcutsVdf(shortcutsPath)
+        const visible = shortcuts.filter(s => !s.isHidden)
+        console.log('[SteamService] Found', visible.length, 'non-Steam shortcuts')
+
+        return visible.map(s => ({
+            localId: s.appid,
+            name: s.appName,
+            exe: s.exe,
+            launchOptions: s.launchOptions,
+            ...resolveShortcutArtPaths(gridDir, s.appid),
+        }))
+    } catch (error) {
+        console.error('[SteamService] Failed to parse shortcuts.vdf:', error)
+        return []
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -843,6 +931,81 @@ export class SteamService {
                     if (!updated) {
                         updatedGames.push({ ...existing, isInstalled: steamGame.isInstalled })
                     }
+                }
+            }
+        }
+
+        // Non-Steam shortcuts ("Add a Non-Steam Game") — invisible to the Web
+        // API, so this local scan is their only source of truth. Dedup on
+        // shortcutId rather than steamAppId since these aren't real catalog apps.
+        if (this.steamPath && this.currentUser) {
+            const shortcuts = getNonSteamShortcuts(this.steamPath, this.currentUser.userId)
+            const existingByShortcutId = new Map(
+                existingGames.filter(g => g.source === 'shortcut' && g.shortcutId).map(g => [g.shortcutId!, g])
+            )
+
+            for (const shortcut of shortcuts) {
+                const existing = existingByShortcutId.get(shortcut.localId)
+                const artBaseName = `shortcut_${shortcut.localId}`
+
+                const localCoverPath = shortcut.coverSourcePath
+                    ? mirrorLocalArt(shortcut.coverSourcePath, 'covers', artBaseName) ?? undefined
+                    : undefined
+                const heroFileName = shortcut.heroSourcePath
+                    ? mirrorLocalArt(shortcut.heroSourcePath, 'heroes', artBaseName) ?? undefined
+                    : undefined
+                const logoFileName = shortcut.logoSourcePath
+                    ? mirrorLocalArt(shortcut.logoSourcePath, 'logos', artBaseName) ?? undefined
+                    : undefined
+                const heroImageUrl = heroFileName ? `gateway://hero/${heroFileName}` : undefined
+                const logoImageUrl = logoFileName ? `gateway://logo/${logoFileName}` : undefined
+
+                if (existing) {
+                    const patch: Partial<Game> = {}
+                    if (existing.title !== shortcut.name) patch.title = shortcut.name
+                    if (existing.executablePath !== shortcut.exe) patch.executablePath = shortcut.exe
+                    if (!existing.winePrefix) {
+                        const prefix = resolveWinePrefix({
+                            exe: shortcut.exe,
+                            launchArgs: shortcut.launchOptions,
+                            title: shortcut.name,
+                            steamPath: this.steamPath,
+                            shortcutId: shortcut.localId,
+                        })
+                        if (prefix) patch.winePrefix = prefix
+                    }
+                    // Only overwrite art once the grid actually has something —
+                    // never clear existing art because a re-sync found nothing
+                    // this time (e.g. a transient read failure).
+                    if (localCoverPath && existing.localCoverPath !== localCoverPath) patch.localCoverPath = localCoverPath
+                    if (heroImageUrl && existing.heroImageUrl !== heroImageUrl) patch.heroImageUrl = heroImageUrl
+                    if (logoImageUrl && existing.logoImageUrl !== logoImageUrl) patch.logoImageUrl = logoImageUrl
+
+                    if (Object.keys(patch).length > 0) {
+                        const already = updatedGames.find(g => g.id === existing.id)
+                        if (!already) updatedGames.push({ ...existing, ...patch })
+                    }
+                } else {
+                    newGames.push({
+                        id: uuidv4(),
+                        title: shortcut.name,
+                        executablePath: shortcut.exe,
+                        launchArgs: shortcut.launchOptions,
+                        shortcutId: shortcut.localId,
+                        winePrefix: resolveWinePrefix({
+                            exe: shortcut.exe,
+                            launchArgs: shortcut.launchOptions,
+                            title: shortcut.name,
+                            steamPath: this.steamPath,
+                            shortcutId: shortcut.localId,
+                        }),
+                        localCoverPath,
+                        heroImageUrl,
+                        logoImageUrl,
+                        isInstalled: fs.existsSync(shortcut.exe),
+                        isFavorite: false,
+                        source: 'shortcut',
+                    })
                 }
             }
         }
