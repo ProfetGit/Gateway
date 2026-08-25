@@ -8,7 +8,10 @@ import boundaries from 'eslint-plugin-boundaries'
 import checkFile from 'eslint-plugin-check-file'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'src-tauri/target'] },
+  // electron/ is Node main-process code — not part of the renderer's
+  // feature-tree architecture (no JSX, no boundaries rules apply), so it's
+  // excluded the same way src-tauri/target was before the Electron port.
+  { ignores: ['dist', 'dist-electron', 'node_modules', 'electron/**'] },
   {
     // Root-level tooling config files — outside src/, exempt from the
     // application architecture rules below (Vite/Vitest require a default

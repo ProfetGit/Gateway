@@ -5,10 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev          # tauri dev — launches the native window, Vite dev server behind it
-npm run dev:vite      # vite dev server only (renderer-only, no Tauri backend — IPC calls will fail)
-npm run build         # tauri build — full installer
-npm run build:vite    # tsc → vite build (renderer-only bundle, fast verify)
+npm run dev          # vite — launches the Electron window via vite-plugin-electron, Vite dev server behind it
+npm run build         # tsc && vite build && electron-builder — full installer
+npx vite build        # renderer + dist-electron/main.js + dist-electron/preload.cjs, fast verify
 npx tsc --noEmit      # typecheck-only, no emit
 npm run lint          # eslint flat config, max-warnings 0
 npm run check:secrets # grep gate for leaked API keys/tokens, run in CI
@@ -18,22 +17,27 @@ npm test              # vitest run — test runner IS wired, see src/features/*/
 
 ## Architecture
 
-### Two-process layout (Tauri 2.0)
+### Two-process layout (Electron)
 
 ```
-src-tauri/                 → Rust backend — plays the "server" role: Steam auth/OpenID,
-  src/                        Steam Web API calls, local JSON store, file I/O
-    commands/               → #[tauri::command] handlers, one module per concern
-                               (library, setup, steam_api, sync)
-    steam_auth.rs           → Steam OpenID flow + API key storage
-    store.rs                → JSON persistence to the Tauri app-data dir
-  capabilities/            → ACL — which commands the renderer may invoke
+electron/                  → main process (Node) — plays the "server" role: Steam OpenID
+  main.ts                    login, Steam Web API calls, local JSON store, file I/O,
+                              gateway:// cover-art protocol, window lifecycle
+  preload.ts                → contextBridge → window.electronBridge.{invoke,listen}, the
+                               ONLY IPC surface exposed to the renderer
+  steamAuth.ts               Steam OpenID flow (system browser) + API key storage
+  openid.ts                  localhost callback server for the OpenID redirect
+  steamHttp.ts                public-profile scrape helpers (no session cookies)
+  src/
+    shared/store.ts          JsonStore — persists to {userData}/gateway-data.json
+    features/                → per-domain IPC handlers, each exports setupXxxHandlers()
+                                called from main.ts (library, setup, steam, sync)
 
 src/                       → renderer (React 18 + Vite)
   App.tsx                  → AppShell root: all modal overlays mount HERE, not in feature trees
   lib/
-    tauri-client.ts        → re-exports invoke/listen from @tauri-apps/api — every api/*.ts
-                               file imports from here, not the package directly
+    tauri-client.ts        → invoke/listen delegating to window.electronBridge — every
+                               api/*.ts file imports from here, not the bridge directly
     api/                   → cross-cutting IPC wrappers with no single owning domain
                                (file-dialogs, navigation, setup-state)
   components/ui/           → zero-domain-knowledge primitives (cards, context-menu, controls)
@@ -45,13 +49,13 @@ src/                       → renderer (React 18 + Vite)
 
 ### IPC contract
 
-`src/lib/tauri-client.ts` is the single choke point for `invoke`/`listen` — every domain's `api/*.ts` file imports from there, never from `@tauri-apps/api` directly. Adding any backend capability requires:
-1. Implement a `#[tauri::command]` in `src-tauri/src/commands/`
-2. Register it in the Tauri builder (`src-tauri/src/lib.rs`) and its capability in `src-tauri/capabilities/`
+`src/lib/tauri-client.ts` is the single choke point for `invoke`/`listen` — every domain's `api/*.ts` file imports from there, never from `window.electronBridge` directly. Adding any backend capability requires:
+1. Implement `ipcMain.handle('command_name', ...)` in a `electron/src/features/<domain>/*-ipc.ts` file — the channel string is snake_case and is the wire contract with the renderer (there is no ACL/capabilities concept, unlike the prior Tauri port — any handler registered in `electron/main.ts` is callable by the renderer)
+2. Call its `setupXxxHandlers()` from `electron/main.ts`
 3. Add a typed wrapper in the owning domain's `features/<domain>/api/<verb-noun>.ts` — one file per function — that parses the result through a zod schema in that domain's `<domain>-schema.ts` before returning
 4. The renderer calls the named function from a component/hook — never `invoke()` directly from a component
 
-External web APIs (Steam Store, GamerPower) go through the Rust backend — this is unchanged from the pre-Tauri architecture and avoids CORS in the renderer.
+External web APIs (Steam Store, GamerPower) go through the Electron main process — this avoids CORS in the renderer.
 
 ### Directory structure & placement algorithm
 

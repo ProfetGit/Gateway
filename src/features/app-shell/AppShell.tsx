@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Minus, Square, X } from 'lucide-react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getCurrentWindow } from '@/lib/window-controls'
 
 interface AppShellProps {
     children: React.ReactNode

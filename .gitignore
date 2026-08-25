@@ -7,10 +7,6 @@ dist-electron/
 release/
 out/
 
-# Rust / Tauri
-src-tauri/target/
-src-tauri/gen/
-
 # Logs
 logs
 *.log
