@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# GITHUB_TOKEN is read-only by default in newer repos, and electron-builder's
+# publisher would then 403 at the very end of the build.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Pinned deliberately, NOT ubuntu-latest: an AppImage built on 24.04 links
+    # glibc 2.39 and refuses to start on Debian stable or Ubuntu 22.04.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check for leaked secrets
+        run: npm run check:secrets
+
+      - name: Test
+        run: npm test
+
+      # Publishes a DRAFT release with the AppImage and latest-linux.yml.
+      # Draft is the default and is what we want: smoke-test the artifact, then
+      # publish by hand. electron-updater ignores drafts, so nothing half-baked
+      # reaches users.
+      - name: Build and publish
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

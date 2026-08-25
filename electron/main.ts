@@ -15,6 +15,7 @@ import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-
 import { setupSetupHandlers } from './src/features/setup/setup-ipc'
 import { setupHeroicHandlers } from './src/features/heroic/heroic-ipc'
 import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
+import { setupUpdateHandlers, checkForUpdatesOnStart } from './src/features/updates/updates-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -156,6 +157,7 @@ app.whenReady().then(() => {
   setupSetupHandlers(store, getMainWindow)
   setupHeroicHandlers(store, getMainWindow)
   setupLutrisHandlers(store, getMainWindow)
+  setupUpdateHandlers(getMainWindow)
 
   // Window controls — title-bar buttons in the renderer use these.
   ipcMain.handle('window_minimize', () => win?.minimize())
@@ -173,6 +175,9 @@ app.whenReady().then(() => {
 
   // Watch for achievements unlocked by games Steam can't report on.
   setTimeout(() => refreshAchievementWatchers(store, win), 6000)
+
+  // Last of the boot timers, so it doesn't compete for I/O during startup.
+  setTimeout(checkForUpdatesOnStart, 10000)
 })
 
 app.on('will-quit', () => {
