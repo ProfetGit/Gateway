@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { X, User as UserIcon, Library, Info } from 'lucide-react'
+import { X, User as UserIcon, Library, Info, Boxes } from 'lucide-react'
 
-export type SettingsTabId = 'account' | 'library' | 'about'
+export type SettingsTabId = 'account' | 'library' | 'sources' | 'about'
 
 export type SettingsHeaderProps = {
     tab: SettingsTabId
@@ -31,6 +31,7 @@ export function SettingsHeader({ tab, setTab, libraryCount, onClose }: SettingsH
             <div className="px-6 flex items-center gap-1">
                 <TabButton id="account" active={tab} setTab={setTab} icon={<UserIcon className="w-3.5 h-3.5" />} label="Account" />
                 <TabButton id="library" active={tab} setTab={setTab} icon={<Library className="w-3.5 h-3.5" />} label="Library" badge={libraryCount} />
+                <TabButton id="sources" active={tab} setTab={setTab} icon={<Boxes className="w-3.5 h-3.5" />} label="Sources" />
                 <TabButton id="about" active={tab} setTab={setTab} icon={<Info className="w-3.5 h-3.5" />} label="About" />
             </div>
         </div>

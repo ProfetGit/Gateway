@@ -11,7 +11,8 @@ export type LibraryPreferencesSectionProps = {
 
 export function LibraryPreferencesSection({ stats, isFetching, canRefresh, onRefresh }: LibraryPreferencesSectionProps) {
     const showSourceCards = stats.sources.length > 1
-    const gridCols = stats.sources.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+    // Up to five sources now, so wrap instead of forcing everything onto one row.
+    const gridCols = stats.sources.length === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'
 
     return (
         <div className="space-y-6">

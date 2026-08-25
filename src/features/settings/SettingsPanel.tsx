@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '@/features/game-library/game-store'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import type { AuthState } from '@/features/auth/api/auth-schema'
 import { getAuthState } from '@/features/auth/api/get-auth-state'
 import { steamLogin } from '@/features/auth/api/steam-login'
@@ -16,6 +16,8 @@ import { SteamAccountSection } from './SteamAccountSection'
 import { LibraryPreferencesSection } from './LibraryPreferencesSection'
 import { DangerZoneSection } from './DangerZoneSection'
 import { AboutSection } from './AboutSection'
+import { GameSourcesSection } from './GameSourcesSection'
+import { useLibraryStats } from './use-library-stats'
 
 export function SettingsPanel() {
     const { isSettingsOpen, closeSettings, games, setGames } = useGameStore()
@@ -117,14 +119,7 @@ export function SettingsPanel() {
         }
     }
 
-    const stats = useMemo(() => {
-        const steam = games.filter(g => g.source === 'steam').length
-        const installed = games.filter(g => g.isInstalled).length
-        const sources = [
-            { key: 'steam', label: 'Steam', count: steam },
-        ].filter(s => s.count > 0)
-        return { total: games.length, installed, sources }
-    }, [games])
+    const stats = useLibraryStats(games)
 
     return (
         <AnimatePresence>
@@ -182,6 +177,10 @@ export function SettingsPanel() {
                                         />
                                         <DangerZoneSection onClear={handleClearLibrary} />
                                     </div>
+                                )}
+
+                                {tab === 'sources' && (
+                                    <GameSourcesSection />
                                 )}
 
                                 {tab === 'about' && (
