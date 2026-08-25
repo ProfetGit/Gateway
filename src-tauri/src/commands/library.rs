@@ -84,6 +84,21 @@ pub async fn launch_game(
                 .spawn()
                 .map_err(|e| format!("Failed to launch game: {}", e))?;
         }
+
+        #[cfg(not(windows))]
+        {
+            let args: Vec<&str> = args_str.split_whitespace().collect();
+            let mut cmd = std::process::Command::new("wine");
+            cmd.arg(exe_path).args(&args);
+            for pair in env_prefix.split_whitespace() {
+                if let Some((k, v)) = pair.split_once('=') {
+                    cmd.env(k, v);
+                }
+            }
+            cmd.spawn().map_err(|e| {
+                format!("Failed to launch via wine (is wine installed?): {}", e)
+            })?;
+        }
     }
 
     // Update last played
