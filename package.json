@@ -8,7 +8,7 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "NODE_OPTIONS=--no-deprecation vite",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
