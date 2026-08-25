@@ -8,15 +8,19 @@ import { Header } from '@/features/app-shell/Header'
 import { GameGrid } from '@/features/game-library/components/GameGrid'
 import { GameDetail } from '@/features/game-library/components/GameDetail/GameDetail'
 import { AddGameModal } from '@/features/game-library/components/AddGameModal'
+import { SteamMatchModal } from '@/features/game-library/components/SteamMatchModal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
 import { HomeView } from '@/features/home/HomeView'
 import { ContextMenu } from '@/components/ui/context-menu/ContextMenu'
+import { ToastStack } from '@/components/ui/toast/ToastStack'
+import { useAchievementUnlockListener } from '@/features/achievements/use-achievement-unlock-listener'
 import { AchievementHuntsDrawer } from '@/features/achievement-hunts/AchievementHuntsDrawer'
 import { OnboardingScreen } from '@/features/onboarding/OnboardingScreen'
 import { useGameStore } from '@/features/game-library/game-store'
 
 function App() {
   const { setGames, currentView } = useGameStore()
+  useAchievementUnlockListener()
   const [displayedView, setDisplayedView] = useState(currentView)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [setupChecked, setSetupChecked] = useState(false)
@@ -128,9 +132,11 @@ function App() {
       {/* Overlays */}
       <GameDetail />
       <AddGameModal />
+      <SteamMatchModal />
       <SettingsPanel />
       <AchievementHuntsDrawer />
       <ContextMenu />
+      <ToastStack />
     </AppShell>
   )
 }

@@ -5,7 +5,12 @@ import { Game } from './types'
 import { JsonStore } from './store'
 
 export async function downloadGameCover(game: Game): Promise<string | null> {
-    if (!game.coverUrl || game.localCoverPath) return game.localCoverPath || null
+    // file:// covers (e.g. non-Steam shortcut art read straight from Steam's own
+    // grid cache) are already local — nothing to mirror, and Node's fetch()
+    // doesn't support the file: scheme anyway.
+    if (!game.coverUrl || game.localCoverPath || game.coverUrl.startsWith('file://')) {
+        return game.localCoverPath || null
+    }
 
     try {
         const userDataPath = app.getPath('userData')
@@ -24,6 +29,8 @@ export async function downloadGameCover(game: Game): Promise<string | null> {
         }
 
         const response = await fetch(game.coverUrl)
+        if (!response.ok) return null
+
         const arrayBuffer = await response.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
         fs.writeFileSync(filePath, buffer)
@@ -31,6 +38,36 @@ export async function downloadGameCover(game: Game): Promise<string | null> {
         return fileName
     } catch (error) {
         console.error(`Failed to download cover for ${game.title}:`, error)
+        return null
+    }
+}
+
+/**
+ * Copies a locally-available art file (e.g. from Steam's own shortcut grid
+ * cache) into Gateway's own assets/<subDir>, so it can be served through the
+ * gateway:// protocol like any other mirrored image. Unlike downloadGameCover
+ * there's no network fetch — the source file already exists on disk.
+ */
+export function mirrorLocalArt(sourcePath: string, subDir: 'covers' | 'heroes' | 'logos', baseName: string): string | null {
+    try {
+        if (!fs.existsSync(sourcePath)) return null
+
+        const destDir = path.join(app.getPath('userData'), 'assets', subDir)
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true })
+        }
+
+        const ext = path.extname(sourcePath) || '.png'
+        const fileName = `${baseName}${ext}`
+        const destPath = path.join(destDir, fileName)
+
+        if (!fs.existsSync(destPath)) {
+            fs.copyFileSync(sourcePath, destPath)
+        }
+
+        return fileName
+    } catch (error) {
+        console.error(`Failed to mirror local art from ${sourcePath}:`, error)
         return null
     }
 }

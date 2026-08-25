@@ -32,7 +32,10 @@ export const useGameStore = create<GameStore>((set, get) => {
         isHuntsDrawerOpen: false,
         setView: (view) => set({ currentView: view }),
 
-        setGames: (games) => set({ games, preloadState: { cursor: 0, isActive: false } }),
+        // selectedGame re-points at the incoming record, else an open detail overlay
+        // keeps a stale snapshot and background updates (watcher, sync) don't show.
+        setGames: (games) => set((s) => ({ games, preloadState: { cursor: 0, isActive: false },
+            selectedGame: s.selectedGame ? games.find(g => g.id === s.selectedGame?.id) ?? s.selectedGame : null })),
 
         addGame: (game) => set((state) => ({
             games: [...state.games, game],

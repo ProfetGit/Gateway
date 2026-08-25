@@ -5,9 +5,17 @@ export interface Game {
     localCoverPath?: string
     executablePath?: string
     steamAppId?: string
+    // Steam appid used for READ-ONLY data (store details, news, achievement
+    // definitions). NOT ownership — never route launch/install through it.
+    metadataAppId?: string
+    // Achievement apiname -> unix seconds. Only used when Steam can't report
+    // unlock state (i.e. the user doesn't own the game there).
+    manualUnlocks?: Record<string, number>
+    winePrefix?: string
+    shortcutId?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam'
+    source: 'manual' | 'steam' | 'shortcut'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number

@@ -13,20 +13,44 @@ interface AchievementHuntCardProps {
 }
 
 export function AchievementHuntCard({ game, unlocked, total, percentage, index, onClick }: AchievementHuntCardProps) {
+    const getInitialHeroUrl = () => {
+        if (game.steamAppId) return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/library_hero.jpg`
+        return game.heroImageUrl || game.coverUrl
+    }
+
+    const [heroUrl, setHeroUrl] = React.useState(getInitialHeroUrl)
     const [imageError, setImageError] = React.useState(false)
     const remaining = total - unlocked
 
-    const heroUrl = game.steamAppId
-        ? `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/library_hero.jpg`
-        : game.heroImageUrl || game.coverUrl
+    React.useEffect(() => {
+        setHeroUrl(getInitialHeroUrl())
+        setImageError(false)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [game.steamAppId, game.heroImageUrl, game.coverUrl])
+
+    const handleImageError = () => {
+        // Steam CDN library_hero.jpg doesn't exist for every appId (smaller/indie
+        // titles often lack it) — fall back to the local-first cover chain before
+        // giving up to the plain gradient backdrop.
+        if (heroUrl?.includes('library_hero.jpg')) {
+            const fallback = game.localCoverPath
+                ? `gateway://cover/${game.localCoverPath}`
+                : game.coverUrl
+            if (fallback && fallback !== heroUrl) {
+                setHeroUrl(fallback)
+                return
+            }
+        }
+        setImageError(true)
+    }
 
     return (
         <motion.button
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ y: -6, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
-            whileTap={{ scale: 0.98, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
+            whileHover={{ scale: 1.05, y: -8, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
+            whileTap={{ scale: 0.97, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
             onClick={onClick}
             style={{ aspectRatio: '5 / 4' }}
             className="group relative w-full rounded-lg overflow-hidden bg-void-deep border border-void-border/40 shadow-lg hover:border-crimson-500/60 hover:shadow-[0_12px_40px_oklch(0.52_0.23_25/0.35)] focus:outline-none transition-[border-color,box-shadow] duration-100 ease-out-expo text-left isolate"
@@ -38,8 +62,8 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                         src={heroUrl}
                         alt=""
                         aria-hidden
-                        onError={() => setImageError(true)}
-                        className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+                        onError={handleImageError}
+                        className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
                         style={{
                             filter: game.isInstalled
                                 ? 'brightness(0.85) saturate(1.15) contrast(1.05)'
@@ -60,9 +84,9 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.04)_3px)] pointer-events-none" />
             </div>
 
-            {/* ═══ CORNER BRACKETS ═══ resting state subtle, hover saturates */}
-            <div className="absolute top-0 left-0 w-7 h-7 border-t-[3px] border-l-[3px] border-crimson-800/60 group-hover:border-crimson-500 transition-colors duration-100 ease-out-expo pointer-events-none z-20" />
-            <div className="absolute bottom-0 right-0 w-7 h-7 border-b-[3px] border-r-[3px] border-crimson-800/60 group-hover:border-crimson-500 transition-colors duration-100 ease-out-expo pointer-events-none z-20" />
+            {/* ═══ CORNER BRACKETS ═══ hidden at rest, reveal on hover — GPU-only (opacity+scale) */}
+            <div className="absolute top-0 left-0 w-7 h-7 border-t-[3px] border-l-[3px] border-crimson-400 origin-top-left opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo pointer-events-none z-20" />
+            <div className="absolute bottom-0 right-0 w-7 h-7 border-b-[3px] border-r-[3px] border-crimson-400 origin-bottom-right opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo pointer-events-none z-20" />
 
             {/* ═══ NOT-INSTALLED HINT ═══ top-right, only when relevant */}
             {!game.isInstalled && (
@@ -121,6 +145,9 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                     <span className="text-crimson-400">{remaining} to go</span>
                 </div>
             </div>
+
+            {/* Hover glow effect */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t from-crimson-500/10 via-transparent to-transparent" />
         </motion.button>
     )
 }

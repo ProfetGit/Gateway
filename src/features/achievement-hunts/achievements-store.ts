@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
+import { computeCompletionPercent } from '@/features/achievements/achievement-progress'
 
 // Debounce localStorage writes — rapid per-result `set` calls during parallel
 // fetching would otherwise serialize the full progress map (100–500 entries)
@@ -87,12 +88,7 @@ export const useAchievementsStore = create<AchievementsStore>()(
                         try {
                             const result = await import('@/features/achievements/api/get-achievements').then(m => m.getAchievements(appId))
                             if (result?.success && result.totalAchievements > 0) {
-                                // Floor (not round) so 199/200 stays 99%, not 100%.
-                                // Round would mask "closest to finishing" games as completed
-                                // in the Hunts band filter and elsewhere.
-                                const pct = result.unlockedCount === result.totalAchievements
-                                    ? 100
-                                    : Math.floor((result.unlockedCount / result.totalAchievements) * 100)
+                                const pct = computeCompletionPercent(result.unlockedCount, result.totalAchievements)
                                 batch[appId] = {
                                     appId,
                                     unlocked: result.unlockedCount,

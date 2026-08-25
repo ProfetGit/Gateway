@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
-import { getGameDetails } from '@/features/game-library/api/get-game-details'
-import { getGameNews } from '@/features/game-library/api/get-game-news'
-import { getAchievements } from '@/features/achievements/api/get-achievements'
 import type { FetchAchievementsResult } from '@/features/achievements/api/achievements-schema'
 import type {
     FetchNewsResult,
     FetchGameDetailsResult,
     Game
 } from '@/features/game-library/game-library-types'
+import { useGameDetailImages } from './use-game-detail-images'
+import { useGameDetailsFetch } from './use-game-details-fetch'
+import { useGameNewsFetch } from './use-game-news-fetch'
+import { useGameAchievements } from './use-game-achievements'
 
 interface UseGameDetailDataReturn {
     achievementsData: FetchAchievementsResult | null
@@ -20,105 +20,27 @@ interface UseGameDetailDataReturn {
     bannerSrc: string | undefined
     setImgSrc: React.Dispatch<React.SetStateAction<string | undefined>>
     setBannerSrc: React.Dispatch<React.SetStateAction<string | undefined>>
+    toggleAchievement?: (apiname: string) => void
+    isManualAchievements: boolean
 }
 
+/**
+ * Composes the detail overlay's four independent data concerns. Each sub-hook
+ * owns its own cache and reset; this exists to keep GameDetail's call site
+ * unchanged.
+ */
 export function useGameDetailData(selectedGame: Game | null, activeTab: string): UseGameDetailDataReturn {
-    // Achievements cache
-    const [achievementsData, setAchievementsData] = useState<FetchAchievementsResult | null>(null)
-    const [achievementsLoading, setAchievementsLoading] = useState(false)
-    const fetchedAchievementsRef = useRef<string | null>(null)
-
-    // News cache
-    const [newsData, setNewsData] = useState<FetchNewsResult | null>(null)
-    const [newsLoading, setNewsLoading] = useState(false)
-    const fetchedNewsRef = useRef<string | null>(null)
-
-    // Game details cache
-    const [gameDetails, setGameDetails] = useState<FetchGameDetailsResult | null>(null)
-    const [detailsLoading, setDetailsLoading] = useState(false)
-    const fetchedDetailsRef = useRef<string | null>(null)
-
-    // Images
-    const [imgSrc, setImgSrc] = useState<string | undefined>(undefined)
-    const [bannerSrc, setBannerSrc] = useState<string | undefined>(undefined)
-
-    // Reset cache when game changes — selectedGame is intentionally omitted; we only want to re-run on id change
-    useEffect(() => {
-        setAchievementsData(null)
-        setNewsData(null)
-        setGameDetails(null)
-        fetchedAchievementsRef.current = null
-        fetchedNewsRef.current = null
-        fetchedDetailsRef.current = null
-
-        // Setup images
-        if (selectedGame) {
-            // Cover Art - prioritization: local -> remote
-            const cover = selectedGame.localCoverPath
-                ? `gateway://cover/${selectedGame.localCoverPath}`
-                : selectedGame.coverUrl
-            setImgSrc(cover)
-
-            // Banner Search - prioritization: steam cdn -> explicit heroImageUrl -> undefined
-            if (selectedGame.steamAppId) {
-                setBannerSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${selectedGame.steamAppId}/library_hero.jpg`)
-            } else if (selectedGame.heroImageUrl) {
-                setBannerSrc(selectedGame.heroImageUrl)
-            } else {
-                setBannerSrc(undefined)
-            }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedGame?.id])
-
-    // Fetch Details
-    useEffect(() => {
-        if (!selectedGame?.steamAppId) return
-        if (fetchedDetailsRef.current === selectedGame.steamAppId) return
-
-        fetchedDetailsRef.current = selectedGame.steamAppId
-        setDetailsLoading(true)
-
-        getGameDetails(selectedGame.steamAppId)
-            .then(result => setGameDetails(result))
-            .catch(error => {
-                console.error('Failed to fetch game details:', error)
-                setGameDetails({ success: false, details: null, error: 'Failed' })
-            })
-            .finally(() => setDetailsLoading(false))
-    }, [selectedGame?.steamAppId])
-
-    // Fetch Achievements
-    useEffect(() => {
-        if (activeTab !== 'achievements' || !selectedGame?.steamAppId) return
-        if (fetchedAchievementsRef.current === selectedGame.steamAppId) return
-
-        fetchedAchievementsRef.current = selectedGame.steamAppId
-        setAchievementsLoading(true)
-
-        getAchievements(selectedGame.steamAppId)
-            .then(result => setAchievementsData(result))
-            .catch(() => setAchievementsData({ success: false, achievements: [], totalAchievements: 0, unlockedCount: 0 }))
-            .finally(() => setAchievementsLoading(false))
-    }, [activeTab, selectedGame?.steamAppId])
-
-    // Fetch News
-    useEffect(() => {
-        if (activeTab !== 'patchnotes' || !selectedGame?.steamAppId) return
-        if (fetchedNewsRef.current === selectedGame.steamAppId) return
-
-        fetchedNewsRef.current = selectedGame.steamAppId
-        setNewsLoading(true)
-
-        getGameNews(selectedGame.steamAppId, 10)
-            .then(result => setNewsData(result))
-            .catch(() => setNewsData({ success: false, news: [], totalCount: 0 }))
-            .finally(() => setNewsLoading(false))
-    }, [activeTab, selectedGame?.steamAppId])
+    const { imgSrc, bannerSrc, setImgSrc, setBannerSrc } = useGameDetailImages(selectedGame)
+    const { gameDetails, detailsLoading } = useGameDetailsFetch(selectedGame)
+    const { newsData, newsLoading } = useGameNewsFetch(selectedGame, activeTab)
+    const { achievementsData, achievementsLoading, toggleAchievement, isManual } =
+        useGameAchievements(selectedGame, activeTab)
 
     return {
         achievementsData,
         achievementsLoading,
+        toggleAchievement,
+        isManualAchievements: isManual,
         newsData,
         newsLoading,
         gameDetails,
