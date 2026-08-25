@@ -12,7 +12,7 @@ export function filterAndSortGames(games: Game[], filters: FilterState): Game[] 
         }
 
         if (status === 'installed' && !game.isInstalled) return false
-        if (platform === 'steam' && game.source !== 'steam') return false
+        if (platform !== 'all' && game.source !== platform) return false
         if (onlyFavorites && !game.isFavorite) return false
         // Always hide positively-classified non-game entries (DLC, software, music, demos)
         // Unclassified entries (appType undefined) stay visible — no false negatives

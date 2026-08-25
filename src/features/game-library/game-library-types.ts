@@ -13,9 +13,15 @@ export interface Game {
     manualUnlocks?: Record<string, number>
     winePrefix?: string
     shortcutId?: string
+    // Heroic / Lutris identity. Both are launch targets, not metadata — see
+    // resolve-launch.ts, where they take precedence over steamAppId.
+    heroicAppName?: string
+    heroicRunner?: 'legendary' | 'gog' | 'sideload'
+    lutrisId?: number
+    lutrisSlug?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'shortcut'
+    source: 'manual' | 'steam' | 'shortcut' | 'heroic' | 'lutris'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number // Bytes
@@ -28,7 +34,8 @@ export interface Game {
 }
 
 export type FilterStatus = 'all' | 'installed'
-export type FilterPlatform = 'all' | 'steam'
+// Derived, so it can never drift from the source union again.
+export type FilterPlatform = 'all' | Game['source']
 
 export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
 export type SortOrder = 'asc' | 'desc'

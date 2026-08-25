@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { parseShortcutsVdf } from './shortcuts-vdf'
 import { resolveWinePrefix } from './resolve-wine-prefix'
 import { mirrorLocalArt } from '../../shared/utils'
+import type { Game } from '../../shared/types'
 
 // ═══════════════════════════════════════════════════════════
 // Types
@@ -26,29 +27,6 @@ export interface SteamStatus {
     libraryPaths: string[]
     userId: string | null
     username: string | null
-}
-
-export interface Game {
-    id: string
-    title: string
-    coverUrl?: string
-    localCoverPath?: string
-    executablePath?: string
-    steamAppId?: string
-    metadataAppId?: string
-    manualUnlocks?: Record<string, number>
-    winePrefix?: string
-    shortcutId?: string
-    isInstalled: boolean
-    isFavorite: boolean
-    source: 'manual' | 'steam' | 'shortcut'
-    playtime?: number
-    lastPlayed?: string
-    sizeOnDisk?: number
-    notes?: string
-    launchArgs?: string
-    heroImageUrl?: string
-    logoImageUrl?: string
 }
 
 interface StoreInterface {
