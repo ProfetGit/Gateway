@@ -32,12 +32,22 @@ export function getLutrisBannerPath(slug: string): string | null {
 
 export interface LutrisScanResult {
     games: LutrisCliGame[]
-    installedIds: Set<number>
+    /**
+     * null means "could not determine" — distinct from an empty set, which
+     * means "determined, and nothing is installed". Callers must preserve
+     * whatever they already knew rather than marking everything uninstalled.
+     */
+    installedIds: Set<number> | null
 }
 
 /**
  * Two CLI calls: the full library, then the installed subset. There is no
  * `installed` field on a row, so installed state has to come from the diff.
+ *
+ * The second call fails routinely in practice — if a Lutris GUI is already
+ * running, the CLI tries to hand off over DBus and can come back with
+ * "No such interface org.gtk.Actions". That is a lost signal, not proof the
+ * library is uninstalled.
  */
 export async function scanLutrisGames(): Promise<LutrisScanResult | null> {
     const allOut = await runLutrisJson(['--list-games', '--json'])
@@ -46,13 +56,15 @@ export async function scanLutrisGames(): Promise<LutrisScanResult | null> {
     const games = parseLutrisGames(extractJsonArray(allOut))
 
     const installedOut = await runLutrisJson(['--list-games', '--installed', '--json'])
-    const installedIds = new Set(
-        installedOut === null
-            ? []
-            : parseLutrisGames(extractJsonArray(installedOut)).map((game) => game.id)
-    )
+    if (installedOut === null) {
+        console.warn('[Lutris] Could not read installed state; keeping what we already had')
+        return { games, installedIds: null }
+    }
 
-    return { games, installedIds }
+    return {
+        games,
+        installedIds: new Set(parseLutrisGames(extractJsonArray(installedOut)).map((game) => game.id)),
+    }
 }
 
 export async function getLutrisStatus(): Promise<LutrisStatus> {
@@ -62,6 +74,6 @@ export async function getLutrisStatus(): Promise<LutrisStatus> {
     return {
         installed: true,
         gamesCount: result.games.length,
-        installedCount: result.installedIds.size,
+        installedCount: result.installedIds?.size ?? 0,
     }
 }

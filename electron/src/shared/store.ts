@@ -39,12 +39,34 @@ export class JsonStore {
     }
 
     get<K extends keyof StoreData>(key: K): StoreData[K] {
-        return this.data[key]
+        const value = this.data[key]
+        // Hand back a copy of the array so a caller holding it cannot silently
+        // reshape stored state without going through set()/updateGames().
+        return (Array.isArray(value) ? [...value] : value) as StoreData[K]
     }
 
     set<K extends keyof StoreData>(key: K, value: StoreData[K]): void {
         this.data[key] = value
         this.save()
+    }
+
+    /**
+     * Atomic read-modify-write for the library.
+     *
+     * The hazard this exists to kill: several code paths read the games array,
+     * `await` something slow (a cover download, an appdetails lookup), then
+     * write their now-stale snapshot back — erasing every row written in the
+     * meantime. That is how a Heroic import vanished when a Steam refresh's
+     * background cover mirroring finished after it.
+     *
+     * Anything that awaits between reading and writing must go through here,
+     * so the mutation is applied to whatever the library looks like *now*.
+     */
+    updateGames(mutate: (games: StoreData['games']) => StoreData['games']): StoreData['games'] {
+        const next = mutate([...this.data.games])
+        this.data.games = next
+        this.save()
+        return next
     }
 
     getDataDir(): string {

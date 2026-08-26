@@ -156,3 +156,31 @@ describe('toGameFields', () => {
         })
     })
 })
+
+describe('installed-state fallback', () => {
+    // Regression: `lutris --list-games --installed --json` fails routinely when
+    // a Lutris GUI already holds the DBus name ("No such interface
+    // org.gtk.Actions"). Treating that lost signal as "nothing is installed"
+    // silently flipped every Lutris game to uninstalled.
+    const previouslyInstalled = new Map([['hades', true], ['celeste', false]])
+    const resolve = (installedIds: Set<number> | null, game: { id: number; slug: string }) =>
+        installedIds ? installedIds.has(game.id) : previouslyInstalled.get(game.slug) ?? false
+
+    it('uses the scan result when the installed call succeeded', () => {
+        expect(resolve(new Set([1]), { id: 1, slug: 'hades' })).toBe(true)
+        expect(resolve(new Set([1]), { id: 2, slug: 'celeste' })).toBe(false)
+    })
+
+    it('an empty set still means nothing is installed', () => {
+        expect(resolve(new Set(), { id: 1, slug: 'hades' })).toBe(false)
+    })
+
+    it('falls back to the previous value when the call failed', () => {
+        expect(resolve(null, { id: 1, slug: 'hades' })).toBe(true)
+        expect(resolve(null, { id: 2, slug: 'celeste' })).toBe(false)
+    })
+
+    it('defaults an unseen game to not installed when the call failed', () => {
+        expect(resolve(null, { id: 9, slug: 'brand-new' })).toBe(false)
+    })
+})

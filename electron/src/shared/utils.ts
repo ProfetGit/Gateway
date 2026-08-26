@@ -74,22 +74,30 @@ export function mirrorLocalArt(sourcePath: string, subDir: 'covers' | 'heroes' |
 
 export async function mirrorAllCovers(store: JsonStore, win: BrowserWindow | null) {
     console.log('[Main] Mirroring covers in background...')
-    const games = store.get('games')
-    let updated = false
 
-    for (const game of games) {
-        if (game.coverUrl && !game.localCoverPath) {
-            const fileName = await downloadGameCover(game)
-            if (fileName) {
-                game.localCoverPath = fileName
-                updated = true
-            }
-        }
+    // Downloading a few hundred covers takes minutes, and other syncs write to
+    // the library the whole time. So collect results keyed by game id and
+    // apply them to a FRESH read at the end — writing the snapshot taken here
+    // back at line-end would erase everything imported in between.
+    const mirrored = new Map<string, string>()
+
+    for (const game of store.get('games')) {
+        if (!game.coverUrl || game.localCoverPath) continue
+        const fileName = await downloadGameCover(game)
+        if (fileName) mirrored.set(game.id, fileName)
     }
 
-    if (updated) {
-        store.set('games', games)
-        console.log('[Main] ✓ Mirroring complete, store updated')
-        win?.webContents.send('games-updated', games)
-    }
+    if (mirrored.size === 0) return
+
+    const next = store.updateGames((games) =>
+        games.map((game) => {
+            const fileName = mirrored.get(game.id)
+            // Skip if the row already gained a cover, or was replaced/removed,
+            // while we were downloading.
+            return fileName && !game.localCoverPath ? { ...game, localCoverPath: fileName } : game
+        })
+    )
+
+    console.log(`[Main] ✓ Mirroring complete, ${mirrored.size} cover(s) stored`)
+    win?.webContents.send('games-updated', next)
 }
