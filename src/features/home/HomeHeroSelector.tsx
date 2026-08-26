@@ -1,14 +1,15 @@
 import { motion } from 'framer-motion'
 import type { Game } from '@/features/game-library/game-library-types'
+import { FallbackImage } from '@/components/ui/FallbackImage'
+import { thumbArtSources } from './hero-art-sources'
 
 export type HomeHeroSelectorProps = {
     games: Game[]
     activeIndex: number
     onSelect: (index: number) => void
-    getHeroUrl: (game: Game) => string | undefined
 }
 
-export function HomeHeroSelector({ games, activeIndex, onSelect, getHeroUrl }: HomeHeroSelectorProps) {
+export function HomeHeroSelector({ games, activeIndex, onSelect }: HomeHeroSelectorProps) {
     return (
         <div className="absolute bottom-10 right-10 left-10 md:left-auto md:right-20 z-30 flex items-center gap-3">
             {games.map((game, i) => (
@@ -23,7 +24,18 @@ export function HomeHeroSelector({ games, activeIndex, onSelect, getHeroUrl }: H
                             : 'opacity-40 hover:opacity-100 scale-100 hover:scale-105 grayscale hover:grayscale-0'
                             }`}
                     >
-                        <img src={game.coverUrl || getHeroUrl(game)} className="w-full h-full object-cover" alt="" />
+                        <FallbackImage
+                            sources={thumbArtSources(game)}
+                            className="w-full h-full object-cover"
+                            alt=""
+                            fallback={
+                                <div className="w-full h-full bg-void-surface flex items-center justify-center p-1">
+                                    <span className="font-mono text-[8px] uppercase tracking-wider text-white/40 text-center leading-tight line-clamp-3">
+                                        {game.title}
+                                    </span>
+                                </div>
+                            }
+                        />
 
                         {/* Active scanline overlay */}
                         {i === activeIndex && (

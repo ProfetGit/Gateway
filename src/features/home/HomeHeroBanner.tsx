@@ -4,36 +4,14 @@ import { launchGame } from '@/features/game-library/api/launch-game'
 import type { Game } from '@/features/game-library/game-library-types'
 import { HomeHeroContent } from './HomeHeroContent'
 import { HomeHeroSelector } from './HomeHeroSelector'
+import { heroArtSources, logoArtSources } from './hero-art-sources'
+import { FallbackImage } from '@/components/ui/FallbackImage'
 
 export type HomeHeroBannerProps = {
     games: Game[]
     onOpenDetail: (game: Game) => void
 }
 
-function getHeroUrl(game: Game) {
-    // Priority 1: Steam Hero (Highest quality, reliable) provided we have an App ID
-    if (game.steamAppId) {
-        return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/library_hero.jpg`
-    }
-    // Priority 2: Explicit Hero/Banner URL
-    if (game.heroImageUrl) {
-        return game.heroImageUrl
-    }
-    // Fallback: Vertical cover art
-    return game.coverUrl
-}
-
-function getLogoUrl(game: Game) {
-    // Priority 1: Steam Logo
-    if (game.steamAppId) {
-        return `https://cdn.akamai.steamstatic.com/steam/apps/${game.steamAppId}/logo.png`
-    }
-    // Priority 2: Explicit Logo URL
-    if (game.logoImageUrl) {
-        return game.logoImageUrl
-    }
-    return undefined
-}
 
 export function HomeHeroBanner({ games, onOpenDetail }: HomeHeroBannerProps) {
     const [activeIndex, setActiveIndex] = React.useState(0)
@@ -67,10 +45,11 @@ export function HomeHeroBanner({ games, onOpenDetail }: HomeHeroBannerProps) {
                     exit={{ opacity: 0, scale: 1.05 }}
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 >
-                    <img
-                        src={getHeroUrl(activeGame)}
+                    <FallbackImage
+                        sources={heroArtSources(activeGame)}
                         alt=""
                         className="w-full h-full object-cover brightness-[0.7] saturate-[1.2] contrast-125"
+                        fallback={<div className="w-full h-full bg-void-surface" />}
                     />
                     {/* Cinematic Gradients */}
                     <div className="absolute inset-0 bg-gradient-to-r from-void-pure via-void-pure/60 to-transparent opacity-90" />
@@ -84,7 +63,7 @@ export function HomeHeroBanner({ games, onOpenDetail }: HomeHeroBannerProps) {
 
             <HomeHeroContent
                 game={activeGame}
-                logoUrl={getLogoUrl(activeGame)}
+                logoSources={logoArtSources(activeGame)}
                 onPlay={handlePlay}
                 onOpenDetail={onOpenDetail}
             />
@@ -93,7 +72,6 @@ export function HomeHeroBanner({ games, onOpenDetail }: HomeHeroBannerProps) {
                 games={games}
                 activeIndex={activeIndex}
                 onSelect={setActiveIndex}
-                getHeroUrl={getHeroUrl}
             />
         </section>
     )
