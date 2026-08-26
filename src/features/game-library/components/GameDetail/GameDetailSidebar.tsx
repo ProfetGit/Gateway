@@ -1,4 +1,5 @@
-import { ExternalLink, Link2, Star, Trash2 } from 'lucide-react'
+import { ExternalLink, Link2, SlidersHorizontal, Star, Trash2 } from 'lucide-react'
+import { useGameStore } from '../../game-store'
 import { openSteamStore } from '@/lib/api/navigation'
 import { useSteamMatchStore } from '../../steam-match-store'
 import { Game, FetchGameDetailsResult } from '../../game-library-types'
@@ -35,6 +36,7 @@ export function GameDetailMetaStrip({
     handleDelete
 }: GameDetailMetaStripProps) {
     const openSteamMatch = useSteamMatchStore((s) => s.open)
+    const openProperties = useGameStore((s) => s.openProperties)
     const source = selectedGame.source
         ? selectedGame.source.charAt(0).toUpperCase() + selectedGame.source.slice(1)
         : 'Local'
@@ -99,6 +101,14 @@ export function GameDetailMetaStrip({
                         <Link2 size={15} />
                     </button>
                 )}
+
+                <button
+                    onClick={() => openProperties(selectedGame)}
+                    title="Properties"
+                    className="p-2 border border-void-border/30 bg-transparent text-white/30 hover:text-white/60 hover:border-void-border/60 transition-all duration-100"
+                >
+                    <SlidersHorizontal size={15} />
+                </button>
 
                 {selectedGame.isInstalled && (
                     <button

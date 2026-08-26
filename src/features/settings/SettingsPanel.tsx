@@ -6,8 +6,6 @@ import { getAuthState } from '@/features/auth/api/get-auth-state'
 import { steamLogin } from '@/features/auth/api/steam-login'
 import { steamLogout } from '@/features/auth/api/steam-logout'
 import { onAuthStateUpdated } from '@/features/auth/api/on-auth-state-updated'
-import { getSteamApiKey } from '@/features/onboarding/api/get-steam-api-key'
-import { setSteamApiKey } from '@/features/onboarding/api/set-steam-api-key'
 import { clearAndResync } from '@/features/game-library/api/clear-and-resync'
 import { getGames } from '@/features/game-library/api/get-games'
 import { deleteGame as apiDeleteGame } from '@/features/game-library/api/delete-game'
@@ -16,8 +14,10 @@ import { SteamAccountSection } from './SteamAccountSection'
 import { LibraryPreferencesSection } from './LibraryPreferencesSection'
 import { DangerZoneSection } from './DangerZoneSection'
 import { AboutSection } from './AboutSection'
+import { LaunchDefaultsSection } from './LaunchDefaultsSection'
 import { GameSourcesSection } from './GameSourcesSection'
 import { useLibraryStats } from './use-library-stats'
+import { useSteamApiKey } from './use-steam-api-key'
 
 export function SettingsPanel() {
     const { isSettingsOpen, closeSettings, games, setGames } = useGameStore()
@@ -25,22 +25,11 @@ export function SettingsPanel() {
     const [authState, setAuthState] = useState<AuthState>({ isLoggedIn: false, user: null })
     const [isLoggingIn, setIsLoggingIn] = useState(false)
     const [isFetching, setIsFetching] = useState(false)
-    const [apiKey, setApiKey] = useState('')
-    const [apiKeySaved, setApiKeySaved] = useState(false)
-    const [apiKeyError, setApiKeyError] = useState<string | null>(null)
-    const [hasStoredKey, setHasStoredKey] = useState(false)
-    const [keyExpanded, setKeyExpanded] = useState(false)
+    const steamKey = useSteamApiKey(isSettingsOpen)
 
     useEffect(() => {
         if (isSettingsOpen) {
             getAuthState().then(setAuthState).catch(() => {})
-            getSteamApiKey().then((k) => {
-                setHasStoredKey(!!k)
-                setApiKey('')
-                setApiKeySaved(false)
-                setApiKeyError(null)
-                setKeyExpanded(false)
-            }).catch(() => {})
             setTab('account')
         }
     }, [isSettingsOpen])
@@ -51,26 +40,6 @@ export function SettingsPanel() {
         onAuthStateUpdated((state) => setAuthState(state)).then((fn) => { unlisten = fn })
         return () => { unlisten?.() }
     }, [])
-
-    const handleSaveApiKey = async () => {
-        const trimmed = apiKey.trim()
-        if (!trimmed) { setApiKeyError('Paste a key first'); return }
-        if (!/^[A-F0-9]{32}$/i.test(trimmed)) { setApiKeyError('Keys are 32 hex characters'); return }
-        setApiKeyError(null)
-        const result = await setSteamApiKey(trimmed)
-        if (result?.success) {
-            setHasStoredKey(true)
-            setApiKey('')
-            setApiKeySaved(true)
-            setTimeout(() => setApiKeySaved(false), 2000)
-        }
-    }
-
-    const handleClearApiKey = async () => {
-        await setSteamApiKey('')
-        setHasStoredKey(false)
-        setApiKey('')
-    }
 
     const handleSteamLogin = async () => {
         setIsLoggingIn(true)
@@ -153,17 +122,17 @@ export function SettingsPanel() {
                                         isLoggingIn={isLoggingIn}
                                         onLogin={handleSteamLogin}
                                         onLogout={handleSteamLogout}
-                                        hasStoredKey={hasStoredKey}
-                                        keyExpanded={keyExpanded}
-                                        setKeyExpanded={setKeyExpanded}
-                                        apiKey={apiKey}
-                                        setApiKey={setApiKey}
-                                        setApiKeyError={setApiKeyError}
-                                        setApiKeySaved={setApiKeySaved}
-                                        apiKeyError={apiKeyError}
-                                        apiKeySaved={apiKeySaved}
-                                        onSaveKey={handleSaveApiKey}
-                                        onClearKey={handleClearApiKey}
+                                        hasStoredKey={steamKey.hasStoredKey}
+                                        keyExpanded={steamKey.keyExpanded}
+                                        setKeyExpanded={steamKey.setKeyExpanded}
+                                        apiKey={steamKey.apiKey}
+                                        setApiKey={steamKey.setApiKey}
+                                        setApiKeyError={steamKey.setApiKeyError}
+                                        setApiKeySaved={steamKey.setApiKeySaved}
+                                        apiKeyError={steamKey.apiKeyError}
+                                        apiKeySaved={steamKey.apiKeySaved}
+                                        onSaveKey={steamKey.onSaveKey}
+                                        onClearKey={steamKey.onClearKey}
                                     />
                                 )}
 
@@ -181,6 +150,10 @@ export function SettingsPanel() {
 
                                 {tab === 'sources' && (
                                     <GameSourcesSection />
+                                )}
+
+                                {tab === 'launch' && (
+                                    <LaunchDefaultsSection />
                                 )}
 
                                 {tab === 'about' && (

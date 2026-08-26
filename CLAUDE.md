@@ -91,7 +91,14 @@ This is also, functionally, Gateway's routing layer — there is no router, and 
 ### Local-first data flow
 
 - Library persists via the Rust backend's JSON store (`src-tauri/src/store.rs`). All game CRUD goes through `features/game-library/api/`.
+- **`clear_and_resync` must never delete what it cannot rebuild.** It empties the library and re-runs the scanners, so `source: 'manual'` rows — which have no scanner — used to vanish behind a button labelled "Refresh Library". `features/sync/preserve-user-state.ts` keeps them, and folds user-owned state (favourites, notes, `manualUnlocks`, Steam matches, launch tweaks) back onto the rebuilt rows, which come back as brand new records with new ids. Add any new user-editable `Game` field to `USER_OWNED_FIELDS` there — and *not* fields a scanner owns, like `executablePath` and `winePrefix`.
 - Steam cover art is mirrored locally and served via the `gateway://` custom protocol. `Game.localCoverPath` is preferred; `coverUrl` (Steam CDN) is fallback in `<img onError>` chains.
+- **Art resolves from `steamAppId ?? metadataAppId`, never `steamAppId` alone** — `artAppId()` in `shared/utils.ts`, `getMetadataAppId()` in the renderer. A manually added game matched to a Steam entry has only the second one, and gating art on the first left it with no cover, banner or logo anywhere.
+- **A cover must be portrait-shaped, and this is enforced.** Steam substitutes `header.jpg` (460x215) for any app with no library art, and `fetchSteamArtUrls` falls back to `capsule_image` (231x87) — both are valid JPEGs and completely wrong for a 3:4 slot. Because `localCoverPath` outranks every other source in the render chain, one mirrored banner showed as a stretched crop permanently. `isCoverShaped()` in `shared/image-file.ts` gates every cover write, `mirrorAllCovers` treats an already-stored banner as stale so old ones self-heal, and `GameCard` re-checks `naturalWidth/naturalHeight` on load because a remote fallback URL can still resolve to one. `MAX_COVER_ASPECT` is duplicated in both files — keep them in step.
+- Some apps (delisted titles, multiplayer/zombies components) have **no portrait art anywhere on Steam** — every library path 404s and appdetails only offers landscape. Those correctly end up with no cover and render the no-cover tile; that is not a bug to re-fix by loosening the shape check.
+- `downloadGameArt()` fetches all three (cover, hero, logo) for one game and is exposed as `fetch_game_art`. The background `mirrorAllCovers` pass is covers-only and runs over the whole library; the on-demand call is what a fresh Steam match uses. Without `force`, it leaves art the user or Steam's grid cache provided (`file://` covers, `shortcut_*` mirrored files) alone.
+- **Steam search results carry their own art URLs.** `search_steam_apps` keeps the `logo` (capsule) and `icon` fields from Steam's response as `capsuleUrl`/`iconUrl`. Use those for suggestion thumbnails rather than guessing `.../<appid>/header.jpg` — newer apps keep every asset behind a content-hashed path and 404 on the guessable one (How to Fish, 4001890, is a live example: `header.jpg` and `logo.png` 404, `library_hero.jpg` does not). Cover acquisition already survives this via the appdetails fallback in `steam-art-urls.ts`.
+- Typing a title in Add Game (and in the install wizard) searches Steam live and links the picked appid as `metadataAppId` — `SteamTitleField` + `useSteamAppSearch`, which the Steam-match modal shares so the debounce, minimum length and main-process cache stay identical. Modals hosting it must NOT set `overflow-hidden` on their card, or the dropdown is clipped.
 - External API responses are cached:
   - Steam trending: 10-min main-process cache + in-flight dedup (backend-side)
   - Achievements: 24h renderer cache in `achievements-store.ts` (`features/achievement-hunts/`), 5-parallel concurrency-bounded fetch
@@ -101,9 +108,30 @@ This is also, functionally, Gateway's routing layer — there is no router, and 
 
 `Game.source` is one of `'manual' | 'steam' | 'shortcut' | 'heroic' | 'lutris'`. Steam-specific operations (achievements, news, hero images, store links) gate on `game.steamAppId` being present.
 
+`Game.source` is **provenance** (where the row came from). `Game.runner` is **runtime** (how it starts) — `'auto' | 'umu' | 'wine' | 'native'`, undefined meaning `'auto'`. Don't conflate them: a Windows game the user installed by hand is still `source: 'manual'`.
+
 **Target platform is Linux only.** No `process.platform` branches — there is no Windows or macOS path to preserve. Note that wine-prefix-relative paths (`users/steamuser/AppData/Roaming/...` in `achievement-file-locations.ts`) are *Linux* code: they resolve inside a wine/Proton prefix, and deleting them breaks achievement tracking for emulated titles. The `Windows NT 10.0` User-Agent in `steamHttp.ts` is likewise a deliberate scraping spoof, not platform support.
 
 Heroic and Lutris libraries are imported read-only by scanning their local config — Heroic's `~/.config/heroic` (plus the Flatpak path), Lutris via `lutris --list-games --json`. Launching hands off to those launchers via `heroic://launch/<runner>/<appName>` and `lutris:rungameid/<id>`. Launch target resolution lives in one pure function, `electron/src/features/library/resolve-launch.ts` — **Heroic and Lutris must be checked before `steamAppId`**, since both scanners may attach a metadata-only appId and `steam://rungameid` on an unowned game fails silently.
+
+### Windows games: the umu pipeline
+
+Manually added Windows executables run through **umu-launcher** (`umu-run`), not bare wine — that is Proton plus the Steam Linux Runtime container plus protonfixes, and it is the same thing Faugus Launcher wraps. Bare `wine` remains only as the fallback when `umu-run` is absent from PATH; `resolveRunner()` decides, and `resolveLaunch()` takes `umuAvailable` as an argument so both branches stay testable.
+
+The spawn branch composes a command *chain* — `gamemoderun` → `umu-run`/`wine`/`mangohud` → executable → tokenized args — and an env block, in this precedence: `WINEPREFIX`, then umu's `GAMEID`/`PROTON_VERB`/`PROTONPATH`, then `MANGOHUD`, then `customEnvVars` **last**, which is the documented escape hatch and beats everything above it.
+
+Things that are easy to get wrong here:
+- **MangoHud is env for umu/wine, wrapper binary for native.** Under Proton the game is Vulkan via DXVK, so `MANGOHUD=1` loads the implicit layer; wrapping `umu-run` in the `mangohud` script instead silently does nothing. Native Linux games may still be OpenGL, so those get the wrapper.
+- **`GAMEID` derives from `metadataAppId`, never `steamAppId`.** A game owned on Steam left as a `steam://` URI long before the spawn branch; the titles that reach it are matched to a Steam entry for art only, and that appid is exactly what protonfixes looks up.
+- **umu creates `<prefix>/pfx`**, which is the layout `driveC()` in `achievements/achievement-file-locations.ts` already handles — achievement detection keeps working for these games for free.
+- **`launchArgs` and `customEnvVars` are tokenized, not whitespace-split** (`library/tokenize-args.ts`). Both are free text in the Properties panel, so quoted paths and `WINEDLLOVERRIDES="d3d11=n,b"` have to survive.
+- Gateway does **not** download or manage Proton builds. `detect-launch-tools.ts` lists what is already installed in `compatibilitytools.d`; unset `PROTONPATH` lets umu fetch UMU-Proton itself.
+
+`launch_game` awaits the process's `spawn` event before returning, so a missing binary comes back as `{ success: false, error }` rather than a button click that does nothing. Every Play button goes through `features/game-library/launch-game-with-feedback.ts`, which turns that into a `problem` toast — call that, not the raw `launchGame` wrapper.
+
+The install wizard (`components/InstallWindowsGame/`) snapshots the prefix's executables, runs the installer under umu with `stdio: 'pipe'` (progress is the `installer-progress` push event), then diffs and ranks what appeared. Ranking is pure and heavily tested in `library/rank-game-executables.ts` — the exclusion lists there are what keep `unins000.exe` from being offered as the game.
+
+**Per-game launch settings live on the game.** `settings.prefixRoot` / `default*` only *seed* a new row at creation time and are never consulted at launch, so what the Properties panel shows for a game is exactly what runs.
 
 ### Enforcement gaps worth knowing
 
@@ -161,6 +189,10 @@ Three card primitives share a vocabulary but serve distinct purposes — don't m
 Shared vocabulary: corner-bracket hovers, scanline overlays, `bg-black/70 backdrop-blur-sm` dark-glass badges, mono caps tracking, void-surface borders.
 
 **Important**: `aspect-[X/Y]` Tailwind arbitrary class does not reliably hold height inside `<motion.button>` with `flex flex-col`. Use inline `style={{ aspectRatio: 'X / Y' }}` instead — `StoreCard` and `AchievementHuntCard` both do this.
+
+### Form primitives
+
+`components/ui/form/` holds `TextField`, `PathField` (input + browse button), `SelectField` and `ToggleField`, all styled from the shared class strings in `field-styles.ts`. Use them instead of hand-rolling another `<input>` — the same class string used to be pasted into every form in the app. `PathField` pairs with `selectExecutable` / `selectImage` / `selectDirectory` in `lib/api/file-dialogs.ts`.
 
 ### Carousel pattern
 

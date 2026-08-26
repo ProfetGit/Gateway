@@ -1,7 +1,7 @@
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useGameStore } from '../../game-store'
-import { launchGame } from '../../api/launch-game'
+import { launchGameWithFeedback } from '../../launch-game-with-feedback'
 import { installSteamGame } from '../../api/install-steam-game'
 import { deleteGame as apiDeleteGame } from '../../api/delete-game'
 import { useState, useMemo, useCallback } from 'react'
@@ -26,7 +26,7 @@ export function GameDetail() {
     } = useGameDetailData(selectedGame, activeTab)
 
     const handlePlay = useCallback(async () => {
-        if (selectedGame) launchGame(selectedGame)
+        if (selectedGame) await launchGameWithFeedback(selectedGame)
     }, [selectedGame])
 
     const handleInstall = useCallback(async () => {

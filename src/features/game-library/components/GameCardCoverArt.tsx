@@ -4,7 +4,7 @@ export type GameCardCoverArtProps = {
     imgSrc: string | undefined
     imgLoaded: boolean
     hasCover: boolean
-    onLoad: () => void
+    onLoad: (event: React.SyntheticEvent<HTMLImageElement>) => void
     onError: () => void
 }
 

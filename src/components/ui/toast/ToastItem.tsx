@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, X, Award } from 'lucide-react'
+import { Trophy, X, Award, AlertTriangle } from 'lucide-react'
 import { useToastStore, type Toast } from './toast-store'
 
 const EYEBROW: Record<Toast['variant'], string> = {
     info: 'Gateway',
     celebration: 'Achievement unlocked',
     milestone: '100% complete',
+    problem: 'Something went wrong',
 }
 
 export function ToastItem({ toast }: { toast: Toast }) {
@@ -14,6 +15,7 @@ export function ToastItem({ toast }: { toast: Toast }) {
     const [iconFailed, setIconFailed] = useState(false)
 
     const isMilestone = toast.variant === 'milestone'
+    const isProblem = toast.variant === 'problem'
     const accent = isMilestone ? 'border-amber-500/60' : 'border-crimson-500/50'
     const glow = isMilestone
         ? 'shadow-[0_8px_40px_oklch(0.78_0.17_75/0.28)]'
@@ -48,9 +50,9 @@ export function ToastItem({ toast }: { toast: Toast }) {
                         />
                     ) : (
                         <div className={`w-12 h-12 flex items-center justify-center border ${isMilestone ? 'border-amber-500/40 bg-amber-500/10' : 'border-crimson-500/40 bg-crimson-500/10'}`}>
-                            {isMilestone
-                                ? <Award className="w-6 h-6 text-amber-400" />
-                                : <Trophy className="w-6 h-6 text-crimson-500" />}
+                            {isMilestone && <Award className="w-6 h-6 text-amber-400" />}
+                            {isProblem && <AlertTriangle className="w-6 h-6 text-crimson-500" />}
+                            {!isMilestone && !isProblem && <Trophy className="w-6 h-6 text-crimson-500" />}
                         </div>
                     )}
                 </div>
@@ -59,11 +61,11 @@ export function ToastItem({ toast }: { toast: Toast }) {
                     <p className={`text-[9px] font-mono font-black uppercase tracking-widest mb-1 ${isMilestone ? 'text-amber-400' : 'text-crimson-400'}`}>
                         {EYEBROW[toast.variant]}
                     </p>
-                    <h4 className={`${isMilestone ? 'text-etched text-base' : 'font-display font-bold text-sm'} text-white leading-tight truncate`}>
+                    <h4 className={`${isMilestone ? 'text-etched text-base' : 'font-display font-bold text-sm'} text-white leading-tight ${isProblem ? '' : 'truncate'}`}>
                         {toast.title}
                     </h4>
                     {toast.message && (
-                        <p className="text-xs text-white/50 mt-0.5 truncate">{toast.message}</p>
+                        <p className={`text-xs text-white/50 mt-0.5 ${isProblem ? '' : 'truncate'}`}>{toast.message}</p>
                     )}
                     {toast.action && (
                         <button

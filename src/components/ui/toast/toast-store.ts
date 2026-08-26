@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ToastVariant = 'info' | 'celebration' | 'milestone'
+export type ToastVariant = 'info' | 'celebration' | 'milestone' | 'problem'
 
 export interface ToastAction {
     label: string
@@ -27,6 +27,9 @@ const DEFAULT_DURATION: Record<ToastVariant, number> = {
     info: 4000,
     celebration: 5000,
     milestone: 6000,
+    // Problems carry an instruction ("install the umu-launcher package"), so
+    // they need long enough to actually read.
+    problem: 8000,
 }
 
 interface ToastState {

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Play, Download, Trash2, Info, Star, ExternalLink, StarOff, Link2 } from 'lucide-react'
+import { Play, Download, Trash2, Info, Star, ExternalLink, StarOff, Link2, SlidersHorizontal } from 'lucide-react'
 import type { ContextMenuItem } from '@/components/ui/context-menu/context-menu-store'
 import { useGameStore } from '../game-store'
 import { useSteamMatchStore } from '../steam-match-store'
@@ -19,7 +19,7 @@ const icon = (Component: typeof Play) => React.createElement(Component, { classN
  * file stays under the 200-line cap.
  */
 export function useGameCardMenu(game: Game, { onPlay, onInstall }: GameCardMenuActions): () => ContextMenuItem[] {
-    const { openDetail, toggleFavorite, deleteGame } = useGameStore()
+    const { openDetail, toggleFavorite, deleteGame, openProperties } = useGameStore()
     const openMatch = useSteamMatchStore((s) => s.open)
 
     return () => [
@@ -49,6 +49,11 @@ export function useGameCardMenu(game: Game, { onPlay, onInstall }: GameCardMenuA
                 icon: icon(Link2),
                 onClick: () => openMatch(game),
             }]),
+        {
+            label: 'Properties',
+            icon: icon(SlidersHorizontal),
+            onClick: () => openProperties(game),
+        },
         {
             label: game.isInstalled ? 'Uninstall' : 'Install',
             icon: icon(Download),

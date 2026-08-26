@@ -33,7 +33,7 @@ const PREFIX_RELATIVE_DIRS = [
     'users/steamuser/AppData/Local/Goldberg SteamEmu Saves',
 ]
 
-function driveC(prefix: string): string {
+export function driveC(prefix: string): string {
     // Faugus/umu prefixes appear both as <prefix>/drive_c and <prefix>/pfx/drive_c.
     const nested = path.join(prefix, 'pfx', 'drive_c')
     if (fs.existsSync(nested)) return nested

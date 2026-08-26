@@ -10,6 +10,9 @@ const MAX_RESULTS = 12
 interface SteamAppSearchHit {
     appId: string
     name: string
+    /** Small landscape capsule, straight from the search response. */
+    capsuleUrl?: string
+    iconUrl?: string
 }
 
 interface SearchSteamAppsResult {
@@ -47,11 +50,25 @@ export function setupSteamSearchHandlers() {
                 }
             }
 
-            const raw = await res.json() as Array<{ appid?: string | number; name?: string }>
+            // `logo` and `icon` are content-hashed URLs. Keeping them matters:
+            // newer apps (How to Fish, 4001890) 404 on the guessable
+            // .../<appid>/header.jpg path, so a thumbnail built by guessing
+            // renders blank for exactly the games people are searching for.
+            const raw = await res.json() as Array<{
+                appid?: string | number
+                name?: string
+                logo?: string
+                icon?: string
+            }>
             const results: SteamAppSearchHit[] = (Array.isArray(raw) ? raw : [])
                 .filter((hit) => hit?.appid !== undefined && !!hit?.name)
                 .slice(0, MAX_RESULTS)
-                .map((hit) => ({ appId: String(hit.appid), name: String(hit.name) }))
+                .map((hit) => ({
+                    appId: String(hit.appid),
+                    name: String(hit.name),
+                    ...(hit.logo ? { capsuleUrl: String(hit.logo) } : {}),
+                    ...(hit.icon ? { iconUrl: String(hit.icon) } : {}),
+                }))
 
             searchCache.set(cacheKey, { data: results, fetchedAt: Date.now() })
             return { success: true, results }

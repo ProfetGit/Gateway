@@ -7,6 +7,8 @@ import { TopNavigation } from '@/features/app-shell/TopNavigation'
 import { Header } from '@/features/app-shell/Header'
 import { GameGrid } from '@/features/game-library/components/GameGrid'
 import { GameDetail } from '@/features/game-library/components/GameDetail/GameDetail'
+import { InstallWindowsGameModal } from '@/features/game-library/components/InstallWindowsGame/InstallWindowsGameModal'
+import { GamePropertiesModal } from '@/features/game-library/components/GameProperties/GamePropertiesModal'
 import { AddGameModal } from '@/features/game-library/components/AddGameModal'
 import { SteamMatchModal } from '@/features/game-library/components/SteamMatchModal'
 import { SettingsPanel } from '@/features/settings/SettingsPanel'
@@ -132,6 +134,8 @@ function App() {
       {/* Overlays */}
       <GameDetail />
       <AddGameModal />
+      <GamePropertiesModal />
+      <InstallWindowsGameModal />
       <SteamMatchModal />
       <SettingsPanel />
       <AchievementHuntsDrawer />

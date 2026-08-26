@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveLaunch, parseEnvVars } from './resolve-launch'
+import { resolveLaunch, resolveRunner } from './resolve-launch'
 import type { Game } from '../../shared/types'
 
 function makeGame(overrides: Partial<Game>): Game {
@@ -12,28 +12,6 @@ function makeGame(overrides: Partial<Game>): Game {
         ...overrides,
     }
 }
-
-describe('parseEnvVars', () => {
-    it('parses space-separated pairs', () => {
-        expect(parseEnvVars('A=1 B=2')).toEqual({ A: '1', B: '2' })
-    })
-
-    it('returns empty for undefined', () => {
-        expect(parseEnvVars(undefined)).toEqual({})
-    })
-
-    it('ignores tokens without an =', () => {
-        expect(parseEnvVars('MALFORMED')).toEqual({})
-    })
-
-    it('splits on the first = only, so values may contain =', () => {
-        expect(parseEnvVars('PATH=/a=b')).toEqual({ PATH: '/a=b' })
-    })
-
-    it('ignores a leading = (empty key)', () => {
-        expect(parseEnvVars('=novalue')).toEqual({})
-    })
-})
 
 describe('resolveLaunch', () => {
     describe('URI sources', () => {
@@ -127,59 +105,208 @@ describe('resolveLaunch', () => {
         })
     })
 
+    describe('runner selection', () => {
+        it.each(['.exe', '.msi', '.bat'])('routes %s through umu when umu is installed', (ext) => {
+            expect(resolveRunner(makeGame({ executablePath: `/g/game${ext}` }), true)).toBe('umu')
+        })
+
+        // Bare wine is the fallback, not the goal: no Proton, no DXVK, no
+        // protonfixes. It only beats not launching at all.
+        it('falls back to wine for a Windows exe when umu is missing', () => {
+            expect(resolveRunner(makeGame({ executablePath: '/g/game.exe' }), false)).toBe('wine')
+        })
+
+        it('treats a non-Windows executable as native', () => {
+            expect(resolveRunner(makeGame({ executablePath: '/g/game' }), true)).toBe('native')
+        })
+
+        it.each(['umu', 'wine', 'native'] as const)('honours an explicit runner %s', (runner) => {
+            // Extension says Windows; the explicit choice must still win.
+            expect(resolveRunner(makeGame({ executablePath: '/g/game.exe', runner }), true)).toBe(runner)
+        })
+
+        it("treats 'auto' and undefined identically", () => {
+            const auto = makeGame({ executablePath: '/g/game.exe', runner: 'auto' })
+            const absent = makeGame({ executablePath: '/g/game.exe' })
+            expect(resolveRunner(auto, true)).toBe(resolveRunner(absent, true))
+        })
+    })
+
     describe('spawn branch', () => {
-        it('wraps a Windows executable in wine', () => {
-            const plan = resolveLaunch(makeGame({ executablePath: '/games/game.exe' }), {})
+        it('runs a Windows executable through umu-run', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/games/game.exe' }), {}, true)
+            expect(plan).toMatchObject({
+                kind: 'spawn',
+                command: 'umu-run',
+                args: ['/games/game.exe'],
+                runner: 'umu',
+            })
+        })
+
+        it('wraps a Windows executable in wine when umu is unavailable', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/games/game.exe' }), {}, false)
             expect(plan).toMatchObject({
                 kind: 'spawn',
                 command: 'wine',
                 args: ['/games/game.exe'],
+                runner: 'wine',
             })
         })
 
-        it.each(['.msi', '.bat'])('wine-wraps %s too', (ext) => {
-            const plan = resolveLaunch(makeGame({ executablePath: `/games/setup${ext}` }), {})
-            expect(plan).toMatchObject({ kind: 'spawn', command: 'wine' })
+        it('runs a native binary directly, without a wrapper', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/games/native' }), {}, true)
+            expect(plan).toMatchObject({
+                kind: 'spawn',
+                command: '/games/native',
+                args: [],
+                runner: 'native',
+            })
         })
 
-        it('runs a native binary directly, without wine', () => {
-            const plan = resolveLaunch(makeGame({ executablePath: '/games/native' }), {})
-            expect(plan).toMatchObject({ kind: 'spawn', command: '/games/native', args: [] })
-        })
-
-        it('appends launchArgs after the executable for wine', () => {
+        it('appends launchArgs after the executable', () => {
             const plan = resolveLaunch(
                 makeGame({ executablePath: '/g/game.exe', launchArgs: '-windowed -dx11' }),
-                {}
+                {},
+                true
             )
             expect(plan).toMatchObject({ args: ['/g/game.exe', '-windowed', '-dx11'] })
         })
 
+        // The whole reason launchArgs stopped being a whitespace split.
+        it('keeps a quoted launch argument as one token', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', launchArgs: '-config "/home/u/My Games/x.ini"' }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ args: ['/g/game.exe', '-config', '/home/u/My Games/x.ini'] })
+        })
+
         it('inherits the base env', () => {
-            const plan = resolveLaunch(makeGame({ executablePath: '/g/native' }), { HOME: '/home/x' })
+            const plan = resolveLaunch(makeGame({ executablePath: '/g/native' }), { HOME: '/home/x' }, true)
             expect(plan).toMatchObject({ env: { HOME: '/home/x' } })
         })
     })
 
-    describe('wine prefix', () => {
-        it('sets WINEPREFIX from game.winePrefix', () => {
+    describe('umu environment', () => {
+        // steamAppId can never reach here — it left as a steam:// URI above.
+        // metadataAppId is what a manually-added game matched to a Steam entry
+        // for art actually carries, and it is the id protonfixes looks up.
+        it('derives GAMEID from metadataAppId so protonfixes can match the title', () => {
             const plan = resolveLaunch(
-                makeGame({ executablePath: '/g/game.exe', winePrefix: '/prefixes/a' }),
-                {}
+                makeGame({ executablePath: '/g/game.exe', metadataAppId: '1145360' }),
+                {},
+                true
             )
-            expect(plan).toMatchObject({ env: { WINEPREFIX: '/prefixes/a' } })
+            expect(plan).toMatchObject({ env: { GAMEID: 'umu-1145360' } })
         })
 
-        it('lets an explicit customEnvVars WINEPREFIX win', () => {
+        it('still routes an owned Steam game to steam:// rather than umu', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', runner: 'umu', steamAppId: '1145360' }),
+                {},
+                true
+            )
+            expect(plan).toEqual({ kind: 'uri', uri: 'steam://rungameid/1145360' })
+        })
+
+        it('falls back to the generic GAMEID when nothing identifies the game', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/g/game.exe' }), {}, true)
+            expect(plan).toMatchObject({ env: { GAMEID: '0', PROTON_VERB: 'waitforexitandrun' } })
+        })
+
+        it('prefers an explicit umuGameId over the derived one', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', metadataAppId: '1', umuGameId: 'umu-999' }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ env: { GAMEID: 'umu-999' } })
+        })
+
+        it('passes protonPath through as PROTONPATH', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', protonPath: '/tools/GE-Proton11-5' }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ env: { PROTONPATH: '/tools/GE-Proton11-5' } })
+        })
+
+        it('leaves PROTONPATH unset so umu picks and downloads its own Proton', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/g/game.exe' }), {}, true)
+            expect((plan as { env: NodeJS.ProcessEnv }).env.PROTONPATH).toBeUndefined()
+        })
+
+        it('sets no umu variables for a native game', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/g/native' }), {}, true)
+            const { env } = plan as { env: NodeJS.ProcessEnv }
+            expect(env.GAMEID).toBeUndefined()
+            expect(env.PROTON_VERB).toBeUndefined()
+        })
+    })
+
+    describe('MangoHud and GameMode', () => {
+        // Under Proton the game is Vulkan via DXVK, so the implicit layer is
+        // the switch that works. Wrapping umu-run in the mangohud script looks
+        // like it silently does nothing.
+        it('enables MangoHud by env for umu, not by wrapping the command', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', useMangoHud: true }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ command: 'umu-run', env: { MANGOHUD: '1' } })
+        })
+
+        it('enables MangoHud by env for wine too', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', useMangoHud: true, runner: 'wine' }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ command: 'wine', env: { MANGOHUD: '1' } })
+        })
+
+        // Native games may still be OpenGL, where the Vulkan layer never loads.
+        it('wraps a native game in the mangohud command instead', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/native', useMangoHud: true }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ command: 'mangohud', args: ['/g/native'] })
+        })
+
+        it('leaves MANGOHUD unset when the toggle is off', () => {
+            const plan = resolveLaunch(makeGame({ executablePath: '/g/game.exe' }), {}, true)
+            expect((plan as { env: NodeJS.ProcessEnv }).env.MANGOHUD).toBeUndefined()
+        })
+
+        it('puts gamemoderun at the head of the chain', () => {
+            const plan = resolveLaunch(
+                makeGame({ executablePath: '/g/game.exe', useGameMode: true }),
+                {},
+                true
+            )
+            expect(plan).toMatchObject({ command: 'gamemoderun', args: ['umu-run', '/g/game.exe'] })
+        })
+
+        it('composes gamemode, mangohud and args for a native game', () => {
             const plan = resolveLaunch(
                 makeGame({
-                    executablePath: '/g/game.exe',
-                    winePrefix: '/prefixes/a',
-                    customEnvVars: 'WINEPREFIX=/prefixes/override',
+                    executablePath: '/g/native',
+                    useGameMode: true,
+                    useMangoHud: true,
+                    launchArgs: '-fullscreen',
                 }),
-                {}
+                {},
+                true
             )
-            expect(plan).toMatchObject({ env: { WINEPREFIX: '/prefixes/override' } })
+            expect(plan).toMatchObject({
+                command: 'gamemoderun',
+                args: ['mangohud', '/g/native', '-fullscreen'],
+            })
         })
     })
 
