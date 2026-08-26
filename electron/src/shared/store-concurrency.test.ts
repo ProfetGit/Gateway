@@ -130,3 +130,48 @@ describe('stale snapshot clobbering', () => {
         expect(store.get().map((g) => g.title)).toEqual(['A!', 'B!'])
     })
 })
+
+// ═══════════════════════════════════════════════════════════
+// Store durability
+// ═══════════════════════════════════════════════════════════
+//
+// JsonStore itself needs electron's app.getPath, so the two decisions that can
+// lose a library are exercised against the same logic here.
+
+function readStoreFile(raw: string | null): { games: unknown[] } | null {
+    try {
+        if (raw === null) return null
+        const parsed = JSON.parse(raw)
+        if (!parsed || !Array.isArray(parsed.games)) return null
+        return parsed
+    } catch {
+        return null
+    }
+}
+
+describe('store file validation', () => {
+    it('accepts a well-formed file', () => {
+        expect(readStoreFile('{"games":[{"id":"a"}]}')).toEqual({ games: [{ id: 'a' }] })
+    })
+
+    it('accepts an empty library', () => {
+        expect(readStoreFile('{"games":[]}')).toEqual({ games: [] })
+    })
+
+    // A truncated write can still be valid JSON of the wrong shape. Treating
+    // that as "empty library" and saving over it destroys the only copy.
+    it.each([
+        ['truncated mid-write', '{"games":[{"id":"a"'],
+        ['valid JSON, wrong shape', '{"settings":{}}'],
+        ['games is not an array', '{"games":{}}'],
+        ['null', 'null'],
+        ['empty file', ''],
+        ['garbage', 'not json at all'],
+    ])('rejects %s', (_label, raw) => {
+        expect(readStoreFile(raw)).toBeNull()
+    })
+
+    it('rejects a missing file', () => {
+        expect(readStoreFile(null)).toBeNull()
+    })
+})

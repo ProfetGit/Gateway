@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { JsonStore } from './src/shared/store'
 import { mirrorAllCovers } from './src/shared/utils'
+import { pruneOrphanArt } from './src/shared/prune-orphan-art'
 import { STEAM_API_KEY } from './src/shared/constants'
 import { setSteamApiKey, initAuth, refreshSessionOnStartup } from './steamAuth'
 import { setupSteamApiHandlers } from './src/features/steam/steam-api'
@@ -171,7 +172,15 @@ app.whenReady().then(() => {
   createWindow()
 
   // Initial mirroring
-  setTimeout(() => mirrorAllCovers(store, win), 5000)
+  setTimeout(() => {
+    // Prune first so the cover pass does not re-check files nothing points at.
+    try {
+      pruneOrphanArt(store)
+    } catch (err) {
+      console.warn('[Main] Orphan art prune skipped:', err)
+    }
+    void mirrorAllCovers(store, win)
+  }, 5000)
 
   // Watch for achievements unlocked by games Steam can't report on.
   setTimeout(() => refreshAchievementWatchers(store, win), 6000)

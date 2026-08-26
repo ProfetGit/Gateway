@@ -37,7 +37,10 @@ export async function fetchSteamArtUrls(appId: string): Promise<string[]> {
     try {
         const response = await fetch(
             `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic`,
-            { headers: { Accept: 'application/json' } }
+            {
+                headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(15_000),
+            }
         )
         if (!response.ok) return []
 

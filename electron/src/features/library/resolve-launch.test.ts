@@ -74,7 +74,8 @@ describe('resolveLaunch', () => {
                 }),
                 {}
             )
-            expect(plan).toEqual({ kind: 'uri', uri: 'heroic://launch/gog/Alan Wake' })
+            // Encoded: a raw space would make this a malformed URI.
+            expect(plan).toEqual({ kind: 'uri', uri: 'heroic://launch/gog/Alan%20Wake' })
         })
 
         it('prefers Lutris over a metadata-only steamAppId', () => {
@@ -99,6 +100,30 @@ describe('resolveLaunch', () => {
                 {}
             )
             expect(plan.kind).toBe('spawn')
+        })
+    })
+
+    describe('URI encoding', () => {
+        it.each([
+            ['Alan Wake', 'Alan%20Wake'],
+            ['Game #2', 'Game%20%232'],
+            ['A/B', 'A%2FB'],
+            ['Café', 'Caf%C3%A9'],
+            ['100%', '100%25'],
+        ])('encodes appName %p', (appName, encoded) => {
+            const plan = resolveLaunch(
+                makeGame({ source: 'heroic', heroicAppName: appName, heroicRunner: 'sideload' }),
+                {}
+            )
+            expect(plan).toEqual({ kind: 'uri', uri: `heroic://launch/sideload/${encoded}` })
+        })
+
+        it('leaves an opaque Epic id untouched', () => {
+            const plan = resolveLaunch(
+                makeGame({ source: 'heroic', heroicAppName: 'Fortnite', heroicRunner: 'legendary' }),
+                {}
+            )
+            expect(plan).toEqual({ kind: 'uri', uri: 'heroic://launch/legendary/Fortnite' })
         })
     })
 

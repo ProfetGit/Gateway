@@ -37,7 +37,11 @@ export function parseEnvVars(customEnvVars: string | undefined): Record<string, 
  */
 export function resolveLaunch(game: Game, baseEnv: NodeJS.ProcessEnv): LaunchPlan {
     if (game.heroicAppName && game.heroicRunner) {
-        return { kind: 'uri', uri: `heroic://launch/${game.heroicRunner}/${game.heroicAppName}` }
+        // Epic app names are opaque ids, but GOG and sideloaded entries carry
+        // human-chosen names — a space or '#' would otherwise produce a
+        // malformed URI that the handler silently drops.
+        const appName = encodeURIComponent(game.heroicAppName)
+        return { kind: 'uri', uri: `heroic://launch/${game.heroicRunner}/${appName}` }
     }
 
     // Single colon — lutris:rungameid/<id>, not lutris://

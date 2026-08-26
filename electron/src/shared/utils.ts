@@ -10,9 +10,15 @@ import { steamCoverGuesses, fetchSteamArtUrls } from './steam-art-urls'
  * Fetch a URL only if it yields a real image. Steam answers missing art with
  * a 146-byte HTML 404 body, which must never be written under a .jpg name.
  */
+const IMAGE_FETCH_TIMEOUT_MS = 15_000
+
 async function fetchImage(url: string): Promise<Buffer | null> {
     try {
-        const response = await fetch(url)
+        // Without a timeout one stalled connection blocks the whole cover pass
+        // — it is a sequential loop over the entire library.
+        const response = await fetch(url, {
+            signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
+        })
         if (!response.ok) return null
 
         const buffer = Buffer.from(await response.arrayBuffer())

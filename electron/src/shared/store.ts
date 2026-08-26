@@ -13,28 +13,91 @@ export class JsonStore {
         this.data = this.load()
     }
 
-    private load(): StoreData {
-        try {
-            if (fs.existsSync(this.filePath)) {
-                const content = fs.readFileSync(this.filePath, 'utf-8')
-                return JSON.parse(content)
-            }
-        } catch (error) {
-            console.error('Failed to load store:', error)
-        }
+    private get backupPath(): string {
+        return `${this.filePath}.bak`
+    }
+
+    private static empty(): StoreData {
         return {
             games: [],
             settings: { steamPath: '' },
             claimedAppIds: [],
-            pendingClaimAppId: null
+            pendingClaimAppId: null,
         }
     }
 
-    private save(): void {
+    private readFile(filePath: string): StoreData | null {
         try {
-            fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2))
+            if (!fs.existsSync(filePath)) return null
+            const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+            // A truncated write can still parse as valid JSON of the wrong
+            // shape, so check for the one field everything depends on.
+            if (!parsed || !Array.isArray(parsed.games)) return null
+            return parsed as StoreData
+        } catch (error) {
+            console.error(`[Store] Could not read ${filePath}:`, error)
+            return null
+        }
+    }
+
+    private load(): StoreData {
+        const primary = this.readFile(this.filePath)
+        if (primary) return primary
+
+        // Never silently start empty on top of an existing file — the next
+        // save() would overwrite it and destroy the only copy of the library.
+        if (fs.existsSync(this.filePath)) {
+            const quarantine = `${this.filePath}.corrupt-${Date.now()}`
+            try {
+                fs.renameSync(this.filePath, quarantine)
+                console.error(`[Store] Data file unreadable, preserved at ${quarantine}`)
+            } catch (error) {
+                console.error('[Store] Could not quarantine the unreadable data file:', error)
+            }
+        }
+
+        const backup = this.readFile(this.backupPath)
+        if (backup) {
+            console.warn(`[Store] Recovered ${backup.games.length} game(s) from the backup file`)
+            return backup
+        }
+
+        return JsonStore.empty()
+    }
+
+    /**
+     * Write atomically: a full serialize into a temp file, flushed to disk,
+     * then renamed over the target. rename(2) is atomic within a filesystem,
+     * so a crash mid-write leaves the previous file intact rather than a
+     * truncated one. The store is rewritten in full on every set(), and syncs
+     * call set() hundreds of times, so the exposure is real.
+     */
+    private save(): void {
+        const tempPath = `${this.filePath}.tmp`
+        try {
+            const serialized = JSON.stringify(this.data, null, 2)
+
+            const handle = fs.openSync(tempPath, 'w')
+            try {
+                fs.writeFileSync(handle, serialized)
+                fs.fsyncSync(handle)
+            } finally {
+                fs.closeSync(handle)
+            }
+
+            // Keep the last known-good copy before replacing it.
+            if (fs.existsSync(this.filePath)) {
+                try {
+                    fs.copyFileSync(this.filePath, this.backupPath)
+                } catch (error) {
+                    console.warn('[Store] Could not refresh the backup file:', error)
+                }
+            }
+
+            fs.renameSync(tempPath, this.filePath)
         } catch (error) {
             console.error('Failed to save store:', error)
+            fs.rmSync(tempPath, { force: true })
         }
     }
 
