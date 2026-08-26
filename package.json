@@ -1,7 +1,7 @@
 {
   "name": "gateway",
   "productName": "Gateway",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "ProfetGit",
   "description": "A Linux game launcher for your Steam, Heroic, and Lutris libraries.",
   "private": true,
