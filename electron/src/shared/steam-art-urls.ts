@@ -24,6 +24,27 @@ export function steamCoverGuesses(appId: string): string[] {
     ]
 }
 
+/**
+ * Wide hero art for the banner. `library_hero.jpg` is missing for plenty of
+ * apps (multiplayer components have no library art at all), so header.jpg is
+ * the fallback — wrong aspect ratio, but it renders.
+ */
+export function steamHeroGuesses(appId: string): string[] {
+    return [
+        `${CDN_HOST}/${appId}/library_hero_2x.jpg`,
+        `${CDN_HOST}/${appId}/library_hero.jpg`,
+        `${CDN_HOST}/${appId}/header.jpg`,
+    ]
+}
+
+/** Transparent title logo. Decorative — the title text stands in when absent. */
+export function steamLogoGuesses(appId: string): string[] {
+    return [
+        `${CDN_HOST}/${appId}/logo_2x.png`,
+        `${CDN_HOST}/${appId}/logo.png`,
+    ]
+}
+
 interface AppDetailsBasic {
     header_image?: string
     capsule_image?: string

@@ -1,3 +1,7 @@
+// Runtime used to start `executablePath`. 'auto' infers from the file
+// extension at launch time; the rest force a specific path.
+export type LaunchRunner = 'auto' | 'umu' | 'wine' | 'native'
+
 export interface Game {
     id: string
     title: string
@@ -30,6 +34,17 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string
+    // How to actually run `executablePath`. Provenance lives in `source`; this
+    // is the runtime. undefined behaves as 'auto' — see resolve-launch.ts.
+    runner?: LaunchRunner
+    // Absolute path to a Proton build, or a umu alias like 'GE-Proton'. Unset
+    // lets umu pick (and download) UMU-Proton itself.
+    protonPath?: string
+    // umu's GAMEID. 'umu-<steam appid>' is what enables protonfixes for a
+    // known title; '0' is the generic fallback.
+    umuGameId?: string
+    useMangoHud?: boolean
+    useGameMode?: boolean
     // Mirrors Steam's appdetails `type`; see shared/normalize-app-type.ts.
     appType?:
         | 'game'
@@ -61,6 +76,12 @@ export interface StoreData {
         steamPath: string
         steamApiKey?: string
         hasCompletedSetup?: boolean
+        // Defaults seeded onto NEW games at creation time. Never consulted at
+        // launch — what the Properties panel shows is what runs.
+        prefixRoot?: string
+        defaultProtonPath?: string
+        defaultUseMangoHud?: boolean
+        defaultUseGameMode?: boolean
     }
     steamAuth?: SteamAuthData
     claimedAppIds?: string[]

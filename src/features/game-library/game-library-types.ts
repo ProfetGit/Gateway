@@ -30,6 +30,13 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string     // Custom environment variables (VAR=value VAR2=value2)
+    // How to actually run `executablePath`. Provenance lives in `source`; this
+    // is the runtime. undefined behaves as 'auto' — see resolve-launch.ts.
+    runner?: LaunchRunner
+    protonPath?: string        // Proton build dir, or a umu alias ('GE-Proton')
+    umuGameId?: string         // umu GAMEID — 'umu-<appid>' turns on protonfixes
+    useMangoHud?: boolean
+    useGameMode?: boolean
     appType?: AppType          // Resolved by background classifier
 }
 
@@ -51,6 +58,11 @@ export const APP_TYPES = [
 ] as const
 
 export type AppType = (typeof APP_TYPES)[number]
+
+// Runtime used to start `executablePath`. 'auto' infers from the file
+// extension at launch time; the rest force a specific path.
+export const LAUNCH_RUNNERS = ['auto', 'umu', 'wine', 'native'] as const
+export type LaunchRunner = (typeof LAUNCH_RUNNERS)[number]
 
 export type FilterStatus = 'all' | 'installed'
 // Derived, so it can never drift from the source union again.
@@ -94,6 +106,11 @@ export interface GameStore {
     isSettingsOpen: boolean
     isAddModalOpen: boolean
     isHuntsDrawerOpen: boolean
+    // Properties layers ABOVE GameDetail rather than replacing it — it is
+    // usually opened from there, and closing it should return you to the game.
+    isPropertiesOpen: boolean
+    propertiesGame: Game | null
+    isInstallWizardOpen: boolean
 
     // Actions
     setView: (view: ViewType) => void
@@ -120,6 +137,10 @@ export interface GameStore {
     closeAddModal: () => void
     openHuntsDrawer: () => void
     closeHuntsDrawer: () => void
+    openProperties: (game: Game) => void
+    closeProperties: () => void
+    openInstallWizard: () => void
+    closeInstallWizard: () => void
 }
 
 // Steam status type

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { GameStore } from './game-library-types'
 import { updateGame as apiUpdateGame } from './api/update-game'
-import { preloadGameCoverBatch } from './game-cover-preloader'
+import { createPreloadActions } from './game-store-preloading'
 import { registerGamesUpdatedListener } from './register-games-updated-listener'
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -30,6 +30,9 @@ export const useGameStore = create<GameStore>((set, get) => {
         isSettingsOpen: false,
         isAddModalOpen: false,
         isHuntsDrawerOpen: false,
+        isPropertiesOpen: false,
+        propertiesGame: null,
+        isInstallWizardOpen: false,
         setView: (view) => set({ currentView: view }),
 
         // selectedGame re-points at the incoming record, else an open detail overlay
@@ -47,12 +50,17 @@ export const useGameStore = create<GameStore>((set, get) => {
             selectedGame: state.selectedGame?.id === id
                 ? { ...state.selectedGame, ...updates }
                 : state.selectedGame,
+            propertiesGame: state.propertiesGame?.id === id
+                ? { ...state.propertiesGame, ...updates }
+                : state.propertiesGame,
         })),
 
         deleteGame: (id) => set((state) => ({
             games: state.games.filter((g) => g.id !== id),
             selectedGame: state.selectedGame?.id === id ? null : state.selectedGame,
             isDetailOpen: state.selectedGame?.id === id ? false : state.isDetailOpen,
+            isPropertiesOpen: state.propertiesGame?.id === id ? false : state.isPropertiesOpen,
+            propertiesGame: state.propertiesGame?.id === id ? null : state.propertiesGame,
         })),
 
         selectGame: (game) => set({ selectedGame: game }),
@@ -127,60 +135,9 @@ export const useGameStore = create<GameStore>((set, get) => {
             isSettingsOpen: false,
         }),
 
-        stopPreloading: () => {
-            const { isActive } = get().preloadState
-            if (isActive) {
-                set((state) => ({
-                    preloadState: { ...state.preloadState, isActive: false }
-                }))
-            }
-        },
-
-        resetPreload: () => {
-            set({ preloadState: { cursor: 0, isActive: false } })
-        },
-
-        startPreloading: () => {
-            const { games, preloadState } = get()
-            if (preloadState.isActive || preloadState.cursor >= games.length) return
-
-            set((state) => ({
-                preloadState: { ...state.preloadState, isActive: true }
-            }))
-
-            // Concurrent batch preloading — loads 8 images at a time
-            const BATCH_SIZE = 8
-
-            const processBatch = async () => {
-                const { games, preloadState, stopPreloading } = get()
-
-                if (!preloadState.isActive) return
-                if (preloadState.cursor >= games.length) {
-                    stopPreloading()
-                    return
-                }
-
-                // Get next batch of games
-                const batchStart = preloadState.cursor
-                const batchEnd = Math.min(batchStart + BATCH_SIZE, games.length)
-                const batch = games.slice(batchStart, batchEnd)
-
-                // Preload batch concurrently
-                await preloadGameCoverBatch(batch)
-
-                // Update cursor
-                set((state) => ({
-                    preloadState: { ...state.preloadState, cursor: batchEnd }
-                }))
-
-                // Continue with next batch (small delay for responsiveness)
-                setTimeout(processBatch, 10)
-            }
-
-            processBatch()
-        },
-
         closeAddModal: () => set({ isAddModalOpen: false }),
+
+        ...createPreloadActions(set, get),
 
         openHuntsDrawer: () => set({
             isHuntsDrawerOpen: true,
@@ -190,6 +147,21 @@ export const useGameStore = create<GameStore>((set, get) => {
         }),
 
         closeHuntsDrawer: () => set({ isHuntsDrawerOpen: false }),
+
+        // Deliberately does NOT close the other overlays: Properties opens on
+        // top of GameDetail and hands you back to it on close.
+        openProperties: (game) => set({ isPropertiesOpen: true, propertiesGame: game }),
+
+        closeProperties: () => set({ isPropertiesOpen: false, propertiesGame: null }),
+
+        openInstallWizard: () => set({
+            isInstallWizardOpen: true,
+            isAddModalOpen: false,
+            isDetailOpen: false,
+            isSettingsOpen: false,
+        }),
+
+        closeInstallWizard: () => set({ isInstallWizardOpen: false }),
     }
 })
 

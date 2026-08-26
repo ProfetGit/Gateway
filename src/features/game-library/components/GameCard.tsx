@@ -2,8 +2,9 @@ import { useState, useEffect, memo } from 'react'
 import { useGameStore } from '../game-store'
 import { useContextMenuStore } from '@/components/ui/context-menu/context-menu-store'
 import type { Game } from '../game-library-types'
-import { launchGame } from '../api/launch-game'
+import { launchGameWithFeedback } from '../launch-game-with-feedback'
 import { installSteamGame } from '../api/install-steam-game'
+import { getMetadataAppId } from '../get-metadata-app-id'
 import { GameCardCoverArt } from './GameCardCoverArt'
 import { GameCardBadges } from './GameCardBadges'
 import { GameCardHoverActions } from './GameCardHoverActions'
@@ -28,10 +29,25 @@ interface GameCardProps {
     animateIndex?: number
 }
 
+const STEAM_CDN = 'https://steamcdn-a.akamaihd.net/steam/apps'
+
+// Matches MAX_COVER_ASPECT in electron/src/shared/image-file.ts. The mirror
+// refuses to store a banner as a cover, but a remote fallback URL can still
+// resolve to one — Steam serves header.jpg for any app with no library art.
+// A wide image in a 3:4 slot renders as a stretched crop, which is worse than
+// the designed no-cover tile.
+const MAX_COVER_ASPECT = 1.2
+
 export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: GameCardProps) {
+    // metadataAppId, not just steamAppId: a manually added game matched to a
+    // Steam entry has only the former, and rendered with no cover at all until
+    // the art mirror caught up.
+    const artAppId = getMetadataAppId(game)
+
     const getInitialSrc = () => {
         if (game.localCoverPath) return `gateway://cover/${game.localCoverPath}`
-        return game.coverUrl
+        if (game.coverUrl) return game.coverUrl
+        return artAppId ? `${STEAM_CDN}/${artAppId}/library_600x900_2x.jpg` : undefined
     }
 
     const [imgSrc, setImgSrc] = useState(getInitialSrc)
@@ -42,7 +58,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
 
     const handlePlay = async (e: React.MouseEvent) => {
         e.stopPropagation()
-        await launchGame(game)
+        await launchGameWithFeedback(game)
     }
 
     const handleInstall = async (e: React.MouseEvent) => {
@@ -53,7 +69,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
     }
 
     const buildMenu = useGameCardMenu(game, {
-        onPlay: () => { void launchGame(game) },
+        onPlay: () => { void launchGameWithFeedback(game) },
         onInstall: () => { if (game.steamAppId) void installSteamGame(game.steamAppId) },
     })
 
@@ -66,7 +82,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
         setImgSrc(getInitialSrc())
         setImageError(false)
         setImgLoaded(false)
-    }, [game.coverUrl, game.localCoverPath]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [game.coverUrl, game.localCoverPath, artAppId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleImageError = () => {
         const currentSrc = imgSrc || ''
@@ -77,20 +93,32 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
             return
         }
 
-        if (!game.steamAppId) {
+        if (!artAppId) {
             setImageError(true)
             return
         }
 
         if (currentSrc.includes('library_600x900_2x.jpg')) {
             setImgLoaded(false)
-            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/library_600x900.jpg`)
+            setImgSrc(`${STEAM_CDN}/${artAppId}/library_600x900.jpg`)
         } else if (currentSrc.includes('library_600x900.jpg')) {
             setImgLoaded(false)
-            setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${game.steamAppId}/header.jpg`)
+            setImgSrc(`${STEAM_CDN}/${artAppId}/header.jpg`)
+        } else if (!currentSrc.includes('header.jpg')) {
+            setImgLoaded(false)
+            setImgSrc(`${STEAM_CDN}/${artAppId}/library_600x900_2x.jpg`)
         } else {
             setImageError(true)
         }
+    }
+
+    const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { naturalWidth, naturalHeight } = e.currentTarget
+        if (naturalHeight > 0 && naturalWidth / naturalHeight > MAX_COVER_ASPECT) {
+            setImageError(true)
+            return
+        }
+        setImgLoaded(true)
     }
 
     const hasCover = !!(imgSrc && !imageError)
@@ -115,7 +143,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                 imgSrc={imgSrc}
                 imgLoaded={imgLoaded}
                 hasCover={hasCover}
-                onLoad={() => setImgLoaded(true)}
+                onLoad={handleImageLoad}
                 onError={handleImageError}
             />
 

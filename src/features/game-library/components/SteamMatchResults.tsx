@@ -4,6 +4,8 @@ import { AlertCircle, Check, Search } from 'lucide-react'
 export interface SteamMatchHit {
     appId: string
     name: string
+    capsuleUrl?: string
+    iconUrl?: string
 }
 
 interface SteamMatchResultsProps {
@@ -71,7 +73,7 @@ export function SteamMatchResults({ results, isLoading, error, selectedAppId, on
                             }`}
                         >
                             <img
-                                src={`https://steamcdn-a.akamaihd.net/steam/apps/${hit.appId}/header.jpg`}
+                                src={hit.capsuleUrl ?? `https://steamcdn-a.akamaihd.net/steam/apps/${hit.appId}/header.jpg`}
                                 alt=""
                                 aria-hidden
                                 loading="lazy"

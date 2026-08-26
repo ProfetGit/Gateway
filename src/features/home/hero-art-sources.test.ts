@@ -77,3 +77,27 @@ describe('logoArtSources', () => {
         expect(logoArtSources(makeGame({ source: 'manual' }))).toEqual([])
     })
 })
+
+// A manually added game matched to a Steam entry carries metadataAppId and no
+// steamAppId. It used to produce no art candidates at all — the reported
+// "matched game still has no cover or banner".
+describe('metadata-only matches', () => {
+    const matched = makeGame({ metadataAppId: '1145360' })
+
+    it('offers hero art from the matched appid', () => {
+        expect(heroArtSources(matched)[0]).toContain('/1145360/library_hero.jpg')
+    })
+
+    it('offers thumb art from the matched appid', () => {
+        expect(thumbArtSources(matched).some((s) => s.includes('/1145360/'))).toBe(true)
+    })
+
+    it('offers a logo from the matched appid', () => {
+        expect(logoArtSources(matched)[0]).toContain('/1145360/logo.png')
+    })
+
+    it('still prefers an owned steamAppId when both are present', () => {
+        const owned = makeGame({ steamAppId: '111', metadataAppId: '222' })
+        expect(heroArtSources(owned)[0]).toContain('/111/')
+    })
+})

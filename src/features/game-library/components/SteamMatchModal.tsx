@@ -2,21 +2,23 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Link2 } from 'lucide-react'
 import { useSteamMatchStore } from '../steam-match-store'
+import { useSteamAppSearch } from '../use-steam-app-search'
 import { useGameStore } from '../game-store'
-import { searchSteamApps } from '../api/search-steam-apps'
 import { updateGame as apiUpdateGame } from '../api/update-game'
-import { SteamMatchResults, type SteamMatchHit } from './SteamMatchResults'
+import { fetchGameArt } from '../api/fetch-game-art'
+import { SteamMatchResults } from './SteamMatchResults'
 
 export function SteamMatchModal() {
     const { isOpen, target, close } = useSteamMatchStore()
     const updateGameInStore = useGameStore((s) => s.updateGame)
 
     const [query, setQuery] = useState('')
-    const [results, setResults] = useState<SteamMatchHit[]>([])
-    const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<string | undefined>()
     const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
     const [isSaving, setIsSaving] = useState(false)
+
+    // Same debounce, minimum length and main-process cache as the title
+    // field's suggestion dropdown.
+    const { results, isLoading, error } = useSteamAppSearch(query, isOpen)
 
     // Seed the search with the game's own title when the modal opens. We
     // auto-suggest but never auto-commit — Steam's search returns near-misses,
@@ -25,34 +27,7 @@ export function SteamMatchModal() {
         if (!isOpen || !target) return
         setQuery(target.title)
         setSelectedAppId(target.metadataAppId ?? null)
-        setError(undefined)
     }, [isOpen, target])
-
-    useEffect(() => {
-        if (!isOpen) return
-        const trimmed = query.trim()
-        if (trimmed.length < 2) {
-            setResults([])
-            setIsLoading(false)
-            return
-        }
-
-        setIsLoading(true)
-        const timer = setTimeout(async () => {
-            try {
-                const res = await searchSteamApps(trimmed)
-                setResults(res.results)
-                setError(res.success ? undefined : (res.error ?? 'Search failed'))
-            } catch {
-                setResults([])
-                setError('Search failed')
-            } finally {
-                setIsLoading(false)
-            }
-        }, 300)
-
-        return () => clearTimeout(timer)
-    }, [query, isOpen])
 
     const persist = async (metadataAppId: string | undefined) => {
         if (!target) return
@@ -62,6 +37,15 @@ export function SteamMatchModal() {
             updateGameInStore(target.id, { metadataAppId })
             await apiUpdateGame(target.id, { metadataAppId })
             close()
+
+            // Matching is how a game without Steam art gets any. Fire and
+            // forget: fetch_game_art emits games-updated itself, and the
+            // modal should not sit open through three network round-trips.
+            if (metadataAppId) {
+                void fetchGameArt(target.id).catch((err) => {
+                    console.error('Failed to fetch art for the matched game:', err)
+                })
+            }
         } catch (err) {
             console.error('Failed to save Steam match:', err)
             updateGameInStore(target.id, { metadataAppId: target.metadataAppId })

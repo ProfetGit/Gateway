@@ -1,5 +1,6 @@
 import { ipcMain, shell, BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
+import { restoreUserState, unrebuildableGames } from './preserve-user-state'
 import { JsonStore } from '../../shared/store'
 import { mirrorAllCovers } from '../../shared/utils'
 import { fetchSteamStoreDetails } from '../steam/steam-api'
@@ -266,15 +267,23 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
             return { success: false, error: 'Not logged in. Please login with Steam first.' }
         }
 
-        store.set('games', [])
-        console.log('[Main] Cleared all games from store')
+        // Everything the scanners can rebuild is cleared. Manual games have no
+        // scanner — the user typed them in, and a button labelled "Refresh
+        // Library" must not delete them.
+        const before = store.get('games')
+        const kept = unrebuildableGames(before)
+        store.set('games', kept)
+        console.log(`[Main] Cleared ${before.length - kept.length} scanned game(s), kept ${kept.length} manual`)
 
         const result = await performSteamSync(store, auth.user.steamId, getMainWindow())
         // The clear wipes every source, so rebuild all of them — not just Steam.
         await performHeroicSync(store)
         await performLutrisSync(store)
 
-        const games = store.get('games')
+        // Rebuilt rows are brand new records. Fold the user's own state back on
+        // — favourites, notes, Steam matches, launch tweaks, and manualUnlocks,
+        // which is unrecoverable achievement progress.
+        const games = store.updateGames((current) => restoreUserState(current, before))
         getMainWindow()?.webContents.send('games-updated', games)
         return {
             success: result.success,

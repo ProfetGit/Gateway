@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { APP_TYPES, type Game } from '../game-library-types'
+import { APP_TYPES, LAUNCH_RUNNERS, type Game } from '../game-library-types'
 
 export const GameSchema = z.object({
   id: z.string(),
@@ -32,6 +32,14 @@ export const GameSchema = z.object({
   heroImageUrl: z.string().optional(),
   logoImageUrl: z.string().optional(),
   customEnvVars: z.string().optional(),
+  // .catch() for the same reason as `source` and `appType`: a runner value
+  // written by a newer build must not drop the row on an older one. Degrading
+  // to undefined just means 'auto' — infer from the file extension.
+  runner: z.enum(LAUNCH_RUNNERS).optional().catch(undefined),
+  protonPath: z.string().optional(),
+  umuGameId: z.string().optional(),
+  useMangoHud: z.boolean().optional(),
+  useGameMode: z.boolean().optional(),
   // .catch() for the same reason as `source`: this is written straight from
   // Steam's appdetails `type`, which returns values we may not know about yet.
   // An unrecognised one degrades to undefined instead of failing the row.
@@ -72,6 +80,10 @@ export function parseGames(result: unknown): Game[] {
 export const SteamAppSearchHitSchema = z.object({
   appId: z.string(),
   name: z.string(),
+  // Steam's own content-hashed art URLs, carried through from the search
+  // response — the guessable .../<appid>/header.jpg path 404s for newer apps.
+  capsuleUrl: z.string().optional(),
+  iconUrl: z.string().optional(),
 })
 
 export const SearchSteamAppsResultSchema = z.object({

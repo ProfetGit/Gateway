@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { launchGame } from '@/features/game-library/api/launch-game'
+import { launchGameWithFeedback } from '@/features/game-library/launch-game-with-feedback'
 import type { Game } from '@/features/game-library/game-library-types'
 import { HomeHeroContent } from './HomeHeroContent'
 import { HomeHeroSelector } from './HomeHeroSelector'
@@ -30,7 +30,7 @@ export function HomeHeroBanner({ games, onOpenDetail }: HomeHeroBannerProps) {
 
     const handlePlay = async (e: React.MouseEvent, game: Game) => {
         e.stopPropagation()
-        await launchGame(game)
+        await launchGameWithFeedback(game)
     }
 
     return (

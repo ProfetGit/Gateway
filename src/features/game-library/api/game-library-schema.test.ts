@@ -64,6 +64,11 @@ describe('GameSchema', () => {
             heroImageUrl: 'gateway://hero/x.jpg',
             logoImageUrl: 'gateway://logo/x.png',
             customEnvVars: 'MANGOHUD=1',
+            runner: 'umu',
+            protonPath: '/home/u/.local/share/Steam/compatibilitytools.d/GE-Proton11-5-x86_64',
+            umuGameId: 'umu-1145360',
+            useMangoHud: true,
+            useGameMode: false,
             appType: 'game',
         }
         expect(GameSchema.parse(full)).toMatchObject(full)
@@ -71,6 +76,17 @@ describe('GameSchema', () => {
 
     it.each(['legendary', 'gog', 'sideload'])('accepts heroicRunner %s', (runner) => {
         expect(GameSchema.parse({ ...MINIMAL, heroicRunner: runner }).heroicRunner).toBe(runner)
+    })
+
+    it.each(['auto', 'umu', 'wine', 'native'])('accepts runner %s', (runner) => {
+        expect(GameSchema.parse({ ...MINIMAL, runner }).runner).toBe(runner)
+    })
+
+    // Same .catch() reasoning as source/appType: a runner written by a newer
+    // build must degrade this row to 'auto', not drop it out of the library.
+    it('degrades an unknown runner to undefined rather than throwing', () => {
+        expect(() => GameSchema.parse({ ...MINIMAL, runner: 'gamescope' })).not.toThrow()
+        expect(GameSchema.parse({ ...MINIMAL, runner: 'gamescope' }).runner).toBeUndefined()
     })
 
     it.each([
@@ -103,6 +119,11 @@ describe('GameSchema', () => {
             playtime: 5,
             sizeOnDisk: 10,
             customEnvVars: 'A=1',
+            runner: 'umu',
+            protonPath: '/opt/proton',
+            umuGameId: 'umu-0',
+            useMangoHud: true,
+            useGameMode: true,
         }
         expect(() => GameSchema.parse(fromMain)).not.toThrow()
         expect(GameSchema.parse(fromMain).source).toBe('heroic')
