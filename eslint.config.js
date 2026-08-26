@@ -8,10 +8,22 @@ import boundaries from 'eslint-plugin-boundaries'
 import checkFile from 'eslint-plugin-check-file'
 
 export default tseslint.config(
-  // electron/ is Node main-process code — not part of the renderer's
-  // feature-tree architecture (no JSX, no boundaries rules apply), so it's
-  // excluded the same way src-tauri/target was before the Electron port.
-  { ignores: ['dist', 'dist-electron', 'node_modules', 'electron/**'] },
+  { ignores: ['dist', 'dist-electron', 'node_modules'] },
+  {
+    // electron/ is Node main-process code — not part of the renderer's
+    // feature-tree architecture, so none of the boundaries/naming/JSX rules
+    // below apply to it. This block just catches type errors and unused
+    // code — the same baseline every other .ts file in the repo already gets.
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['electron/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
   {
     // Root-level tooling config files — outside src/, exempt from the
     // application architecture rules below (Vite/Vitest require a default

@@ -83,9 +83,9 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
         // Only after something actually launched — this used to run even when
         // the game had no launch target at all.
         const games = store.get('games')
-        const index = games.findIndex(g => g.id === game.id)
-        if (index !== -1) {
-            games[index].lastPlayed = new Date().toISOString()
+        const target = games.find(g => g.id === game.id)
+        if (target) {
+            target.lastPlayed = new Date().toISOString()
             store.set('games', games)
         }
 

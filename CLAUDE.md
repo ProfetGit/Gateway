@@ -8,8 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # vite — launches the Electron window via vite-plugin-electron, Vite dev server behind it
 npm run build         # tsc && vite build && electron-builder — full installer
 npx vite build        # renderer + dist-electron/main.js + dist-electron/preload.cjs, fast verify
-npx tsc --noEmit      # typecheck-only, no emit
-npm run lint          # eslint flat config, max-warnings 0
+npx tsc --noEmit      # typecheck-only, no emit — renderer (src/) only
+npm run typecheck:electron # tsc -p tsconfig.electron.json --noEmit — main process (electron/)
+npm run lint          # eslint flat config, max-warnings 0 — covers src/ and electron/
 npm run check:secrets # grep gate for leaked API keys/tokens, run in CI
 npm run preview       # preview built renderer
 npm test              # vitest run — test runner IS wired, see src/features/*/*.test.ts
@@ -106,7 +107,7 @@ Heroic and Lutris libraries are imported read-only by scanning their local confi
 
 ### Enforcement gaps worth knowing
 
-- **`electron/` is neither typechecked nor linted.** `tsconfig.json` has `include: ["src"]` and `eslint.config.js` ignores `electron/**`. So the 200-line `max-lines` cap constrains renderer code only, unused imports in main-process code are never flagged, and `npx tsc --noEmit` proves nothing about `electron/`. Use `npx vite build` to catch broken main-process imports.
+- **`electron/` is typechecked and linted separately from the renderer**, via `tsconfig.electron.json` (`npm run typecheck:electron`) and an `electron/**/*.ts` block in `eslint.config.js`. Both run in CI. The 200-line `max-lines` cap still only constrains renderer code — `electron/` files are unbounded by design (main-process modules like `steam-service.ts` are long, config-shaped, and don't benefit from an arbitrary split).
 - **`boundaries/dependencies` is not actually firing.** `SettingsPanel.tsx` imports from `features/game-library` and `features/onboarding` — neither is on the exemption list above — and eslint reports it clean. The rule likely needs `settings.boundaries/include`. Treat the exemption list as documentation of intent, not as enforced.
 
 ## Design system (enforced)

@@ -96,9 +96,9 @@ function parseProfileFromHtml(html: string, steamId: string): SteamUser {
 
 export function pickXml(xml: string, tag: string): string | null {
     const cdata = new RegExp(`<${tag}>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>`).exec(xml)
-    if (cdata) return cdata[1].trim()
+    if (cdata?.[1] !== undefined) return cdata[1].trim()
     const plain = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`).exec(xml)
-    if (plain) return decodeHtmlEntities(plain[1].trim())
+    if (plain?.[1] !== undefined) return decodeHtmlEntities(plain[1].trim())
     return null
 }
 

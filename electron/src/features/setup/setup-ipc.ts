@@ -51,7 +51,7 @@ export function setupSetupHandlers(store: JsonStore, getMainWindow: () => Browse
                 if (!res.ok) {
                     return { success: false, hasKey: false, error: 'Invalid API key' }
                 }
-                const data = await res.json()
+                const data = await res.json() as { response?: { players?: Array<{ communityvisibilitystate?: number }> } }
                 const player = data?.response?.players?.[0]
                 const visibility = player?.communityvisibilitystate ?? 0
                 if (visibility !== 3) {

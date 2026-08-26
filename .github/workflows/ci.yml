@@ -24,6 +24,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Typecheck (electron)
+        run: npm run typecheck:electron
+
       - name: Lint
         run: npm run lint
 

@@ -71,14 +71,14 @@ export function parseVdf(content: string): VdfObject {
                 currentKey = unescaped
             } else {
                 const current = stack[stack.length - 1]
-                current[currentKey] = unescaped
+                if (current) current[currentKey] = unescaped
                 currentKey = null
             }
         } else if (openBrace) {
             if (currentKey !== null) {
                 const newObj: VdfObject = {}
                 const current = stack[stack.length - 1]
-                current[currentKey] = newObj
+                if (current) current[currentKey] = newObj
                 stack.push(newObj)
                 currentKey = null
             }
@@ -634,7 +634,7 @@ export function getAppName(steamPath: string, appId: string): string | null {
             try {
                 const content = fs.readFileSync(workshopPath, 'utf-8')
                 const nameMatch = content.match(/"appname"\s+"([^"]+)"/)
-                if (nameMatch) {
+                if (nameMatch?.[1]) {
                     appNameCache.set(appId, nameMatch[1])
                     return nameMatch[1]
                 }
