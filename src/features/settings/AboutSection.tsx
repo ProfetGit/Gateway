@@ -44,10 +44,11 @@ export function AboutSection() {
                 setNote(result.reason ?? 'Updates are unavailable here')
             }
         } catch (error) {
-            setStatus({
-                state: 'error',
-                message: error instanceof Error ? error.message : 'Unknown problem',
-            })
+            // Deliberately generic: an IPC rejection carries the raw remote
+            // error, and for the updater that is a full HTTP dump with
+            // Set-Cookie headers in it. The console keeps the detail.
+            console.error('Update check failed:', error)
+            setStatus({ state: 'error', message: 'Something went wrong checking for updates.' })
         }
     }
 
@@ -68,7 +69,7 @@ export function AboutSection() {
                         <div className="font-mono text-xs uppercase tracking-widest font-bold text-white/80">
                             Updates
                         </div>
-                        <p className="font-mono text-[10px] text-white/40 mt-1 break-words">
+                        <p className="font-mono text-[10px] text-white/40 mt-1 break-words line-clamp-3">
                             {note ?? (status ? statusLabel(status) : 'Gateway updates itself in the background')}
                         </p>
                     </div>
