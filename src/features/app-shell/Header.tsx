@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import type { FilterStatus } from '@/features/game-library/game-library-types'
 import { GridSizeSlider } from '@/components/ui/GridSizeSlider'
 import { SortDropdown } from '@/components/ui/SortDropdown'
+import { SourceFilter } from '@/features/game-library/components/SourceFilter'
 
 export function Header() {
     const {
@@ -33,8 +34,9 @@ export function Header() {
                 {/* Left: Filter Tabs & Status */}
                 <div className="flex flex-col gap-4">
                     {/* Status Display */}
-                    <div className="flex items-center gap-3 text-xs font-mono tracking-[0.2em] text-white/30 uppercase pl-1">
+                    <div className="flex items-center gap-4 text-xs font-mono tracking-[0.2em] text-white/30 uppercase pl-1">
                         <span>{gameCount} {gameCount === 1 ? 'Game' : 'Games'}</span>
+                        <SourceFilter />
                     </div>
 
                     {/* Filter Tabs */}

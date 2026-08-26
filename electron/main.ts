@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { JsonStore } from './src/shared/store'
 import { mirrorAllCovers } from './src/shared/utils'
+import { pruneOrphanArt } from './src/shared/prune-orphan-art'
 import { STEAM_API_KEY } from './src/shared/constants'
 import { setSteamApiKey, initAuth, refreshSessionOnStartup } from './steamAuth'
 import { setupSteamApiHandlers } from './src/features/steam/steam-api'
@@ -13,6 +14,9 @@ import { setupNotificationHandlers } from './src/features/notifications/notifica
 import { refreshAchievementWatchers, stopAchievementWatchers } from './src/features/achievements/achievement-watcher'
 import { setupSyncHandlers, checkPendingClaims } from './src/features/sync/sync-ipc'
 import { setupSetupHandlers } from './src/features/setup/setup-ipc'
+import { setupHeroicHandlers } from './src/features/heroic/heroic-ipc'
+import { setupLutrisHandlers } from './src/features/lutris/lutris-ipc'
+import { setupUpdateHandlers, checkForUpdatesOnStart } from './src/features/updates/updates-ipc'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -135,9 +139,13 @@ app.whenReady().then(() => {
   })
 
   // Refresh the logged-in user's display data in the background.
-  refreshSessionOnStartup().catch((err) => {
-    console.warn('[Main] Session refresh skipped:', err)
-  })
+  refreshSessionOnStartup()
+    .then((fresh) => {
+      if (fresh) win?.webContents.send('auth-state-updated', fresh)
+    })
+    .catch((err) => {
+      console.warn('[Main] Session refresh skipped:', err)
+    })
 
   const getMainWindow = () => win
 
@@ -148,6 +156,9 @@ app.whenReady().then(() => {
   setupLibraryHandlers(store, getMainWindow)
   setupSyncHandlers(store, getMainWindow)
   setupSetupHandlers(store, getMainWindow)
+  setupHeroicHandlers(store, getMainWindow)
+  setupLutrisHandlers(store, getMainWindow)
+  setupUpdateHandlers(getMainWindow)
 
   // Window controls — title-bar buttons in the renderer use these.
   ipcMain.handle('window_minimize', () => win?.minimize())
@@ -161,10 +172,21 @@ app.whenReady().then(() => {
   createWindow()
 
   // Initial mirroring
-  setTimeout(() => mirrorAllCovers(store, win), 5000)
+  setTimeout(() => {
+    // Prune first so the cover pass does not re-check files nothing points at.
+    try {
+      pruneOrphanArt(store)
+    } catch (err) {
+      console.warn('[Main] Orphan art prune skipped:', err)
+    }
+    void mirrorAllCovers(store, win)
+  }, 5000)
 
   // Watch for achievements unlocked by games Steam can't report on.
   setTimeout(() => refreshAchievementWatchers(store, win), 6000)
+
+  // Last of the boot timers, so it doesn't compete for I/O during startup.
+  setTimeout(checkForUpdatesOnStart, 10000)
 })
 
 app.on('will-quit', () => {

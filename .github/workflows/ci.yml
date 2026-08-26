@@ -32,3 +32,14 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # Proves the electron-builder config still packages, so a broken build
+      # block is caught on the PR rather than at tag time.
+      - name: Package AppImage
+        run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-appimage
+          path: release/*.AppImage
+          if-no-files-found: error

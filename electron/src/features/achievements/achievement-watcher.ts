@@ -83,11 +83,10 @@ async function processFile(
 
     // Re-read the current record — the debounce window means time has passed
     // and another write (e.g. the optimistic manual toggle) may have landed.
-    const latest = store.get('games')
-    const latestIndex = latest.findIndex((g) => g.id === gameId)
-    if (latestIndex === -1) return
-    latest[latestIndex] = { ...(latest[latestIndex] as Game), manualUnlocks: merged }
-    store.set('games', latest)
+    const latest = store.updateGames((games) =>
+        games.map((g) => (g.id === gameId ? { ...g, manualUnlocks: merged } : g))
+    )
+    if (!latest.some((g) => g.id === gameId)) return
 
     console.log(`[Achievements] ${newlyUnlocked.length} unlocked in ${game.title}`)
     win?.webContents.send('achievements-unlocked', {
@@ -146,8 +145,12 @@ async function seedBaseline(store: JsonStore, gameId: string, filePaths: string[
     }
 
     if (Object.keys(merged).length === Object.keys(known).length) return
-    games[index] = { ...game, manualUnlocks: merged }
-    store.set('games', games)
+
+    // Re-read: getDefinitions() above is a network call, so the snapshot taken
+    // before it may be minutes old and missing whole sources by now.
+    store.updateGames((latest) =>
+        latest.map((g) => (g.id === gameId ? { ...g, manualUnlocks: merged } : g))
+    )
     console.log(`[Achievements] Baseline for ${game.title}: ${Object.keys(merged).length} already unlocked`)
 }
 
@@ -168,13 +171,10 @@ function ensureWinePrefix(store: JsonStore, game: Game, steamPath: string | null
     })
     if (!prefix) return undefined
 
-    const games = store.get('games')
-    const index = games.findIndex((g) => g.id === game.id)
-    if (index !== -1) {
-        games[index] = { ...(games[index] as Game), winePrefix: prefix }
-        store.set('games', games)
-        console.log(`[Achievements] Found prefix for ${game.title}: ${prefix}`)
-    }
+    store.updateGames((games) =>
+        games.map((g) => (g.id === game.id ? { ...g, winePrefix: prefix } : g))
+    )
+    console.log(`[Achievements] Found prefix for ${game.title}: ${prefix}`)
     return prefix
 }
 

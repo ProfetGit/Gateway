@@ -2,6 +2,7 @@ import { ipcMain, shell, dialog, BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import { JsonStore } from '../../shared/store'
 import { Game } from '../../shared/types'
+import { resolveLaunch } from './resolve-launch'
 
 export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => BrowserWindow | null) {
     // Game CRUD operations
@@ -55,58 +56,40 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
 
     // Launch game
     ipcMain.handle('launch_game', async (_event, { game }: { game: Game }) => {
-        const { spawn, exec } = await import('child_process')
+        // Target resolution lives in resolve-launch.ts so it can be unit-tested.
+        const plan = resolveLaunch(game, process.env)
 
-        const envPrefix = game.customEnvVars?.trim() ?? ''
-        const args = game.launchArgs || ''
-
-        // steamAppId only — metadataAppId is a metadata match, NOT ownership,
-        // so steam://rungameid would fail for it.
-        if (game.steamAppId) {
-            await shell.openExternal(`steam://rungameid/${game.steamAppId}`)
-        } else if (game.executablePath) {
-            if (process.platform === 'win32') {
-                const cmd = envPrefix
-                    ? `${envPrefix} "${game.executablePath}" ${args}`
-                    : `"${game.executablePath}" ${args}`
-                exec(cmd, (error) => {
-                    if (error) console.error('Failed to launch game:', error)
-                })
-            } else {
-                const env: NodeJS.ProcessEnv = { ...process.env }
-                for (const pair of envPrefix.split(/\s+/).filter(Boolean)) {
-                    const eq = pair.indexOf('=')
-                    if (eq > 0) env[pair.slice(0, eq)] = pair.slice(eq + 1)
-                }
-                const argv = args.split(/\s+/).filter(Boolean)
-                const isWindowsExe = /\.(exe|msi|bat)$/i.test(game.executablePath)
-
-                if (isWindowsExe) {
-                    // Windows executable — needs wine.
-                    const wine = spawn('wine', [game.executablePath, ...argv], { env, detached: true, stdio: 'ignore' })
-                    wine.on('error', (error) => {
-                        console.error('Failed to launch via wine (is wine installed?):', error)
-                    })
-                    wine.unref()
-                } else {
-                    // Native Linux binary/script (e.g. a Lutris/Bottles/faugus-launcher
-                    // shortcut imported from Steam) — run it directly, no wine.
-                    const proc = spawn(game.executablePath, argv, { env, detached: true, stdio: 'ignore' })
-                    proc.on('error', (error) => {
-                        console.error('Failed to launch game:', error)
-                    })
-                    proc.unref()
-                }
-            }
+        if (plan.kind === 'none') {
+            console.warn('[Library] Nothing to launch for', game.title, '—', plan.reason)
+            return { success: false, error: plan.reason }
         }
 
-        // Update last played
+        if (plan.kind === 'uri') {
+            await shell.openExternal(plan.uri)
+        } else {
+            const { spawn } = await import('child_process')
+            const proc = spawn(plan.command, plan.args, {
+                env: plan.env,
+                detached: true,
+                stdio: 'ignore',
+            })
+            proc.on('error', (error) => {
+                const hint = plan.command === 'wine' ? ' (is wine installed?)' : ''
+                console.error(`Failed to launch game${hint}:`, error)
+            })
+            proc.unref()
+        }
+
+        // Only after something actually launched — this used to run even when
+        // the game had no launch target at all.
         const games = store.get('games')
         const index = games.findIndex(g => g.id === game.id)
         if (index !== -1) {
             games[index].lastPlayed = new Date().toISOString()
             store.set('games', games)
         }
+
+        return { success: true }
     })
 
     // Open URL in default browser

@@ -1,10 +1,11 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
 import { v4 as uuidv4 } from 'uuid'
 import { parseShortcutsVdf } from './shortcuts-vdf'
 import { resolveWinePrefix } from './resolve-wine-prefix'
 import { mirrorLocalArt } from '../../shared/utils'
+import type { Game } from '../../shared/types'
 
 // ═══════════════════════════════════════════════════════════
 // Types
@@ -26,29 +27,6 @@ export interface SteamStatus {
     libraryPaths: string[]
     userId: string | null
     username: string | null
-}
-
-export interface Game {
-    id: string
-    title: string
-    coverUrl?: string
-    localCoverPath?: string
-    executablePath?: string
-    steamAppId?: string
-    metadataAppId?: string
-    manualUnlocks?: Record<string, number>
-    winePrefix?: string
-    shortcutId?: string
-    isInstalled: boolean
-    isFavorite: boolean
-    source: 'manual' | 'steam' | 'shortcut'
-    playtime?: number
-    lastPlayed?: string
-    sizeOnDisk?: number
-    notes?: string
-    launchArgs?: string
-    heroImageUrl?: string
-    logoImageUrl?: string
 }
 
 interface StoreInterface {
@@ -150,42 +128,12 @@ export function serializeVdf(obj: VdfObject, indent: number = 0): string {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Steam Path Detection (cross-platform)
+// Steam Path Detection (Linux)
 // ═══════════════════════════════════════════════════════════
 
 function getCandidateSteamPaths(): string[] {
-    const home = process.env.HOME || process.env.USERPROFILE || ''
+    const home = os.homedir()
 
-    if (process.platform === 'win32') {
-        const paths: string[] = []
-
-        // 1. Registry — authoritative on Windows. Read HKCU\Software\Valve\Steam\SteamPath
-        try {
-            const out = execSync('reg query "HKCU\\Software\\Valve\\Steam" /v SteamPath', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-            const match = out.match(/SteamPath\s+REG_SZ\s+(.+?)\s*$/m)
-            if (match && match[1]) {
-                paths.push(match[1].replace(/\//g, '\\').trim())
-            }
-        } catch {
-            // Registry key missing — fall through to common paths
-        }
-
-        // 2. Common install locations
-        const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)'
-        const programFiles = process.env.ProgramFiles || 'C:\\Program Files'
-        paths.push(path.join(programFilesX86, 'Steam'))
-        paths.push(path.join(programFiles, 'Steam'))
-
-        return paths
-    }
-
-    if (process.platform === 'darwin') {
-        return [
-            path.join(home, 'Library/Application Support/Steam'),
-        ]
-    }
-
-    // Linux + others
     return [
         path.join(home, '.steam/steam'),
         path.join(home, '.steam/debian-installation'),
@@ -202,8 +150,8 @@ function getCandidateSteamPaths(): string[] {
 }
 
 /**
- * Find the Steam installation directory by probing platform-appropriate paths.
- * On Windows, prefers the SteamPath registry value over hardcoded locations.
+ * Find the Steam installation directory by probing the known Linux install
+ * locations — native, Flatpak, Snap, and system-wide.
  */
 export function findSteamInstallation(): string | null {
     const candidates = getCandidateSteamPaths()
@@ -715,7 +663,7 @@ export class SteamService {
      * Initialize the Steam service
      */
     initialize(): SteamStatus {
-        console.log('[SteamService] Initializing Steam service on', process.platform)
+        console.log('[SteamService] Initializing Steam service')
 
         this.steamPath = findSteamInstallation()
 

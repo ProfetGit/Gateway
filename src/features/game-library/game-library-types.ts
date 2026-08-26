@@ -13,9 +13,15 @@ export interface Game {
     manualUnlocks?: Record<string, number>
     winePrefix?: string
     shortcutId?: string
+    // Heroic / Lutris identity. Both are launch targets, not metadata — see
+    // resolve-launch.ts, where they take precedence over steamAppId.
+    heroicAppName?: string
+    heroicRunner?: 'legendary' | 'gog' | 'sideload'
+    lutrisId?: number
+    lutrisSlug?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'shortcut'
+    source: 'manual' | 'steam' | 'shortcut' | 'heroic' | 'lutris'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number // Bytes
@@ -24,11 +30,31 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string     // Custom environment variables (VAR=value VAR2=value2)
-    appType?: 'game' | 'dlc' | 'application' | 'music' | 'demo' | 'mod' // Resolved by background classifier
+    appType?: AppType          // Resolved by background classifier
 }
 
+// Mirrors the `type` field Steam's appdetails API returns. The list is wider
+// than just game/dlc — an incomplete enum here is not cosmetic, since a value
+// we don't recognise used to fail the whole library parse.
+export const APP_TYPES = [
+    'game',
+    'dlc',
+    'demo',
+    'mod',
+    'application',
+    'music',
+    'video',
+    'series',
+    'episode',
+    'advertising',
+    'hardware',
+] as const
+
+export type AppType = (typeof APP_TYPES)[number]
+
 export type FilterStatus = 'all' | 'installed'
-export type FilterPlatform = 'all' | 'steam'
+// Derived, so it can never drift from the source union again.
+export type FilterPlatform = 'all' | Game['source']
 
 export type SortOption = 'alphabetical' | 'playtime' | 'lastPlayed'
 export type SortOrder = 'asc' | 'desc'

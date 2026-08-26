@@ -70,10 +70,15 @@ export async function resolveCurrentUser(steamId: string): Promise<SteamUser> {
 }
 
 function parseProfileFromHtml(html: string, steamId: string): SteamUser {
+    // Prefer the og:image/image_src meta tags — they always point at the
+    // profile owner's actual avatar. Scraping <img> tags inside the avatar
+    // frame markup is unreliable: an equipped animated avatar frame item
+    // replaces the plain avatar <img> there, and the naive "first _medium.jpg
+    // on the page" fallback can match someone else's avatar from a friends/
+    // recently-played list further down the page.
     const fullAvatar =
-        html.match(/playerAvatarAutoSizeInner[^>]*>\s*<img[^>]*src="([^"]+)"/i)?.[1] ||
-        html.match(/<img[^>]+src="(https:\/\/avatars\.[^"]+_full\.[a-z]+)"/i)?.[1] ||
-        html.match(/<img[^>]+src="(https:\/\/avatars\.[^"]+_medium\.[a-z]+)"/i)?.[1] ||
+        html.match(/<meta property="og:image" content="([^"]+)"/i)?.[1] ||
+        html.match(/<link rel="image_src" href="([^"]+)"/i)?.[1] ||
         ''
 
     const username =

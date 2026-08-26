@@ -13,9 +13,15 @@ export interface Game {
     manualUnlocks?: Record<string, number>
     winePrefix?: string
     shortcutId?: string
+    // Heroic / Lutris identity. Both are launch targets, not metadata — see
+    // resolve-launch.ts, where they take precedence over steamAppId.
+    heroicAppName?: string
+    heroicRunner?: 'legendary' | 'gog' | 'sideload'
+    lutrisId?: number
+    lutrisSlug?: string
     isInstalled: boolean
     isFavorite: boolean
-    source: 'manual' | 'steam' | 'shortcut'
+    source: 'manual' | 'steam' | 'shortcut' | 'heroic' | 'lutris'
     playtime?: number
     lastPlayed?: string
     sizeOnDisk?: number
@@ -24,7 +30,19 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string
-    appType?: string
+    // Mirrors Steam's appdetails `type`; see shared/normalize-app-type.ts.
+    appType?:
+        | 'game'
+        | 'dlc'
+        | 'demo'
+        | 'mod'
+        | 'application'
+        | 'music'
+        | 'video'
+        | 'series'
+        | 'episode'
+        | 'advertising'
+        | 'hardware'
 }
 
 export interface SteamAuthData {

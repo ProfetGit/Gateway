@@ -1,15 +1,22 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Info, Play } from 'lucide-react'
 import type { Game } from '@/features/game-library/game-library-types'
+import { FallbackImage } from '@/components/ui/FallbackImage'
 
 export type HomeHeroContentProps = {
     game: Game
-    logoUrl: string | undefined
+    logoSources: string[]
     onPlay: (e: React.MouseEvent, game: Game) => void
     onOpenDetail: (game: Game) => void
 }
 
-export function HomeHeroContent({ game, logoUrl, onPlay, onOpenDetail }: HomeHeroContentProps) {
+export function HomeHeroContent({ game, logoSources, onPlay, onOpenDetail }: HomeHeroContentProps) {
+    const title = (
+        <h1 className="text-5xl md:text-8xl font-display font-black text-white mb-4 tracking-tighter drop-shadow-2xl italic uppercase transform -skew-x-6">
+            {game.title}
+        </h1>
+    )
+
     return (
         <div className="relative z-20 h-full w-full max-w-[1600px] mx-auto flex flex-col justify-center px-12 md:px-20">
             <AnimatePresence mode="wait">
@@ -21,18 +28,13 @@ export function HomeHeroContent({ game, logoUrl, onPlay, onOpenDetail }: HomeHer
                     transition={{ duration: 0.6, ease: "circOut" }}
                     className="max-w-2xl"
                 >
-                    {/* Game Logo or Title */}
-                    {logoUrl ? (
-                        <img
-                            src={logoUrl}
-                            alt={game.title}
-                            className="h-32 md:h-44 object-contain mb-6 filter drop-shadow-[0_10px_10px_oklch(0.08_0.005_25/0.5)]"
-                        />
-                    ) : (
-                        <h1 className="text-5xl md:text-8xl font-display font-black text-white mb-4 tracking-tighter drop-shadow-2xl italic uppercase transform -skew-x-6">
-                            {game.title}
-                        </h1>
-                    )}
+                    {/* Logo when one resolves, otherwise the title carries it */}
+                    <FallbackImage
+                        sources={logoSources}
+                        alt={game.title}
+                        className="h-32 md:h-44 object-contain mb-6 filter drop-shadow-[0_10px_10px_oklch(0.08_0.005_25/0.5)]"
+                        fallback={title}
+                    />
 
                     <div
                         className="flex items-baseline gap-5 mb-8"

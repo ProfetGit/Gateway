@@ -16,6 +16,15 @@ export function TopNavigation() {
         import('@/features/auth/api/get-auth-state').then(({ getAuthState }) => getAuthState().then(setAuthState).catch(() => {}))
     }, [])
 
+    // Pick up background refreshes (e.g. startup avatar/username resync)
+    useEffect(() => {
+        let unlisten: (() => void) | undefined
+        import('@/features/auth/api/on-auth-state-updated').then(({ onAuthStateUpdated }) =>
+            onAuthStateUpdated(setAuthState).then((fn) => { unlisten = fn })
+        )
+        return () => { unlisten?.() }
+    }, [])
+
     const navItems = [
         { id: 'home', label: 'HOME' },
         { id: 'library', label: 'LIBRARY' },

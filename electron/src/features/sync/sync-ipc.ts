@@ -12,6 +12,10 @@ import {
     hasApiKey,
     fetchPlayerAchievements
 } from '../../../steamAuth'
+import { normalizeAppType } from '../../shared/normalize-app-type'
+import { withLibraryLock } from '../../shared/library-lock'
+import { performHeroicSync } from '../heroic/heroic-sync'
+import { performLutrisSync } from '../lutris/lutris-sync'
 import { Game } from '../../shared/types'
 
 // ═══════════════════════════════════════════════════════════
@@ -180,14 +184,16 @@ function resolveGamesInBackground(store: JsonStore, win: BrowserWindow | null) {
                         patch.title = entry.data.name
                     }
                     if (entry.data.type && !game.appType) {
-                        patch.appType = entry.data.type
+                        patch.appType = normalizeAppType(entry.data.type)
                     }
 
                     if (Object.keys(patch).length === 0) continue
 
-                    const current = store.get('games')
-                    const next = current.map(g => g.id === game.id ? { ...g, ...patch } : g)
-                    store.set('games', next)
+                    // Re-read on every write: this loop runs for minutes at
+                    // 1500ms/game, and imports land while it does.
+                    const next = store.updateGames(current =>
+                        current.map(g => g.id === game.id ? { ...g, ...patch } : g)
+                    )
                     updatedCount++
 
                     if (patch.title || (patch.appType && patch.appType !== 'game')) {
@@ -252,7 +258,7 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
         return steamService.getStatus()
     })
 
-    ipcMain.handle('clear_and_resync', async () => {
+    ipcMain.handle('clear_and_resync', () => withLibraryLock('clear_and_resync', async () => {
         console.log('[Main] clear_and_resync called')
 
         const auth = getAuthState()
@@ -264,15 +270,20 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
         console.log('[Main] Cleared all games from store')
 
         const result = await performSteamSync(store, auth.user.steamId, getMainWindow())
+        // The clear wipes every source, so rebuild all of them — not just Steam.
+        await performHeroicSync(store)
+        await performLutrisSync(store)
+
         const games = store.get('games')
+        getMainWindow()?.webContents.send('games-updated', games)
         return {
             success: result.success,
             totalGames: games.length,
             installedGames: games.filter(g => g.isInstalled).length
         }
-    })
+    }))
 
-    ipcMain.handle('sync_steam', async () => {
+    ipcMain.handle('sync_steam', () => withLibraryLock('sync_steam', async () => {
         console.log('[Main] sync_steam IPC handler called')
         const auth = getAuthState()
         if (auth.isLoggedIn && auth.user) {
@@ -280,10 +291,32 @@ export function setupSyncHandlers(store: JsonStore, getMainWindow: () => Browser
         } else {
             steamService.initialize()
             steamService.syncWithStore(store)
-            mirrorAllCovers(store, getMainWindow())
+            void mirrorAllCovers(store, getMainWindow())
         }
         return store.get('games')
-    })
+    }))
+
+    // Refresh every source. Sequential and guarded on purpose: all three syncs
+    // read-modify-write store.get('games'), and performSteamSync additionally
+    // kicks off mirrorAllCovers and resolveGamesInBackground on their own
+    // timers. Running them concurrently loses rows to last-write-wins.
+    ipcMain.handle('sync_all_sources', () => withLibraryLock('sync_all_sources', async () => {
+        const auth = getAuthState()
+        if (auth.isLoggedIn && auth.user) {
+            await performSteamSync(store, auth.user.steamId, null)
+        } else {
+            steamService.initialize()
+            steamService.syncWithStore(store)
+        }
+        await performHeroicSync(store)
+        await performLutrisSync(store)
+
+        // One emit, once everything has settled.
+        const games = store.get('games')
+        getMainWindow()?.webContents.send('games-updated', games)
+        void mirrorAllCovers(store, getMainWindow())
+        return games
+    }))
 
     // ═══════════════════════════════════════════════════════════
     // Achievements
@@ -400,8 +433,10 @@ export async function checkPendingClaims(store: JsonStore, win: BrowserWindow | 
                         lastPlayed: undefined,
                     }
 
-                    const updatedGames = [...games, newGame]
-                    store.set('games', updatedGames)
+                    // Re-read: fetchSteamStoreDetails above is a network call.
+                    const updatedGames = store.updateGames((current) =>
+                        current.some(g => g.steamAppId === appIdToCheck) ? current : [...current, newGame]
+                    )
                     console.log('[Main] ✓ Added', detail.name, 'to library')
                     win?.webContents.send('games-updated', updatedGames)
                 } else {
@@ -416,8 +451,9 @@ export async function checkPendingClaims(store: JsonStore, win: BrowserWindow | 
                         playtime: 0,
                     }
 
-                    const updatedGames = [...games, placeholderGame]
-                    store.set('games', updatedGames)
+                    const updatedGames = store.updateGames((current) =>
+                        current.some(g => g.steamAppId === appIdToCheck) ? current : [...current, placeholderGame]
+                    )
                     console.log('[Main] Added placeholder for', appIdToCheck)
                     win?.webContents.send('games-updated', updatedGames)
                 }

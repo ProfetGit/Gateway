@@ -3,13 +3,14 @@
   "productName": "Gateway",
   "version": "1.0.0",
   "author": "ProfetGit",
-  "description": "A Windows game launcher for your Steam library.",
+  "description": "A Linux game launcher for your Steam, Heroic, and Lutris libraries.",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "NODE_OPTIONS=--no-deprecation vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc && vite build && electron-builder --linux AppImage --publish never",
+    "release": "tsc && vite build && electron-builder --linux AppImage --publish always",
     "preview": "vite preview",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "check:secrets": "! grep -rEn \"(sk-|api[_-]?key\\\\s*[:=]\\\\s*[\\\"'][a-zA-Z0-9]{20,})\" src electron --include=\"*.ts\" --include=\"*.tsx\"",
@@ -18,6 +19,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.102.3",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
     "react": "^18.2.0",
@@ -53,5 +55,39 @@
   "allowScripts": {
     "electron@33.4.11": true,
     "esbuild@0.21.5": true
+  },
+  "build": {
+    "appId": "com.profetgit.gateway",
+    "productName": "Gateway",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "icon": "build/icon.png",
+      "maintainer": "emppu.saranpaa@gmail.com",
+      "desktop": {
+        "StartupWMClass": "Gateway"
+      }
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}-${arch}.AppImage"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ProfetGit",
+        "repo": "Gateway"
+      }
+    ]
   }
 }
