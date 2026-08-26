@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const FreeDealSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   title: z.string(),
   originalPrice: z.string(),
   thumbnail: z.string(),
@@ -11,6 +11,8 @@ export const FreeDealSchema = z.object({
   endDate: z.string(),
   status: z.string(),
   steamAppId: z.string().nullable(),
+  store: z.enum(['steam', 'epic']).catch('steam'),
+  alreadyOwned: z.boolean().catch(false),
 })
 
 export const FreeDealsDataSchema = z.object({
