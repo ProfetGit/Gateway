@@ -59,7 +59,7 @@ export function AboutSection() {
                     Gateway
                 </div>
                 <div className="font-mono text-[11px] text-crimson-400 tracking-widest uppercase">
-                    Version 1.0.0
+                    Version {__APP_VERSION__}
                 </div>
             </div>
 

@@ -1,10 +1,19 @@
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import electron from 'vite-plugin-electron/simple'
 
+// The About panel used to hardcode the version string, so it kept claiming
+// 1.0.0 after an update. Injected at build time rather than fetched over IPC:
+// the renderer bundle is rebuilt for every release, so it cannot drift.
+const { version } = createRequire(import.meta.url)('./package.json') as { version: string }
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   plugins: [
     react(),
     tailwindcss(),
