@@ -28,7 +28,7 @@ function parseBinaryVdfObject(buf: Buffer, pos: { offset: number }): Record<stri
     while (pos.offset < buf.length) {
         const type = buf[pos.offset]
         pos.offset++
-        if (type === 0x08) break
+        if (type === undefined || type === 0x08) break
 
         const keyStart = pos.offset
         while (pos.offset < buf.length && buf[pos.offset] !== 0x00) pos.offset++

@@ -9,9 +9,10 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "NODE_OPTIONS=--no-deprecation vite",
-    "build": "tsc && vite build && electron-builder --linux AppImage --publish never",
-    "release": "tsc && vite build && electron-builder --linux AppImage --publish always",
+    "build": "tsc && tsc -p tsconfig.electron.json && vite build && electron-builder --linux AppImage --publish never",
+    "release": "tsc && tsc -p tsconfig.electron.json && vite build && electron-builder --linux AppImage --publish always",
     "preview": "vite preview",
+    "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "check:secrets": "! grep -rEn \"(sk-|api[_-]?key\\\\s*[:=]\\\\s*[\\\"'][a-zA-Z0-9]{20,})\" src electron --include=\"*.ts\" --include=\"*.tsx\"",
     "test": "vitest run"

@@ -115,7 +115,7 @@ export async function enrichUserWithApiKey(steamId: string, apiKey: string): Pro
         const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamId}`
         const res = await steamFetch(url)
         if (!res.ok) return null
-        const data = await res.json()
+        const data = await res.json() as { response?: { players?: Array<{ personaname?: string; avatarfull?: string; avatarmedium?: string; profileurl?: string }> } }
         const player = data?.response?.players?.[0]
         if (!player) return null
         return {
@@ -163,7 +163,8 @@ async function fetchOwnedGamesViaApiKey(steamId: string, apiKey: string): Promis
             return apiKeyError(`Steam API error: ${response.status} ${response.statusText}`, 'API_ERROR')
         }
 
-        const data = await response.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = await response.json() as { response?: { games?: any[] } }
 
         if (data?.response?.games && Array.isArray(data.response.games)) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,7 +302,7 @@ export async function fetchAchievementsViaXml(
         let m: RegExpExecArray | null
         while ((m = blockRe.exec(xml)) !== null) {
             const closedAttr = m[1]
-            const body = m[2]
+            const body = m[2] ?? ''
             const closedInner = pickXml(body, 'closed')
             const achieved = closedAttr === '1' || closedInner === '1'
             const apiname = pickXml(body, 'apiname') ?? ''
@@ -386,8 +387,10 @@ async function fetchAchievementsViaApiKey(
             }
         }
 
-        const playerData = await playerResponse.json()
-        const schemaData = await schemaResponse.json()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const playerData = await playerResponse.json() as { playerstats?: { achievements?: any[]; error?: string; gameName?: string } }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const schemaData = await schemaResponse.json() as { game?: { availableGameStats?: { achievements?: any[] } } }
 
         if (!playerData?.playerstats?.achievements) {
             if (playerData?.playerstats?.error) {

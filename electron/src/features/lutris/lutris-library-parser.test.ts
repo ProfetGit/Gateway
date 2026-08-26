@@ -73,7 +73,7 @@ describe('parseLutrisGames', () => {
         [{ slug: 'x', name: 'X' }, 'no id'],
         [{ id: 1, name: 'X' }, 'no slug'],
         [{ id: 1, slug: 'x' }, 'no name'],
-    ])('skips a row with %s', (row) => {
+    ] as const)('skips a row with %s', (row, _desc) => {
         expect(parseLutrisGames([row])).toEqual([])
     })
 

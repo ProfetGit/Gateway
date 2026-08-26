@@ -419,8 +419,8 @@ export async function checkPendingClaims(store: JsonStore, win: BrowserWindow | 
                 console.log('[Main] Adding claimed game to library:', appIdToCheck)
                 const gameDetails = await fetchSteamStoreDetails([appIdToCheck])
 
-                if (gameDetails.length > 0) {
-                    const detail = gameDetails[0]
+                const detail = gameDetails[0]
+                if (detail) {
                     const newGame: Game = {
                         id: uuidv4(),
                         title: detail.name,

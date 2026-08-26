@@ -108,7 +108,7 @@ app.whenReady().then(() => {
   protocol.handle('gateway', (request) => {
     const url = request.url.replace('gateway://', '')
     const [type, fileName] = url.split('/')
-    const subDir = GATEWAY_ART_SUBDIRS[type]
+    const subDir = type ? GATEWAY_ART_SUBDIRS[type] : undefined
 
     if (subDir && fileName) {
       const filePath = path.join(store.getDataDir(), 'assets', subDir, fileName)
