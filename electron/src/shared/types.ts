@@ -30,7 +30,19 @@ export interface Game {
     heroImageUrl?: string
     logoImageUrl?: string
     customEnvVars?: string
-    appType?: 'game' | 'dlc' | 'application' | 'music' | 'demo' | 'mod'
+    // Mirrors Steam's appdetails `type`; see shared/normalize-app-type.ts.
+    appType?:
+        | 'game'
+        | 'dlc'
+        | 'demo'
+        | 'mod'
+        | 'application'
+        | 'music'
+        | 'video'
+        | 'series'
+        | 'episode'
+        | 'advertising'
+        | 'hardware'
 }
 
 export interface SteamAuthData {

@@ -12,6 +12,7 @@ import {
     hasApiKey,
     fetchPlayerAchievements
 } from '../../../steamAuth'
+import { normalizeAppType } from '../../shared/normalize-app-type'
 import { performHeroicSync } from '../heroic/heroic-sync'
 import { performLutrisSync } from '../lutris/lutris-sync'
 import { Game } from '../../shared/types'
@@ -183,7 +184,7 @@ function resolveGamesInBackground(store: JsonStore, win: BrowserWindow | null) {
                         patch.title = entry.data.name
                     }
                     if (entry.data.type && !game.appType) {
-                        patch.appType = entry.data.type
+                        patch.appType = normalizeAppType(entry.data.type)
                     }
 
                     if (Object.keys(patch).length === 0) continue

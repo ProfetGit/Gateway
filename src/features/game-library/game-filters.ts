@@ -1,6 +1,9 @@
 import type { Game, FilterState } from './game-library-types'
 
-const NON_GAME_TYPES = new Set(['dlc', 'application', 'music', 'demo', 'mod'])
+const NON_GAME_TYPES = new Set([
+    'dlc', 'application', 'music', 'demo', 'mod',
+    'video', 'series', 'episode', 'advertising', 'hardware',
+])
 
 export function filterAndSortGames(games: Game[], filters: FilterState): Game[] {
     const { status, platform, onlyFavorites, search, sortBy, sortOrder } = filters

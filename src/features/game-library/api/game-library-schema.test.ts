@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { GameSchema } from './game-library-schema'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { GameSchema, parseGames } from './game-library-schema'
 import type { Game as MainProcessGame } from '../../../../electron/src/shared/types'
 
-// GameSchema is the only schema whose failure is total: get-games.ts parses
-// through GameSchema.array(), so one bad row empties the entire library grid.
+// GameSchema guards the app's first load. It used to be the schema whose
+// failure was total — get-games.ts parsed through GameSchema.array(), so one
+// bad row emptied the whole grid. parseGames() below now contains that blast
+// radius to the offending row.
 
 const MINIMAL = {
     id: 'g1',
@@ -104,5 +106,74 @@ describe('GameSchema', () => {
         }
         expect(() => GameSchema.parse(fromMain)).not.toThrow()
         expect(GameSchema.parse(fromMain).source).toBe('heroic')
+    })
+})
+
+describe('appType tolerance', () => {
+    // The exact row that emptied a 462-game library on every restart: Steam's
+    // appdetails returned type "advertising", which the enum did not list.
+    const REAL_BROKEN_ROW = {
+        id: '3026dd24-43c0-4fa7-88f6-a5f3e525663a',
+        title: 'Call of Duty: Black Ops II - Zombies',
+        steamAppId: '212910',
+        isInstalled: false,
+        isFavorite: false,
+        source: 'steam',
+        appType: 'advertising',
+    }
+
+    it('accepts the Steam type that used to break the library', () => {
+        expect(GameSchema.parse(REAL_BROKEN_ROW).appType).toBe('advertising')
+    })
+
+    it.each(['game', 'dlc', 'demo', 'mod', 'application', 'music', 'video', 'series', 'episode', 'advertising', 'hardware'])(
+        'accepts appType %s',
+        (appType) => {
+            expect(GameSchema.parse({ ...MINIMAL, appType }).appType).toBe(appType)
+        }
+    )
+
+    it('degrades a still-unknown appType to undefined rather than throwing', () => {
+        expect(() => GameSchema.parse({ ...MINIMAL, appType: 'some-new-thing' })).not.toThrow()
+        expect(GameSchema.parse({ ...MINIMAL, appType: 'some-new-thing' }).appType).toBeUndefined()
+    })
+})
+
+describe('parseGames', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('parses a clean library', () => {
+        expect(parseGames([MINIMAL, { ...MINIMAL, id: 'g2' }])).toHaveLength(2)
+    })
+
+    // The regression that actually bit: one bad row must cost one row, not all.
+    it('keeps every good row when one row is irreparably malformed', () => {
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        const rows = [
+            MINIMAL,
+            { id: 'broken', isInstalled: false, isFavorite: false, source: 'steam' }, // no title
+            { ...MINIMAL, id: 'g3' },
+        ]
+        const parsed = parseGames(rows)
+        expect(parsed.map((g) => g.id)).toEqual(['g1', 'g3'])
+    })
+
+    it('logs what it dropped, so the data problem still gets noticed', () => {
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        parseGames([{ id: 'broken' }])
+        expect(spy).toHaveBeenCalledWith(
+            expect.stringContaining('Dropped 1 malformed game row(s) of 1'),
+            expect.anything()
+        )
+    })
+
+    it('returns [] for a non-array instead of throwing', () => {
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        expect(parseGames(null)).toEqual([])
+        expect(parseGames({ games: [] })).toEqual([])
+    })
+
+    it('returns [] for an empty library', () => {
+        expect(parseGames([])).toEqual([])
     })
 })
