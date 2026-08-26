@@ -55,7 +55,7 @@ src/                       → renderer (React 18 + Vite)
 3. Add a typed wrapper in the owning domain's `features/<domain>/api/<verb-noun>.ts` — one file per function — that parses the result through a zod schema in that domain's `<domain>-schema.ts` before returning
 4. The renderer calls the named function from a component/hook — never `invoke()` directly from a component
 
-External web APIs (Steam Store, GamerPower) go through the Electron main process — this avoids CORS in the renderer.
+External web APIs (Steam Store, GamerPower, Epic Games Store) go through the Electron main process — this avoids CORS in the renderer.
 
 ### Directory structure & placement algorithm
 
@@ -177,7 +177,10 @@ Horizontal carousels (Trending, FreeDeals) use the shared `use-horizontal-scroll
   Replacements lean on outcome-verb phrasing: "Refresh Library" not "Sync local cache from remote"; "Save to File" not "Export library manifest"; "Not signed in" not "No Uplink Detected"; "Clear Library" not "Purge Local Database"; "Couldn't load achievements" not "CANNOT LOAD ACHIEVEMENTS". `font-mono uppercase tracking-widest` is a *visual* treatment — apply it to plain words, don't use it as license for jargon.
 - **State design**: empty/error/loading are designed surfaces, not text fallbacks. Skeletons (shimmer animation) over spinners. Section auto-hides when empty rather than rendering placeholder shells.
 - **Section auto-hide**: `TrendingSection`, `FreeDealsSection`, and `AchievementHuntsSection` all return `null` if their data is missing or empty. Mounting them is cheap; populating them is conditional.
-- **Steam claim tracking**: When user clicks a free deal, `openSteamStoreClaim` (`features/free-deals/api/`) records the appId. On window-focus return, the Rust backend checks pending claims and emits a `game-claimed` event if the user now owns it. `FreeDealsSection` listens via `onGameClaimed` (`features/free-deals/api/on-game-claimed.ts`).
+- **Free to Keep is two storefronts.** `get_free_deals` (`electron/src/features/free-deals/free-deals-ipc.ts`) merges GamerPower's Steam giveaways with Epic's own `freeGamesPromotions` feed via `Promise.allSettled`, so one source being down still renders the other. Every deal carries a `store` discriminator; results are sorted soonest-expiring-first.
+  - Epic's payload lists next week's and the week after's giveaways alongside today's, and mixes in ordinary discounts. `parseEpicFreeGames` (pure, heavily tested) is what decides "free right now" — note that Epic's `discountPercentage` is the share of the price you still *pay*, so 0 means free and 20 means 80% off. Don't "fix" that to read the other way.
+  - **Steam claim tracking**: When user clicks a free deal, `openSteamStoreClaim` (`features/free-deals/api/`) records the appId. On window-focus return, the main process checks pending claims and emits a `game-claimed` event if the user now owns it. `FreeDealsSection` listens via `onGameClaimed` (`features/free-deals/api/on-game-claimed.ts`).
+  - **Epic ownership** has no equivalent live check — Gateway holds no Epic session. It's resolved in the main process by matching the giveaway title against the Epic entitlements Heroic already imported (`source: 'heroic'` + `heroicRunner: 'legendary'`), and surfaces as `alreadyOwned` on the deal. Matching is exact-on-normalised-title by design: a false positive greys out a game the user could still claim free, which is worse than showing no badge.
 
 ## Naming (enforced)
 

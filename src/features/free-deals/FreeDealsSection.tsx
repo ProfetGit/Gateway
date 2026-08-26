@@ -4,7 +4,7 @@ import { Gift } from 'lucide-react'
 import { getFreeDeals } from './api/get-free-deals'
 import { openSteamStoreClaim } from './api/open-steam-store-claim'
 import { openUrl } from '@/lib/api/navigation'
-import type { FreeDealsData } from './free-deals-types'
+import type { FreeDeal, FreeDealsData } from './free-deals-types'
 import { useFreeDealsClaimTracking } from './use-free-deals-claim-tracking'
 import { FreeDealsHeader } from './FreeDealsHeader'
 import { FreeDealsCarousel } from './FreeDealsCarousel'
@@ -18,8 +18,13 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
     const [isLoading, setIsLoading] = React.useState(true)
     const [error, setError] = React.useState<string | null>(null)
 
+    // Steam-only: the claim tracker polls the Steam Web API for ownership,
+    // which has nothing to say about an Epic giveaway.
     const appIds = React.useMemo(
-        () => (data?.deals ?? []).map(d => d.steamAppId).filter((id): id is string => id !== null),
+        () => (data?.deals ?? [])
+            .filter(d => d.store === 'steam')
+            .map(d => d.steamAppId)
+            .filter((id): id is string => id !== null),
         [data]
     )
     const claimedIds = useFreeDealsClaimTracking(appIds)
@@ -50,11 +55,14 @@ export function FreeDealsSection({ onGameClick }: FreeDealsSectionProps) {
         return null
     }
 
-    const handleClaimGame = (steamAppId: string | null, claimUrl: string) => {
-        if (steamAppId) {
-            openSteamStoreClaim(steamAppId)
+    const handleClaimGame = (deal: FreeDeal) => {
+        // Steam claims go through the Steam client so the post-claim ownership
+        // check can fire on window focus; Epic has no such hook, so its store
+        // page just opens in the browser.
+        if (deal.store === 'steam' && deal.steamAppId) {
+            openSteamStoreClaim(deal.steamAppId)
         } else {
-            openUrl(claimUrl)
+            openUrl(deal.claimUrl)
         }
     }
 
