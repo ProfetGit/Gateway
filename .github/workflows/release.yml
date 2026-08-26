@@ -29,6 +29,11 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # Matches CI. The build re-runs this anyway, but failing here fails in
+      # seconds instead of after electron-builder has packaged an AppImage.
+      - name: Typecheck (electron)
+        run: npm run typecheck:electron
+
       - name: Lint
         run: npm run lint
 

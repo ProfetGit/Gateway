@@ -1,5 +1,6 @@
 import { app, ipcMain, BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
+import { describeUpdateError } from './describe-update-error'
 
 // ═══════════════════════════════════════════════════════════
 // Auto-update (AppImage)
@@ -35,16 +36,27 @@ export function setupUpdateHandlers(getMainWindow: () => BrowserWindow | null) {
         send({ state: 'downloading', percent: progress.percent })
     )
     autoUpdater.on('update-downloaded', (info) => send({ state: 'ready', version: info.version }))
+    // The full error goes to the console; only a sentence goes to the UI.
+    // electron-updater inlines the entire HTTP response in `message`,
+    // Set-Cookie headers and all, and that used to be rendered verbatim.
     autoUpdater.on('error', (error) => {
         console.error('[Updates] autoUpdater error:', error)
-        send({ state: 'error', message: error instanceof Error ? error.message : String(error) })
+        send({ state: 'error', message: describeUpdateError(error) })
     })
 
     ipcMain.handle('check_for_updates', async () => {
         if (!app.isPackaged) {
             return { started: false, reason: 'Updates only run in the installed app' }
         }
-        await autoUpdater.checkForUpdates()
+        try {
+            await autoUpdater.checkForUpdates()
+        } catch (error) {
+            // checkForUpdates() rejects as well as emitting 'error'. Letting it
+            // reject through IPC wrapped the raw dump in "Error invoking remote
+            // method", which is how it reached the panel in the first place.
+            console.error('[Updates] Check failed:', error)
+            return { started: false, reason: describeUpdateError(error) }
+        }
         return { started: true }
     })
 
