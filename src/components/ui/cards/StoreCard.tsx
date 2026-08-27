@@ -1,5 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import { InteractiveCard } from '@/components/ui/cards/InteractiveCard'
+import { cardArtZoom, cardGlowFade, cardOverlayFade, cardSurface, cardTextTint } from '@/components/ui/cards/card-motion'
 
 export interface StoreCardProps {
     title: string
@@ -59,133 +61,122 @@ export function StoreCard({
     const colors = accentColors[accentColor]
 
     return (
-        <motion.div
-            initial={{ opacity: 0, x: 50, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            transition={{
-                delay: index * 0.08,
-                duration: 0.5,
-                ease: [0.16, 1, 0.3, 1]
-            }}
-            className="shrink-0 snap-start scroll-ml-10 relative z-0 hover:z-20"
+        <InteractiveCard
+            onClick={onClick}
+            entranceDelayMs={index * 80}
+            entranceFrom="right"
+            brackets={{ colorClass: colors.corners, size: 'max(18px, 11cqw)' }}
+            aspectRatio="460 / 215"
+            width={width}
+            ariaLabel={title}
+            className={`rounded-lg bg-void-surface border border-void-border/30 shadow-lg ${cardSurface} ${colors.border} ${colors.shadow} ${isClaimed ? 'ring-1 ring-emerald-500/40' : ''}`}
+            wrapperClassName="shrink-0 snap-start scroll-ml-10"
         >
-            <motion.button
-                onClick={onClick}
-                whileHover={{ scale: 1.05, y: -8 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                className={`group relative rounded-lg overflow-hidden bg-void-surface border border-void-border/30 shadow-lg focus:outline-none ${colors.border} ${colors.shadow} ${isClaimed ? 'ring-1 ring-emerald-500/40' : ''}`}
-                style={{ width, aspectRatio: '460 / 215' }}
-            >
-                {/* Image */}
-                {!imageError ? (
-                    <img
-                        src={image}
-                        alt={title}
-                        onError={() => setImageError(true)}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                    />
-                ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-void-surface to-void-elevated flex items-center justify-center">
-                        <span className="text-text-muted text-sm font-mono">{title.slice(0, 2)}</span>
-                    </div>
-                )}
-
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
-
-                {/* Corner accents on hover — GPU-only (opacity+scale, no layout animation) */}
-                <div className={`absolute top-0 left-0 w-8 h-8 border-t-[3px] border-l-[3px] ${colors.corners} origin-top-left opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo`} />
-                <div className={`absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] ${colors.corners} origin-bottom-right opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo`} />
-
-                {/* Scanlines */}
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.03)_3px)] pointer-events-none opacity-50" />
-
-                {/* Free Game States - Shimmer for unclaimed, Static glow for claimed */}
-                {accentColor === 'emerald' && !isClaimed && (
-                    /* Animated shimmer sweep for claimable free games */
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                        <div
-                            className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_ease-in-out_infinite]"
-                            style={{
-                                background: 'linear-gradient(90deg, transparent 0%, oklch(0.72 0.17 165 / 0.15) 50%, transparent 100%)',
-                            }}
-                        />
-                    </div>
-                )}
-
-                {isClaimed && (
-                    /* Static emerald glow for claimed games - no animation */
-                    <>
-                        {/* Top edge glow */}
-                        <div
-                            className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
-                            style={{
-                                background: 'linear-gradient(180deg, oklch(0.72 0.17 165 / 0.25) 0%, transparent 100%)',
-                            }}
-                        />
-                        {/* Corner accent glow */}
-                        <div
-                            className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
-                            style={{
-                                background: 'radial-gradient(circle at top left, oklch(0.72 0.17 165 / 0.3) 0%, transparent 70%)',
-                            }}
-                        />
-                        {/* Subtle border enhancement */}
-                        <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-emerald-400/30 pointer-events-none" />
-                    </>
-                )}
-
-                {/* Top Left Badge */}
-                {topLeftBadge && (
-                    <div className="absolute top-3 left-3">
-                        {topLeftBadge}
-                    </div>
-                )}
-
-                {/* Top Right Badge */}
-                {topRightBadge && (
-                    <motion.div
-                        initial={{ scale: 0, rotate: -5 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ delay: index * 0.08 + 0.2, type: 'spring', stiffness: 200, damping: 20 }}
-                        className="absolute top-3 right-3"
-                    >
-                        {topRightBadge}
-                    </motion.div>
-                )}
-
-                {/* Content - Bottom corners layout */}
-                <div className="absolute bottom-0 left-0 right-0 pb-3 pl-3 pointer-events-none">
-                    {/* Title - Bottom Left */}
-                    <h3
-                        className={`text-white text-sm font-bold leading-snug max-w-[65%] text-left ${colors.text} transition-colors`}
-                        style={{
-                            textShadow: '0 2px 12px oklch(0.08 0.005 25), 0 1px 4px oklch(0.08 0.005 25 / 0.9), 0 0 20px oklch(0.08 0.005 25 / 0.8)',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                        }}
-                    >
-                        {title}
-                    </h3>
+            {/* Image */}
+            {!imageError ? (
+                <img
+                    src={image}
+                    alt={title}
+                    onError={() => setImageError(true)}
+                    className={`absolute inset-0 w-full h-full object-cover ${cardArtZoom}`}
+                />
+            ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-void-surface to-void-elevated flex items-center justify-center">
+                    <span className="text-text-muted text-sm font-mono">{title.slice(0, 2)}</span>
                 </div>
+            )}
 
-                {/* Price - Bottom Right */}
-                {bottomLeft && (
+            {/* Gradient overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-80 group-hover:opacity-90 ${cardOverlayFade}`} />
+
+
+            {/* Scanlines */}
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.03)_3px)] pointer-events-none opacity-50" />
+
+            {/* Free Game States - Shimmer for unclaimed, Static glow for claimed */}
+            {accentColor === 'emerald' && !isClaimed && (
+                /* Animated shimmer sweep for claimable free games */
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div
-                        className="absolute bottom-3 right-3 pointer-events-none"
-                        style={{ textShadow: '0 2px 8px oklch(0.08 0.005 25 / 0.9)' }}
-                    >
-                        {bottomLeft}
-                    </div>
-                )}
+                        className="absolute inset-y-[-20%] left-0 w-[65%] animate-[visor_2.8s_ease-in-out_infinite]"
+                        style={{
+                            background: 'linear-gradient(90deg, transparent 0%, oklch(0.72 0.17 165 / 0.10) 28%, oklch(0.86 0.20 165 / 0.36) 50%, oklch(0.72 0.17 165 / 0.10) 72%, transparent 100%)',
+                        }}
+                    />
+                </div>
+            )}
 
-                {/* Hover glow effect */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t ${colors.glow} via-transparent to-transparent`} />
-            </motion.button>
-        </motion.div>
+            {isClaimed && (
+                /* Static emerald glow for claimed games - no animation */
+                <>
+                    {/* Top edge glow */}
+                    <div
+                        className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
+                        style={{
+                            background: 'linear-gradient(180deg, oklch(0.72 0.17 165 / 0.25) 0%, transparent 100%)',
+                        }}
+                    />
+                    {/* Corner accent glow */}
+                    <div
+                        className="absolute top-0 left-0 w-24 h-24 pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(circle at top left, oklch(0.72 0.17 165 / 0.3) 0%, transparent 70%)',
+                        }}
+                    />
+                    {/* Subtle border enhancement */}
+                    <div className="absolute inset-0 rounded-lg ring-1 ring-inset ring-emerald-400/30 pointer-events-none" />
+                </>
+            )}
+
+            {/* Top Left Badge */}
+            {topLeftBadge && (
+                <div className="absolute top-3 left-3">
+                    {topLeftBadge}
+                </div>
+            )}
+
+            {/* Top Right Badge */}
+            {topRightBadge && (
+                <motion.div
+                    initial={{ scale: 0, rotate: -5 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: index * 0.08 + 0.2, type: 'spring', stiffness: 200, damping: 20 }}
+                    className="absolute top-3 right-3"
+                >
+                    {topRightBadge}
+                </motion.div>
+            )}
+
+            {/* Content - Bottom corners layout */}
+            <div className="absolute bottom-0 left-0 right-0 pb-3 pl-3 pointer-events-none">
+                {/* Title - Bottom Left */}
+                <h3
+                    className={`text-white text-sm font-bold leading-snug max-w-[65%] text-left ${colors.text} ${cardTextTint}`}
+                    style={{
+                        textShadow: '0 2px 12px oklch(0.08 0.005 25), 0 1px 4px oklch(0.08 0.005 25 / 0.9), 0 0 20px oklch(0.08 0.005 25 / 0.8)',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                    }}
+                >
+                    {title}
+                </h3>
+            </div>
+
+            {/* Price - Bottom Right */}
+            {bottomLeft && (
+                <div
+                    className="absolute bottom-3 right-3 pointer-events-none"
+                    style={{ textShadow: '0 2px 8px oklch(0.08 0.005 25 / 0.9)' }}
+                >
+                    {bottomLeft}
+                </div>
+            )}
+
+            {/* Hover glow effect */}
+            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none bg-gradient-to-t ${colors.glow} via-transparent to-transparent ${cardGlowFade}`} />
+        </InteractiveCard>
     )
 }
 

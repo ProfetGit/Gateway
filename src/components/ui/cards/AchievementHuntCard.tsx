@@ -1,7 +1,9 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Download } from 'lucide-react'
+import { InteractiveCard } from '@/components/ui/cards/InteractiveCard'
 import type { Game } from '@/features/game-library/game-library-types'
+import { cardArtZoom, cardGlowFade, cardSurface, cardTextTint } from '@/components/ui/cards/card-motion'
 
 interface AchievementHuntCardProps {
     game: Game
@@ -45,15 +47,14 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
     }
 
     return (
-        <motion.button
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ scale: 1.05, y: -8, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
-            whileTap={{ scale: 0.97, transition: { duration: 0.1, ease: [0.16, 1, 0.3, 1] } }}
+        <InteractiveCard
             onClick={onClick}
-            style={{ aspectRatio: '5 / 4' }}
-            className="group relative w-full rounded-lg overflow-hidden bg-void-deep border border-void-border/40 shadow-lg hover:border-crimson-500/60 hover:shadow-[0_12px_40px_oklch(0.52_0.23_25/0.35)] focus:outline-none transition-[border-color,box-shadow] duration-100 ease-out-expo text-left isolate"
+            entranceDelayMs={index * 80}
+            entranceFrom="bottom"
+            brackets={{ colorClass: 'border-crimson-400', size: 'max(16px, 9cqw)', className: 'z-20' }}
+            aspectRatio="5 / 4"
+            ariaLabel={game.title}
+            className={`rounded-lg bg-void-deep border border-void-border/40 shadow-lg hover:border-crimson-500/60 hover:shadow-[0_12px_40px_oklch(0.52_0.23_25/0.35)] ${cardSurface}`}
         >
             {/* ═══ BACKDROP ═══ blurred cover, deliberately recessive */}
             <div className="absolute inset-0 overflow-hidden">
@@ -63,7 +64,7 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                         alt=""
                         aria-hidden
                         onError={handleImageError}
-                        className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
+                        className={`w-full h-full object-cover ${cardArtZoom}`}
                         style={{
                             filter: game.isInstalled
                                 ? 'brightness(0.85) saturate(1.15) contrast(1.05)'
@@ -84,9 +85,6 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,oklch(0_0_0/0.04)_3px)] pointer-events-none" />
             </div>
 
-            {/* ═══ CORNER BRACKETS ═══ hidden at rest, reveal on hover — GPU-only (opacity+scale) */}
-            <div className="absolute top-0 left-0 w-7 h-7 border-t-[3px] border-l-[3px] border-crimson-400 origin-top-left opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo pointer-events-none z-20" />
-            <div className="absolute bottom-0 right-0 w-7 h-7 border-b-[3px] border-r-[3px] border-crimson-400 origin-bottom-right opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100 transition-[opacity,transform] duration-300 ease-out-expo pointer-events-none z-20" />
 
             {/* ═══ NOT-INSTALLED HINT ═══ top-right, only when relevant */}
             {!game.isInstalled && (
@@ -99,20 +97,28 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
             )}
 
             {/* ═══ HEADLINE: massive italic percentage ═══ */}
-            <div className="absolute top-5 left-5 z-10 flex items-start gap-1 pointer-events-none">
+            <div className="absolute top-5 left-5 z-10 flex items-start pointer-events-none">
                 <span
-                    className="font-display font-black italic text-white leading-[0.85] tracking-[-0.06em] transition-colors duration-100 ease-out-expo group-hover:text-crimson-100"
+                    className={`font-display font-black italic text-white leading-[0.85] group-hover:text-crimson-100 ${cardTextTint}`}
                     style={{
                         fontSize: '4.5rem',
+                        // Tight tracking is for the space *between* digits, but CSS also
+                        // applies it after the last one — which ate the gap before the %
+                        // and left the italic slant nearly touching it. marginRight adds
+                        // the stolen 0.06em back, plus the real gap, both in em so the
+                        // spacing holds at any font-size.
+                        letterSpacing: '-0.06em',
+                        marginRight: '0.14em',
                         textShadow: '0 4px 24px oklch(0.08 0.005 25 / 0.95), 0 2px 8px oklch(0.08 0.005 25 / 0.8)',
                     }}
                 >
                     {percentage}
                 </span>
                 <span
-                    className="font-display font-black italic text-crimson-500 leading-[1] mt-2 transition-transform duration-100 ease-out-expo group-hover:translate-x-1"
+                    className="font-display font-black italic text-crimson-500 leading-[1]"
                     style={{
                         fontSize: '1.875rem',
+                        marginTop: '0.27em',
                         textShadow: '0 2px 12px oklch(0.08 0.005 25 / 0.9)',
                     }}
                 >
@@ -133,7 +139,7 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
                 </div>
 
                 <h3
-                    className="text-etched text-base text-white leading-tight truncate group-hover:text-crimson-100 transition-colors duration-100 ease-out-expo"
+                    className={`text-etched text-base text-white leading-tight truncate group-hover:text-crimson-100 ${cardTextTint}`}
                     title={game.title}
                 >
                     {game.title}
@@ -147,7 +153,7 @@ export function AchievementHuntCard({ game, unlocked, total, percentage, index, 
             </div>
 
             {/* Hover glow effect */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t from-crimson-500/10 via-transparent to-transparent" />
-        </motion.button>
+            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none bg-gradient-to-t from-crimson-500/10 via-transparent to-transparent ${cardGlowFade}`} />
+        </InteractiveCard>
     )
 }

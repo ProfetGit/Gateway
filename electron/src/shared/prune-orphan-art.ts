@@ -12,7 +12,7 @@ import type { Game } from './types'
 // clear-and-resync and every removed source leaves its files behind forever.
 // On a real library this had grown to 586 unreferenced files.
 
-const ART_DIRS = ['covers', 'heroes', 'logos'] as const
+const ART_DIRS = ['covers', 'thumbs', 'heroes', 'logos'] as const
 
 /** Every art filename the library still points at, in any of its art fields. */
 function referencedFileNames(games: Game[]): Set<string> {

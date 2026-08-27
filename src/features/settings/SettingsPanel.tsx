@@ -115,7 +115,7 @@ export function SettingsPanel() {
 
                             <SettingsHeader tab={tab} setTab={setTab} libraryCount={stats.total} onClose={closeSettings} />
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide relative z-10">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 [scrollbar-gutter:stable] relative z-10">
                                 {tab === 'account' && (
                                     <SteamAccountSection
                                         authState={authState}

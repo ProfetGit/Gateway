@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { GameStore } from './game-library-types'
 import { updateGame as apiUpdateGame } from './api/update-game'
-import { createPreloadActions } from './game-store-preloading'
 import { registerGamesUpdatedListener } from './register-games-updated-listener'
 
 export const useGameStore = create<GameStore>((set, get) => {
@@ -9,12 +8,6 @@ export const useGameStore = create<GameStore>((set, get) => {
     return {
         games: [],
         selectedGame: null,
-
-        // Initial Preload State
-        preloadState: {
-            cursor: 0,
-            isActive: false
-        },
 
         currentView: 'home',
         filters: {
@@ -30,6 +23,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         isSettingsOpen: false,
         isAddModalOpen: false,
         isHuntsDrawerOpen: false,
+        isAchievementsOpen: false,
         isPropertiesOpen: false,
         propertiesGame: null,
         isInstallWizardOpen: false,
@@ -37,7 +31,7 @@ export const useGameStore = create<GameStore>((set, get) => {
 
         // selectedGame re-points at the incoming record, else an open detail overlay
         // keeps a stale snapshot and background updates (watcher, sync) don't show.
-        setGames: (games) => set((s) => ({ games, preloadState: { cursor: 0, isActive: false },
+        setGames: (games) => set((s) => ({ games,
             selectedGame: s.selectedGame ? games.find(g => g.id === s.selectedGame?.id) ?? s.selectedGame : null })),
 
         addGame: (game) => set((state) => ({
@@ -114,10 +108,14 @@ export const useGameStore = create<GameStore>((set, get) => {
             isDetailOpen: true,
             isSettingsOpen: false,
             isAddModalOpen: false,
+            // The achievements surface belongs to whichever game is open. Left
+            // set, it would reopen over the NEXT game the user picks.
+            isAchievementsOpen: false,
         }),
 
         closeDetail: () => set({
             isDetailOpen: false,
+            isAchievementsOpen: false,
             // Keep selectedGame for potential re-open animation
         }),
 
@@ -137,8 +135,6 @@ export const useGameStore = create<GameStore>((set, get) => {
 
         closeAddModal: () => set({ isAddModalOpen: false }),
 
-        ...createPreloadActions(set, get),
-
         openHuntsDrawer: () => set({
             isHuntsDrawerOpen: true,
             isDetailOpen: false,
@@ -147,6 +143,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         }),
 
         closeHuntsDrawer: () => set({ isHuntsDrawerOpen: false }),
+
+        // Layers ABOVE the detail overlay rather than replacing it — it is the
+        // expanded view of one band, so the detail must still be there behind it.
+        openAchievements: () => set({ isAchievementsOpen: true }),
+
+        closeAchievements: () => set({ isAchievementsOpen: false }),
 
         // Deliberately does NOT close the other overlays: Properties opens on
         // top of GameDetail and hands you back to it on close.
@@ -167,6 +169,6 @@ export const useGameStore = create<GameStore>((set, get) => {
 
 if (typeof window !== 'undefined') {
     registerGamesUpdatedListener((games) => {
-        useGameStore.setState({ games, preloadState: { cursor: 0, isActive: false } })
+        useGameStore.setState({ games })
     })
 }

@@ -29,6 +29,11 @@ const PROTON_SEARCH_DIRS = [
     path.join(os.homedir(), '.var/app/com.valvesoftware.Steam/data/Steam/compatibilitytools.d'),
     path.join(os.homedir(), '.config/heroic/tools/proton'),
     path.join(os.homedir(), '.local/share/umu/compatibilitytools'),
+    // Distro-packaged builds. CachyOS ships proton-cachyos here, and missing
+    // this directory meant the one Proton most likely to be installed on the
+    // target distro never appeared in Gateway at all.
+    '/usr/share/steam/compatibilitytools.d',
+    '/usr/local/share/steam/compatibilitytools.d',
 ]
 // Deliberately NOT steamapps/common: the builds Valve manages there are
 // Steam's business, umu ships its own, and scanning a few hundred game

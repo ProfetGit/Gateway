@@ -80,22 +80,11 @@ export interface FilterState {
     sortOrder: SortOrder
 }
 
-export interface PreloadState {
-    cursor: number
-    isActive: boolean
-}
-
 export type ViewType = 'home' | 'library'
 
 export interface GameStore {
     games: Game[]
     selectedGame: Game | null
-
-    // Preloading
-    preloadState: PreloadState
-    startPreloading: () => void
-    stopPreloading: () => void
-    resetPreload: () => void
 
     // UI State
     currentView: ViewType
@@ -106,6 +95,7 @@ export interface GameStore {
     isSettingsOpen: boolean
     isAddModalOpen: boolean
     isHuntsDrawerOpen: boolean
+    isAchievementsOpen: boolean
     // Properties layers ABOVE GameDetail rather than replacing it — it is
     // usually opened from there, and closing it should return you to the game.
     isPropertiesOpen: boolean
@@ -137,6 +127,8 @@ export interface GameStore {
     closeAddModal: () => void
     openHuntsDrawer: () => void
     closeHuntsDrawer: () => void
+    openAchievements: () => void
+    closeAchievements: () => void
     openProperties: (game: Game) => void
     closeProperties: () => void
     openInstallWizard: () => void
@@ -150,27 +142,6 @@ export interface SteamStatus {
     libraryPaths: string[]
     userId: string | null
     username: string | null
-}
-
-// Game News / Patch Notes types
-export interface NewsItem {
-    gid: string
-    title: string
-    url: string
-    author: string
-    contents: string
-    feedlabel: string
-    feedname: string
-    date: number
-    appId: string
-}
-
-export interface FetchNewsResult {
-    success: boolean
-    news: NewsItem[]
-    totalCount: number
-    error?: string
-    errorCode?: 'NO_STEAM_APP' | 'API_ERROR' | 'NETWORK_ERROR'
 }
 
 // Steam Store Game Details types

@@ -1,196 +1,173 @@
-import { motion, AnimatePresence, MotionConfig } from 'framer-motion'
+import { useCallback, useMemo, useState } from 'react'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { X } from 'lucide-react'
+import { CornerBrackets } from '@/components/ui/CornerBrackets'
+import { AchievementsSurface } from '@/features/achievements/AchievementsSurface'
+import { computeCompletionPercent } from '@/features/achievements/achievement-progress'
 import { useGameStore } from '../../game-store'
 import { launchGameWithFeedback } from '../../launch-game-with-feedback'
 import { installSteamGame } from '../../api/install-steam-game'
 import { deleteGame as apiDeleteGame } from '../../api/delete-game'
-import { useState, useMemo, useCallback } from 'react'
-import { backdropVariants, containerVariants } from './game-detail-animations'
-import { useGameDetailData } from './use-game-detail-data'
 import { getMetadataAppId } from '../../get-metadata-app-id'
-import { GameDetailHero } from './GameDetailHero'
-import { GameDetailMetaStrip } from './GameDetailSidebar'
-import { GameDetailCoverCard } from './GameDetailCoverCard'
-import { GameDetailTabs, type GameDetailTabType } from './GameDetailTabs'
+import { AchievementTrackingPanel } from '../AchievementTrackingPanel'
+import type { NewsItem } from '../../game-news-types'
+import { GameDetailNewsReader } from './GameDetailNewsReader'
+import { backdropVariants, shellVariants } from './game-detail-animations'
+import { useGameDetailData } from './use-game-detail-data'
+import { GameDetailPanel } from './GameDetailPanel'
+import { GameDetailRail } from './GameDetailRail'
 
 export function GameDetail() {
-    const { selectedGame, isDetailOpen, closeDetail, toggleFavorite, deleteGame } = useGameStore()
+    const { selectedGame, isDetailOpen, closeDetail, deleteGame } = useGameStore()
+    const isAchievementsOpen = useGameStore((s) => s.isAchievementsOpen)
+    const openAchievements = useGameStore((s) => s.openAchievements)
+    const closeAchievements = useGameStore((s) => s.closeAchievements)
+
     const [isDeleting, setIsDeleting] = useState(false)
     const [isInstalling, setIsInstalling] = useState(false)
-    const [activeTab, setActiveTab] = useState<GameDetailTabType>('overview')
+    const [openNews, setOpenNews] = useState<NewsItem | null>(null)
 
     const {
         achievementsData, achievementsLoading, toggleAchievement, isManualAchievements,
-        newsData, newsLoading,
-        gameDetails, detailsLoading, imgSrc, bannerSrc, setImgSrc, setBannerSrc
-    } = useGameDetailData(selectedGame, activeTab)
+        newsData, newsLoading, gameDetails, detailsLoading, imgSrc, bannerSrc, setImgSrc,
+    } = useGameDetailData(selectedGame, isDetailOpen)
 
-    const handlePlay = useCallback(async () => {
-        if (selectedGame) await launchGameWithFeedback(selectedGame)
-    }, [selectedGame])
+    const metadataAppId = getMetadataAppId(selectedGame)
 
-    const handleInstall = useCallback(async () => {
+    const handlePrimary = useCallback(async () => {
         if (!selectedGame) return
+        if (selectedGame.isInstalled) {
+            await launchGameWithFeedback(selectedGame)
+            return
+        }
         setIsInstalling(true)
         try {
             if (selectedGame.steamAppId) await installSteamGame(selectedGame.steamAppId)
-        } catch (err) { console.error(err) }
-        finally { setTimeout(() => setIsInstalling(false), 2000) }
+        } finally {
+            setTimeout(() => setIsInstalling(false), 2000)
+        }
     }, [selectedGame])
 
     const handleDelete = useCallback(async () => {
         if (!selectedGame) return
-        if (isDeleting) {
-            await apiDeleteGame(selectedGame.id)
-            deleteGame(selectedGame.id)
-            closeDetail()
-        } else {
+        if (!isDeleting) {
             setIsDeleting(true)
             setTimeout(() => setIsDeleting(false), 3000)
+            return
         }
+        await apiDeleteGame(selectedGame.id)
+        deleteGame(selectedGame.id)
+        closeDetail()
     }, [selectedGame, isDeleting, deleteGame, closeDetail])
 
-    const metadataAppId = getMetadataAppId(selectedGame)
-
-    const handleImageError = useCallback(() => {
+    const handleCoverError = useCallback(() => {
         if (!imgSrc) return
         if (metadataAppId && imgSrc.includes('library_600x900_2x.jpg')) {
             setImgSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${metadataAppId}/library_600x900.jpg`)
-        } else if (bannerSrc && imgSrc !== bannerSrc) {
-            // Cover CDN exhausted — use banner as portrait fallback
-            setImgSrc(bannerSrc)
         } else {
             setImgSrc(undefined)
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [metadataAppId, imgSrc, bannerSrc])
+    }, [metadataAppId, imgSrc])
 
-    const handleBannerError = useCallback(() => {
-        if (!metadataAppId || !bannerSrc) {
-            setBannerSrc(undefined)
-            return
-        }
-        if (bannerSrc.includes('library_hero.jpg')) {
-            setBannerSrc(`https://steamcdn-a.akamaihd.net/steam/apps/${metadataAppId}/header.jpg`)
-        } else {
-            setBannerSrc(undefined)
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [metadataAppId, bannerSrc])
+    const playtimeHours = Math.floor((selectedGame?.playtime ?? 0) / 60)
 
-    const formattedPlaytime = useMemo(() => {
-        if (!selectedGame?.playtime) return '0h'
-        const hours = Math.floor(selectedGame.playtime / 60)
-        const minutes = selectedGame.playtime % 60
-        if (hours === 0) return `${minutes}m`
-        if (minutes === 0) return `${hours}h`
-        return `${hours}h ${minutes}m`
-    }, [selectedGame?.playtime])
-
-    const formattedLastPlayed = useMemo(() => {
-        return selectedGame?.lastPlayed
-            ? new Date(selectedGame.lastPlayed).toLocaleDateString()
-            : 'Never'
-    }, [selectedGame?.lastPlayed])
-
-    const formattedSize = useMemo(() => {
-        return selectedGame?.sizeOnDisk
-            ? `${(selectedGame.sizeOnDisk / 1073741824).toFixed(1)} GB`
-            : undefined
-    }, [selectedGame?.sizeOnDisk])
+    const lastPlayed = useMemo(
+        () => (selectedGame?.lastPlayed ? new Date(selectedGame.lastPlayed).toLocaleDateString() : 'Never'),
+        [selectedGame?.lastPlayed]
+    )
+    const size = useMemo(
+        () => (selectedGame?.sizeOnDisk ? `${(selectedGame.sizeOnDisk / 1073741824).toFixed(1)} GB` : undefined),
+        [selectedGame?.sizeOnDisk]
+    )
 
     if (!selectedGame) return null
+
+    const unlocked = achievementsData?.unlockedCount ?? 0
+    const total = achievementsData?.totalAchievements ?? 0
+    const percentage = computeCompletionPercent(unlocked, total)
 
     return (
         <AnimatePresence mode="wait">
             {isDetailOpen && (
                 <MotionConfig reducedMotion="user">
                     <motion.div
-                        className="fixed inset-0 bg-void-pure/90 backdrop-blur-xl z-50 will-change-[opacity]"
+                        key="backdrop"
+                        className="fixed inset-0 z-50 bg-void-pure/90 backdrop-blur-xl"
                         variants={backdropVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        transition={{ duration: 0.2 }}
+                        initial="hidden" animate="visible" exit="exit"
                         onClick={closeDetail}
                     />
 
                     <motion.div
-                        className="fixed inset-6 z-50 flex flex-col overflow-hidden bg-void-pure border border-void-border/50 shadow-void-float will-change-transform"
-                        variants={containerVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        transition={{ type: "spring", damping: 35, stiffness: 400 }}
+                        key="shell"
+                        className="fixed inset-6 z-50 flex overflow-hidden bg-void-pure border border-void-border/50 shadow-void-float"
+                        variants={shellVariants}
+                        initial="hidden" animate="visible" exit="exit"
                     >
-                        {/* Corner brackets */}
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-crimson-500/50 pointer-events-none z-50" />
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-crimson-500/50 pointer-events-none z-50" />
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-crimson-500/50 pointer-events-none z-50" />
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-crimson-500/50 pointer-events-none z-50" />
+                        <CornerBrackets colorClass="border-crimson-500/60" size={30} thickness={2} className="z-50" />
 
-                        {/* Close */}
                         <motion.button
                             onClick={closeDetail}
-                            className="absolute top-4 right-4 z-50 p-2 bg-void-surface/80 backdrop-blur text-white/40 hover:text-white hover:bg-crimson-600 border border-void-border/30 transition-all duration-100"
-                            whileHover={{ scale: 1.1 }}
+                            aria-label="Close"
+                            className="absolute top-4 right-4 z-50 p-2 bg-void-surface/80 backdrop-blur text-white/40 border border-void-border/30 hover:text-white hover:bg-crimson-600 transition-colors duration-100 ease-out-expo"
+                            whileHover={{ scale: 1.08 }}
                             whileTap={{ scale: 0.95 }}
+                            transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
                         >
                             <X size={18} />
                         </motion.button>
 
-                        {/* Cover card — breaches the hero/content seam */}
-                        {/* top-72 = hero height (288px). translate-y-1/2 pulls it up so 50% is in hero. */}
-                        <GameDetailCoverCard
+                        <GameDetailRail
                             game={selectedGame}
-                            imgSrc={imgSrc}
-                            bannerSrc={bannerSrc}
-                            onImageError={handleImageError}
-                        />
-
-                        {/* Seam line — full-width hairline at hero/content boundary */}
-                        <div className="absolute top-72 inset-x-0 h-px bg-crimson-500/20 z-20 pointer-events-none" />
-
-                        {/* Hero — cinematic, dominant */}
-                        <GameDetailHero
-                            selectedGame={selectedGame}
-                            bannerSrc={bannerSrc}
-                            gameDetails={gameDetails}
+                            coverSrc={imgSrc}
+                            onCoverError={handleCoverError}
+                            playtimeHours={playtimeHours}
+                            completion={percentage}
+                            hasAchievements={total > 0}
+                            lastPlayed={lastPlayed}
+                            size={size}
+                            released={gameDetails?.details?.releaseDate}
                             isInstalling={isInstalling}
-                            handlePlay={handlePlay}
-                            handleInstall={handleInstall}
-                            handleBannerError={handleBannerError}
-                            formattedSize={formattedSize}
-                        />
-
-                        {/* Meta strip — inline data + secondary actions, clears cover card */}
-                        <GameDetailMetaStrip
-                            selectedGame={selectedGame}
-                            gameDetails={gameDetails}
-                            formattedPlaytime={formattedPlaytime}
-                            formattedLastPlayed={formattedLastPlayed}
-                            formattedSize={formattedSize}
                             isDeleting={isDeleting}
-                            toggleFavorite={toggleFavorite}
-                            handleDelete={handleDelete}
+                            onPrimary={() => void handlePrimary()}
+                            onDelete={() => void handleDelete()}
                         />
 
-                        <GameDetailTabs
-                            game={selectedGame}
-                            activeTab={activeTab}
-                            setActiveTab={setActiveTab}
-                            gameDetails={gameDetails}
+                        <GameDetailPanel
+                            details={gameDetails}
                             detailsLoading={detailsLoading}
-                            achievementsData={achievementsData}
+                            achievements={achievementsData?.achievements ?? []}
                             achievementsLoading={achievementsLoading}
-                            toggleAchievement={toggleAchievement}
-                            isManualAchievements={isManualAchievements}
-                            newsData={newsData}
+                            unlocked={unlocked}
+                            total={total}
+                            percentage={percentage}
+                            news={newsData?.news ?? []}
                             newsLoading={newsLoading}
-                            formattedPlaytime={formattedPlaytime}
-                            formattedLastPlayed={formattedLastPlayed}
+                            bannerSrc={bannerSrc}
+                            onOpenAchievements={openAchievements}
+                            onSelectNews={setOpenNews}
                         />
                     </motion.div>
+
+                    {/* Siblings of the shell, not children: these layer over the
+                        whole overlay and must not inherit its clipping. */}
+                    <GameDetailNewsReader key="news" item={openNews} onClose={() => setOpenNews(null)} />
+
+                    <AchievementsSurface
+                        key="achievements"
+                        isOpen={isAchievementsOpen}
+                        onClose={closeAchievements}
+                        title="Achievements"
+                        subtitle={selectedGame.title}
+                        achievements={achievementsData?.achievements ?? []}
+                        unlocked={unlocked}
+                        total={total}
+                        isLoading={achievementsLoading}
+                        emptyMessage="No achievements for this one"
+                        onToggleAchievement={toggleAchievement}
+                        banner={isManualAchievements ? <AchievementTrackingPanel gameId={selectedGame.id} /> : undefined}
+                    />
                 </MotionConfig>
             )}
         </AnimatePresence>

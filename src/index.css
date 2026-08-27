@@ -90,20 +90,57 @@
     @apply bg-crimson-600/40 text-white;
   }
 
+  /* ── Scrollbar ──────────────────────────────────────────────
+     Floating, not railed. The track is fully transparent and borderless, so
+     the only thing that ever paints is the thumb — it reads as a mark on the
+     content rather than a channel cut beside it.
+
+     The 12px box is still reserved for layout (Chromium removed true overlay
+     scrollbars), but nothing in it is visible, so the space reads as padding.
+
+     Width is expressed as the thumb's transparent border: 4px each side leaves
+     a 4px bar at rest, dropping to 2.5px on hover leaves 7px. Chromium does not
+     transition scrollbar pseudo-elements, so the step is instant by necessity. */
   ::-webkit-scrollbar {
-    @apply w-2 h-2;
+    width: 12px;
+    height: 12px;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-void-border rounded-full transition-colors duration-200;
+    background-color: oklch(0.32 0.01 25 / 0.75);
+    background-clip: padding-box;
+    border: 4px solid transparent;
+  }
+
+  /* Wakes up when the pointer is anywhere in the scrolling region, before the
+     user has gone looking for the bar. */
+  :hover::-webkit-scrollbar-thumb {
+    background-color: oklch(0.42 0.015 25 / 0.9);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-crimson-900/50;
+    background-color: var(--color-crimson-600);
+    border-width: 2.5px;
+    box-shadow: 0 0 10px oklch(0.58 0.245 25 / 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--color-crimson-500);
+    border-width: 2.5px;
+    box-shadow: 0 0 14px oklch(0.58 0.245 25 / 0.7);
+  }
+
+  ::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   ::-webkit-scrollbar-corner {
@@ -117,12 +154,60 @@
 
 @layer components {
 
+  /* Steam announcement bodies, converted from BBCode. Scoped so the reader can
+     render real prose without inheriting utility resets. */
+  .news-body p { margin: 0 0 0.9rem; }
+  .news-body h4 {
+    margin: 1.4rem 0 0.6rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-white);
+  }
+  .news-body ul { margin: 0 0 0.9rem; padding-left: 1.1rem; list-style: square; }
+  .news-body li { margin: 0.2rem 0; }
+  .news-body a { color: var(--color-crimson-300); text-decoration: underline; }
+  .news-body a:hover { color: var(--color-crimson-200); }
+  .news-body strong { color: var(--color-white); }
+  .news-body img { max-width: 100%; height: auto; margin: 0.6rem 0; border: 1px solid var(--color-void-border); }
+  .news-body blockquote {
+    margin: 0 0 0.9rem;
+    padding-left: 0.9rem;
+    border-left: 2px solid var(--color-crimson-500);
+    color: oklch(0.98 0.003 25 / 0.55);
+  }
+
   .game-grid-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(var(--grid-min-size, 180px), 1fr));
     gap: 1.25rem;
-    padding: 1.5rem;
-    padding-bottom: 6rem;
+    padding-inline: 1.5rem;
+    /* Vertical space must be MARGIN here, and nowhere else. VirtuosoGrid
+       overwrites this element's padding-top/padding-bottom inline with its row
+       offsets, and its viewport is `position:absolute; top:0`, which ignores
+       padding on the scroller — so both of the obvious places are dead ends.
+       1.5rem matches the side padding; cards scale from `top center`, so the
+       only thing needing headroom is the 8px hover lift. */
+    margin-block: 1.5rem 6rem;
+  }
+
+  /* Skeleton fill. A moving highlight rather than a pulsing block: the sweep
+     reads as "loading", where a fade reads as "disabled". `background-size`
+     drives the sweep so nothing animates layout. */
+  .skeleton-block {
+    background-color: var(--color-void-surface);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      oklch(0.98 0.003 25 / 0.06) 45%,
+      oklch(0.98 0.003 25 / 0.1) 50%,
+      oklch(0.98 0.003 25 / 0.06) 55%,
+      transparent 100%
+    );
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    animation: skeleton-sweep 1.5s ease-in-out infinite;
   }
 
   .game-grid-item {
@@ -359,9 +444,42 @@
   100% { transform: translate(0);         opacity: 0.5; }
 }
 
+/* Visor sweep for claimable free games.
+
+   Both endpoints are fully OFF the card — that is the whole point. The element
+   is 65% of the card wide and skewed, so it only clears the edges at roughly
+   -140% and 190%; parking anywhere nearer left a shoulder of the gradient
+   visible at the edge, and the loop's jump back to the start read as a snap.
+   With the travel ending out of frame, the restart happens where nothing is
+   drawn, so there is no cut to see.
+
+   -120% and 174% are not round numbers by accident: they are the pair that
+   both clears the edges (needs <=-113% and >=167%) AND is symmetric about
+   t=26.9%, which is where the core sits at the card's centre. That symmetry is
+   what puts `ease-in-out`'s peak speed exactly mid-card, with its slow phases
+   out of frame — the pass reads as accelerating in and decelerating out, in one
+   continuous motion. */
+@keyframes visor {
+  0%   { transform: translateX(-120%) skewX(-14deg); }
+  78%  { transform: translateX(174%)  skewX(-14deg); }
+  100% { transform: translateX(174%)  skewX(-14deg); }
+}
+
+/* Indeterminate installer bar: a highlight crossing a static rail, with both
+   ends fully off the rail so the loop has no visible seam. */
+@keyframes install-sweep {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(410%); }
+}
+
 @keyframes shimmer {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+@keyframes skeleton-sweep {
+  from { background-position: 140% 0; }
+  to   { background-position: -40% 0; }
 }
 
 @keyframes fadeSlideIn {

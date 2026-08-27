@@ -1,58 +1,82 @@
-export const backdropVariants = {
+import type { Transition, Variants } from 'framer-motion'
+
+export const EASE_EXPO = [0.16, 1, 0.3, 1] as const
+
+/** Hover, everywhere. Matches the cards. */
+export const hoverTransition: Transition = { duration: 0.1, ease: EASE_EXPO }
+
+export const backdropVariants: Variants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1 }
+    visible: { opacity: 1, transition: { duration: 0.18, ease: EASE_EXPO } },
+    exit: { opacity: 0, transition: { duration: 0.14, ease: EASE_EXPO } },
 }
 
-export const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 30 },
-    visible: { opacity: 1, scale: 1, y: 0 },
-    exit: { opacity: 0, scale: 0.95, y: 30 }
+/**
+ * The shell barely moves — 1.5% and 12px. The overlay is nearly full-screen, so
+ * a big scale reads as a zoom rather than an arrival, and the choreography below
+ * is what carries the entrance.
+ */
+export const shellVariants: Variants = {
+    hidden: { opacity: 0, scale: 0.985, y: 14 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.3, ease: EASE_EXPO } },
+    exit: { opacity: 0, scale: 0.99, y: 8, transition: { duration: 0.16, ease: EASE_EXPO } },
 }
 
-export const launchBoltVariants = {
-    idle:  { x: 0, scale: 1, backgroundColor: 'oklch(0.52 0.23 25)' },
-    hover: { x: 6, scale: 1.05, backgroundColor: 'oklch(0.98 0.003 25)', boxShadow: '0 0 40px oklch(0.98 0.003 25 / 0.5)' },
-    tap:   { scale: 0.92 }
+/** Cover art settles out of a slight overscale, like a plate being set down. */
+export const coverVariants: Variants = {
+    hidden: { opacity: 0, scale: 1.06 },
+    visible: { opacity: 1, scale: 1, transition: { delay: 0.06, duration: 0.5, ease: EASE_EXPO } },
 }
 
-export const launchIconVariants = {
-    idle:  { color: 'oklch(0.98 0.003 25)' },
-    hover: { color: 'oklch(0.52 0.23 25)' }
+/** Rail items rise in sequence under the cover. */
+export function railItem(index: number): Variants {
+    return {
+        hidden: { opacity: 0, y: 10 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { delay: 0.14 + index * 0.05, duration: 0.34, ease: EASE_EXPO },
+        },
+    }
 }
 
-export const launchTextVariants = {
-    idle:  { x: 0, skewX: 0, opacity: 0.9 },
-    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px oklch(0.52 0.23 25 / 0.4)' }
+/** The Launch strip arrives the way it does on a library card: from below. */
+export const launchVariants: Variants = {
+    hidden: { opacity: 0, y: 14 },
+    visible: { opacity: 1, y: 0, transition: { delay: 0.2, duration: 0.34, ease: EASE_EXPO } },
 }
 
-export const launchSubtextVariants = {
-    idle:  { x: 0, opacity: 0.6 },
-    hover: { x: 8, opacity: 1 }
+/** Panel bands, staggered left-to-right down the page. */
+export function bandVariants(index: number): Variants {
+    return {
+        hidden: { opacity: 0, y: 12 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { delay: 0.18 + index * 0.07, duration: 0.36, ease: EASE_EXPO },
+        },
+    }
 }
 
-export const installBoltVariants = {
-    idle:  { x: 0, scale: 1, borderColor: 'oklch(0.98 0.003 25 / 0.3)', backgroundColor: 'oklch(0.98 0.003 25 / 0.05)' },
-    hover: { x: 6, scale: 1.05, borderColor: 'oklch(0.52 0.23 25)', backgroundColor: 'oklch(0.52 0.23 25)', boxShadow: '0 0 30px oklch(0.52 0.23 25 / 0.5)' },
-    tap:   { scale: 0.92 }
+/** Rows inside a band, offset from that band's own delay. */
+export function rowVariants(bandIndex: number, rowIndex: number): Variants {
+    return {
+        hidden: { opacity: 0, x: -8 },
+        visible: {
+            opacity: 1,
+            x: 0,
+            transition: {
+                delay: 0.24 + bandIndex * 0.07 + rowIndex * 0.045,
+                duration: 0.3,
+                ease: EASE_EXPO,
+            },
+        },
+    }
 }
 
-export const installIconVariants = {
-    idle:  { color: 'oklch(0.98 0.003 25 / 0.7)' },
-    hover: { color: 'oklch(0.98 0.003 25)' }
-}
+/** Progress fill. Deliberately the slowest thing on screen — it is the payoff. */
+export const trackTransition: Transition = { delay: 0.34, duration: 0.95, ease: EASE_EXPO }
 
-export const installTextVariants = {
-    idle:  { x: 0, skewX: 0, opacity: 0.7 },
-    hover: { x: 8, skewX: -8, opacity: 1, textShadow: '3px 3px 0px oklch(0.52 0.23 25 / 0.4)' }
-}
-
-export const installSubtextVariants = {
-    idle:  { x: 0, opacity: 0.5 },
-    hover: { x: 8, opacity: 1, color: 'oklch(0.52 0.23 25 / 0.8)' }
-}
-
-// Hover transition — 100ms ease-out-expo, GPU-only. Replaces former spring physics on hover (banned).
-export const hoverTransition = { duration: 0.1, ease: [0.16, 1, 0.3, 1] as const }
-// Entrance / one-shot reveal transition — spring is acceptable here per signature-design Phase 2.
-export const springTransition = { type: "spring" as const, stiffness: 500, damping: 30 }
-export const fastTransition = { duration: 0.15, ease: "easeOut" as const }
+/** Count-up timings for the two numbers that matter. */
+export const COUNT_MS = 700
+export const COUNT_DELAY_MS = 260

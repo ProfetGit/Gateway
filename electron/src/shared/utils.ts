@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { app, BrowserWindow } from 'electron'
 import { Game } from './types'
 import { JsonStore } from './store'
+import { generateMissingThumbnails } from './cover-thumbnails'
 import { isImageBuffer, isValidImageFile, isCoverShaped, isCoverShapedFile } from './image-file'
 import { steamCoverGuesses, steamHeroGuesses, steamLogoGuesses, fetchSteamArtUrls } from './steam-art-urls'
 
@@ -256,7 +257,10 @@ export async function mirrorAllCovers(store: JsonStore, win: BrowserWindow | nul
         else if (stale) mirrored.set(game.id, '')
     }
 
-    if (mirrored.size === 0) return
+    if (mirrored.size === 0) {
+        await generateMissingThumbnails(store)
+        return
+    }
 
     const next = store.updateGames((games) =>
         games.map((game) => {
@@ -274,4 +278,7 @@ export async function mirrorAllCovers(store: JsonStore, win: BrowserWindow | nul
         (repaired > 0 ? ` (${repaired} broken cover(s) repaired)` : '')
     )
     win?.webContents.send('games-updated', next)
+
+    // After the store update, so freshly mirrored covers are included.
+    await generateMissingThumbnails(store)
 }

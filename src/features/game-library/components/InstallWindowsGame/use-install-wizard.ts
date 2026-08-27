@@ -6,6 +6,7 @@ import { listProtonBuilds } from '../../api/list-proton-builds'
 import { onInstallerProgress } from '../../api/on-installer-progress'
 import { runWindowsInstaller } from '../../api/run-windows-installer'
 import { cancelWindowsInstaller } from '../../api/cancel-windows-installer'
+import { resetWinePrefix } from '../../api/reset-wine-prefix'
 import { suggestPrefixPath } from '../../api/suggest-prefix-path'
 import { useGameStore } from '../../game-store'
 import { useSteamMatchStore } from '../../steam-match-store'
@@ -13,7 +14,7 @@ import { fetchGameArt } from '../../api/fetch-game-art'
 import { deriveTitleFromFilename } from './derive-title-from-filename'
 import type { InstallerProgress, ProtonBuild, RankedExecutable } from '../../api/launch-schema'
 
-export type WizardStep = 'setup' | 'running' | 'pick'
+export type WizardStep = 'setup' | 'running' | 'pick' | 'failed'
 
 export function useInstallWizard(isOpen: boolean, onClose: () => void) {
     const addGameToStore = useGameStore((s) => s.addGame)
@@ -32,12 +33,18 @@ export function useInstallWizard(isOpen: boolean, onClose: () => void) {
     const [candidates, setCandidates] = useState<RankedExecutable[]>([])
     const [chosen, setChosen] = useState('')
     const [error, setError] = useState<string | null>(null)
+    // Which Proton the failed attempt used, and whether the folder was ours to
+    // wipe. Captured at run time: after a failure the prefix always has files in
+    // it, so asking afterwards tells you nothing.
+    const [triedProtonPath, setTriedProtonPath] = useState('')
+    const [prefixWasOurs, setPrefixWasOurs] = useState(true)
 
     const reset = useCallback(() => {
         setStep('setup')
         setInstallerPath(''); setTitle(''); setLinkedAppId(undefined)
         setPrefixPath(''); setPrefixEdited(false)
         setPrefixHasFiles(false); setProgress(null); setCandidates([]); setChosen(''); setError(null)
+        setTriedProtonPath(''); setPrefixWasOurs(true)
     }, [])
 
     useEffect(() => {
@@ -84,16 +91,33 @@ export function useInstallWizard(isOpen: boolean, onClose: () => void) {
         setPrefixPath(path)
     }, [])
 
-    const run = useCallback(async () => {
+    /**
+     * `withProton` lets a retry override the selected build without committing
+     * it to state first, so a failed attempt does not silently become the
+     * game's saved Proton if the user then backs out.
+     */
+    const run = useCallback(async (withProton?: string, cleanPrefix = false) => {
+        const useProton = withProton ?? protonPath
         setStep('running')
         setError(null)
         setProgress({ state: 'preparing' })
+        setTriedProtonPath(useProton)
+        setPrefixWasOurs(!prefixEdited && !prefixHasFiles)
+
+        if (cleanPrefix) {
+            const wiped = await resetWinePrefix(prefixPath).catch(() => null)
+            if (wiped && !wiped.success) {
+                setError(wiped.error ?? "Couldn't empty the game folder.")
+                setStep('failed')
+                return
+            }
+        }
 
         const result = await runWindowsInstaller({
             installerPath,
             title: title.trim(),
             prefixPath,
-            protonPath: protonPath || undefined,
+            protonPath: useProton || undefined,
         }).catch((e: unknown) => {
             console.error('Installer failed:', e)
             return null
@@ -101,14 +125,18 @@ export function useInstallWizard(isOpen: boolean, onClose: () => void) {
 
         if (!result?.success) {
             setError(result?.error ?? "The installer couldn't be started.")
-            setStep('setup')
+            // A failure used to drop the user back on the form with an error and
+            // no next step. It now has its own screen, which is where trying a
+            // different Proton belongs.
+            setStep('failed')
             return
         }
 
+        setProtonPath(useProton)
         setCandidates(result.candidates)
         setChosen(result.candidates[0]?.path ?? '')
         setStep('pick')
-    }, [installerPath, title, prefixPath, protonPath])
+    }, [installerPath, title, prefixPath, protonPath, prefixEdited, prefixHasFiles])
 
     const cancel = useCallback(() => {
         void cancelWindowsInstaller()
@@ -152,7 +180,8 @@ export function useInstallWizard(isOpen: boolean, onClose: () => void) {
     }, [chosen, title, prefixPath, protonPath, linkedAppId, addGameToStore, onClose, openSteamMatch])
 
     return {
-        step, installerPath, title, setTitle, linkedAppId, setLinkedAppId, prefixPath, prefixHasFiles,
+        step, setStep, installerPath, title, setTitle, linkedAppId, setLinkedAppId, prefixPath, prefixHasFiles,
+        triedProtonPath, prefixWasOurs,
         protonPath, setProtonPath, protonBuilds, progress, candidates, chosen, setChosen,
         error, chooseInstaller, editPrefix, run, cancel, finish,
         canRun: Boolean(installerPath && title.trim() && prefixPath),

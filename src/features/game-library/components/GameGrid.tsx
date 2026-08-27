@@ -3,9 +3,10 @@ import { motion } from 'framer-motion'
 import { GameCard } from './GameCard'
 import { useGameStore } from '../game-store'
 import { useFilteredGames } from '../use-filtered-games'
+import { useCoverPreload } from '../use-cover-preload'
 import { useUIStore } from '@/stores/ui-store'
 import { Gamepad2 } from 'lucide-react'
-import { forwardRef, memo, useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, memo, useEffect, useState } from 'react'
 import type { Game } from '../game-library-types'
 
 // Memoized card wrapper — prevents re-renders unless game data changes.
@@ -24,10 +25,9 @@ const MemoizedGameCard = memo(function MemoizedGameCard({
 export function GameGrid() {
     const games = useFilteredGames()
     const gridSize = useUIStore((s) => s.gridSize)
-    const startPreloading = useGameStore((s) => s.startPreloading)
+    const warmCoversAround = useCoverPreload(games)
     const [animateIn, setAnimateIn] = useState(true)
     const hasGames = games.length > 0
-    const gamesLength = games.length
 
     useEffect(() => {
         if (!hasGames) return
@@ -35,23 +35,6 @@ export function GameGrid() {
         const id = window.setTimeout(() => setAnimateIn(false), 900)
         return () => window.clearTimeout(id)
     }, [hasGames])
-
-    useEffect(() => {
-        if (gamesLength === 0) return
-        startPreloading()
-    }, [gamesLength, startPreloading])
-
-    const lastPreloadedIndex = useRef(0)
-
-    const handleRangeChanged = useCallback(
-        ({ endIndex }: { startIndex: number; endIndex: number }) => {
-            if (endIndex + 20 >= lastPreloadedIndex.current) {
-                lastPreloadedIndex.current = endIndex + 20
-                startPreloading()
-            }
-        },
-        [startPreloading]
-    )
 
     return (
         <div
@@ -66,10 +49,18 @@ export function GameGrid() {
                 <VirtuosoGrid
                     style={{ height: '100%' }}
                     totalCount={games.length}
-                    overscan={15}
+                    // Two different jobs, easy to confuse. `overscan` only
+                    // chunks re-renders; it does NOT render extra content, so
+                    // the old `overscan={15}` (fifteen *pixels*) mounted cards
+                    // essentially at the viewport edge — the image request
+                    // started when the card was already visible, which is the
+                    // pop-in. `increaseViewportBy` is the one that renders
+                    // ahead: roughly three rows below and two above.
+                    increaseViewportBy={{ bottom: 900, top: 500 }}
+                    overscan={{ main: 400, reverse: 200 }}
                     listClassName="game-grid-list"
                     itemClassName="game-grid-item"
-                    rangeChanged={handleRangeChanged}
+                    rangeChanged={warmCoversAround}
                     itemContent={(index) => {
                         const game = games[index]
                         if (!game) return null
