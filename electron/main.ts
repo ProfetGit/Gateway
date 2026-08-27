@@ -1,5 +1,6 @@
 import { app, BrowserWindow, protocol, net, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
 import path from 'node:path'
 import { JsonStore } from './src/shared/store'
 import { mirrorAllCovers } from './src/shared/utils'
@@ -99,19 +100,29 @@ app.whenReady().then(() => {
   // Register custom protocol for local art — mirrors the Tauri backend's
   // gateway:// scheme handler (same path layout, mime-by-extension, and
   // cache header). cover/hero/logo each map to their own assets subfolder.
-  const GATEWAY_ART_SUBDIRS: Record<string, string> = {
-    cover: 'covers',
-    hero: 'heroes',
-    logo: 'logos',
+  // `thumb` falls back to the full cover, so the renderer can ask for a
+  // thumbnail unconditionally and still get art on the first launch after an
+  // import, before the background pass has generated one. That keeps the
+  // thumbnail tier entirely out of the library schema — nothing to migrate,
+  // nothing to keep in sync, and a deleted thumbs/ folder just self-heals.
+  const GATEWAY_ART_SUBDIRS: Record<string, string[]> = {
+    cover: ['covers'],
+    thumb: ['thumbs', 'covers'],
+    hero: ['heroes'],
+    logo: ['logos'],
   }
 
   protocol.handle('gateway', (request) => {
     const url = request.url.replace('gateway://', '')
     const [type, fileName] = url.split('/')
-    const subDir = type ? GATEWAY_ART_SUBDIRS[type] : undefined
+    const subDirs = type ? GATEWAY_ART_SUBDIRS[type] : undefined
 
-    if (subDir && fileName) {
-      const filePath = path.join(store.getDataDir(), 'assets', subDir, fileName)
+    if (subDirs && fileName) {
+      const assets = path.join(store.getDataDir(), 'assets')
+      const filePath = subDirs
+        .map((subDir) => path.join(assets, subDir, fileName))
+        .find((candidate) => fs.existsSync(candidate)) ?? path.join(assets, subDirs[0]!, fileName)
+
       return net.fetch(`file://${filePath}`).then((res) => {
         if (!res.ok) return new Response('Not Found', { status: 404 })
         const mime = fileName.endsWith('.png') ? 'image/png' : 'image/jpeg'

@@ -34,7 +34,7 @@ interface UseGameAchievementsResult {
  * achievements but refuses to report progress for a game you don't own — so we
  * fetch the definitions and merge in unlocks the user recorded by hand.
  */
-export function useGameAchievements(selectedGame: Game | null, activeTab: string): UseGameAchievementsResult {
+export function useGameAchievements(selectedGame: Game | null, enabled: boolean): UseGameAchievementsResult {
     const [steamData, setSteamData] = useState<FetchAchievementsResult | null>(null)
     const [definitions, setDefinitions] = useState<AchievementDefinition[] | null>(null)
     const [definitionsMeta, setDefinitionsMeta] = useState<{ gameName?: string; error?: string } | null>(null)
@@ -57,7 +57,7 @@ export function useGameAchievements(selectedGame: Game | null, activeTab: string
     }, [gameId])
 
     useEffect(() => {
-        if (activeTab !== 'achievements' || !appId) return
+        if (!enabled || !appId) return
         if (fetchedRef.current === appId) return
 
         fetchedRef.current = appId
@@ -78,7 +78,7 @@ export function useGameAchievements(selectedGame: Game | null, activeTab: string
                 .catch(() => setSteamData(EMPTY_RESULT))
 
         request.finally(() => setIsLoading(false))
-    }, [activeTab, appId, isManual])
+    }, [enabled, appId, isManual])
 
     const achievementsData = useMemo(() => {
         if (!isManual) return steamData

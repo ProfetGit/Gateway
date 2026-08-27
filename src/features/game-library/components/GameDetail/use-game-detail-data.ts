@@ -1,9 +1,6 @@
 import type { FetchAchievementsResult } from '@/features/achievements/api/achievements-schema'
-import type {
-    FetchNewsResult,
-    FetchGameDetailsResult,
-    Game
-} from '@/features/game-library/game-library-types'
+import type { FetchGameDetailsResult, Game } from '@/features/game-library/game-library-types'
+import type { FetchNewsResult } from '@/features/game-library/game-news-types'
 import { useGameDetailImages } from './use-game-detail-images'
 import { useGameDetailsFetch } from './use-game-details-fetch'
 import { useGameNewsFetch } from './use-game-news-fetch'
@@ -29,12 +26,12 @@ interface UseGameDetailDataReturn {
  * owns its own cache and reset; this exists to keep GameDetail's call site
  * unchanged.
  */
-export function useGameDetailData(selectedGame: Game | null, activeTab: string): UseGameDetailDataReturn {
+export function useGameDetailData(selectedGame: Game | null, enabled: boolean): UseGameDetailDataReturn {
     const { imgSrc, bannerSrc, setImgSrc, setBannerSrc } = useGameDetailImages(selectedGame)
     const { gameDetails, detailsLoading } = useGameDetailsFetch(selectedGame)
-    const { newsData, newsLoading } = useGameNewsFetch(selectedGame, activeTab)
+    const { newsData, newsLoading } = useGameNewsFetch(selectedGame, enabled)
     const { achievementsData, achievementsLoading, toggleAchievement, isManual } =
-        useGameAchievements(selectedGame, activeTab)
+        useGameAchievements(selectedGame, enabled)
 
     return {
         achievementsData,

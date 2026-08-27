@@ -1,25 +1,22 @@
 import { useState, useEffect, memo } from 'react'
+import { InteractiveCard } from '@/components/ui/cards/InteractiveCard'
+import { cardStripHeight, cardSurface, cardTextTint } from '@/components/ui/cards/card-motion'
 import { useGameStore } from '../game-store'
 import { useContextMenuStore } from '@/components/ui/context-menu/context-menu-store'
 import type { Game } from '../game-library-types'
 import { launchGameWithFeedback } from '../launch-game-with-feedback'
 import { installSteamGame } from '../api/install-steam-game'
-import { getMetadataAppId } from '../get-metadata-app-id'
+import { coverSources, initialCoverSource, nextCoverSource } from '../game-cover-src'
+import { isCoverReady, markCoverReady, MAX_COVER_ASPECT } from '../cover-cache'
 import { GameCardCoverArt } from './GameCardCoverArt'
 import { GameCardBadges } from './GameCardBadges'
 import { GameCardHoverActions } from './GameCardHoverActions'
 import { useGameCardMenu } from './use-game-card-menu'
 
 /**
- * GAME CARD DESIGN PRINCIPLES (Premium + Performance)
- * ══════════════════════════════════════════════════════════════
- * 1. HEXAGON PLAY BUTTON — Centered action on hover
- * 2. CORNER BRACKETS — Animated accent corners on hover
- * 3. GLOW EFFECTS — Crimson shadow bloom on hover
- * 4. IMAGE SCALE — Parallax-like zoom on hover
- * 5. MEMOIZED — Re-renders only when game data changes
- * 6. LOCAL-FIRST — gateway:// protocol with CDN fallback
- * ══════════════════════════════════════════════════════════════
+ * Cover-art tile for the library grid. The card surface, its hover lift and the
+ * corner brackets come from InteractiveCard — this file owns the art fallback
+ * chain, the badges and the launch/install action.
  */
 
 interface GameCardProps {
@@ -29,30 +26,16 @@ interface GameCardProps {
     animateIndex?: number
 }
 
-const STEAM_CDN = 'https://steamcdn-a.akamaihd.net/steam/apps'
-
-// Matches MAX_COVER_ASPECT in electron/src/shared/image-file.ts. The mirror
-// refuses to store a banner as a cover, but a remote fallback URL can still
-// resolve to one — Steam serves header.jpg for any app with no library art.
-// A wide image in a 3:4 slot renders as a stretched crop, which is worse than
-// the designed no-cover tile.
-const MAX_COVER_ASPECT = 1.2
 
 export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: GameCardProps) {
-    // metadataAppId, not just steamAppId: a manually added game matched to a
-    // Steam entry has only the former, and rendered with no cover at all until
-    // the art mirror caught up.
-    const artAppId = getMetadataAppId(game)
+    // The URL chain lives in game-cover-src, shared with the preloader.
+    const startingSrc = initialCoverSource(game)
 
-    const getInitialSrc = () => {
-        if (game.localCoverPath) return `gateway://cover/${game.localCoverPath}`
-        if (game.coverUrl) return game.coverUrl
-        return artAppId ? `${STEAM_CDN}/${artAppId}/library_600x900_2x.jpg` : undefined
-    }
-
-    const [imgSrc, setImgSrc] = useState(getInitialSrc)
+    const [imgSrc, setImgSrc] = useState(startingSrc)
     const [imageError, setImageError] = useState(false)
-    const [imgLoaded, setImgLoaded] = useState(false)
+    // Already warmed by the preloader? Then render it opaque on the first
+    // frame. Fading in an image that is already decoded *is* the pop.
+    const [imgLoaded, setImgLoaded] = useState(() => isCoverReady(startingSrc))
     const { openDetail, toggleFavorite } = useGameStore()
     const { open: openContextMenu } = useContextMenuStore()
 
@@ -78,46 +61,35 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
         toggleFavorite(game.id)
     }
 
+    // Re-key on the resolved chain, so a resync that mirrors a new cover swaps
+    // it in — and a re-render that changes nothing about the art does not.
+    const sourceKey = coverSources(game).join('|')
     useEffect(() => {
-        setImgSrc(getInitialSrc())
+        const next = initialCoverSource(game)
+        setImgSrc(next)
         setImageError(false)
-        setImgLoaded(false)
-    }, [game.coverUrl, game.localCoverPath, artAppId]) // eslint-disable-line react-hooks/exhaustive-deps
+        setImgLoaded(isCoverReady(next))
+    }, [sourceKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleImageError = () => {
-        const currentSrc = imgSrc || ''
-
-        if (currentSrc.startsWith('gateway://') && game.coverUrl) {
-            setImgLoaded(false)
-            setImgSrc(game.coverUrl)
-            return
-        }
-
-        if (!artAppId) {
+        const next = nextCoverSource(game, imgSrc)
+        if (!next) {
             setImageError(true)
             return
         }
-
-        if (currentSrc.includes('library_600x900_2x.jpg')) {
-            setImgLoaded(false)
-            setImgSrc(`${STEAM_CDN}/${artAppId}/library_600x900.jpg`)
-        } else if (currentSrc.includes('library_600x900.jpg')) {
-            setImgLoaded(false)
-            setImgSrc(`${STEAM_CDN}/${artAppId}/header.jpg`)
-        } else if (!currentSrc.includes('header.jpg')) {
-            setImgLoaded(false)
-            setImgSrc(`${STEAM_CDN}/${artAppId}/library_600x900_2x.jpg`)
-        } else {
-            setImageError(true)
-        }
+        setImgLoaded(isCoverReady(next))
+        setImgSrc(next)
     }
 
     const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
         const { naturalWidth, naturalHeight } = e.currentTarget
+        // A banner in a 3:4 slot is a stretched crop. Treat it as a failure and
+        // fall through, the same way the preloader does.
         if (naturalHeight > 0 && naturalWidth / naturalHeight > MAX_COVER_ASPECT) {
-            setImageError(true)
+            handleImageError()
             return
         }
+        markCoverReady(imgSrc)
         setImgLoaded(true)
     }
 
@@ -127,9 +99,14 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
     const animateDelayMs = shouldAnimate ? Math.min(animateIndex * 28, 560) : 0
 
     return (
-        <article
-            className={`relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer group isolate bg-void-deep border border-void-border/20 hover:border-crimson-500/50 transition-all duration-300 hover:shadow-[0_8px_30px_oklch(0.52_0.23_25/0.25)]${shouldAnimate ? ' animate-card-in' : ''}`}
-            style={shouldAnimate ? { animationDelay: `${animateDelayMs}ms` } : undefined}
+        <InteractiveCard
+            entranceDelayMs={shouldAnimate ? animateDelayMs : null}
+            entranceFrom="bottom"
+            brackets={{ colorClass: 'border-crimson-500', className: 'z-40' }}
+            aspectRatio="3 / 4"
+            transformOrigin="top center"
+            ariaLabel={game.title}
+            className={`rounded-lg bg-void-deep border border-void-border/20 hover:border-crimson-500/50 hover:shadow-[0_12px_36px_oklch(0.52_0.23_25/0.3)] ${cardSurface}`}
             onClick={() => openDetail(game)}
             onContextMenu={(e) => {
                 e.preventDefault()
@@ -159,10 +136,23 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
             />
 
             {/* Game title — always visible at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none z-10">
+            {/* Title rides up by exactly the strip's height when it slides in. */}
+            <div
+                className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 translate-y-0 group-hover:translate-y-[var(--strip-shift)] transition-transform duration-100 ease-out-expo group-hover:duration-200"
+                style={{
+                    padding: 'clamp(8px, 3cqw, 18px)',
+                    '--strip-shift': `calc(-1 * ${cardStripHeight})`,
+                } as React.CSSProperties}
+            >
                 <h3
-                    className="font-display font-bold text-sm text-white leading-tight group-hover:text-crimson-200 transition-colors duration-300"
+                    className={`font-display font-bold text-white leading-tight group-hover:text-crimson-200 ${cardTextTint}`}
                     style={{
+                        // Narrower clamp than the other scaled bits: type has a hard
+                        // readability floor. Below ~12px the title is lost; above
+                        // ~18px it competes with the cover instead of labelling it.
+                        // The curve passes through ~13.7px at the 180px default, so
+                        // the common case looks as it did at `text-sm`.
+                        fontSize: 'clamp(12px, calc(2.2cqw + 9.5px), 18px)',
                         textShadow: '0 2px 10px oklch(0.08 0.005 25), 0 1px 3px oklch(0.08 0.005 25 / 0.9)',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
@@ -172,12 +162,7 @@ export const GameCard = memo(function GameCard({ game, animateIndex = -1 }: Game
                 >
                     {game.title}
                 </h3>
-
-                {/* Subtle action hint */}
-                <span className="text-[9px] font-mono uppercase tracking-widest text-white/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-1 block">
-                    {game.isInstalled ? 'Click to launch' : 'Click to install'}
-                </span>
             </div>
-        </article>
+        </InteractiveCard>
     )
 })

@@ -47,3 +47,9 @@ export const PrefixInspectionSchema = z.object({
   hasFiles: z.boolean(),
 })
 export type PrefixInspection = z.infer<typeof PrefixInspectionSchema>
+
+export const ResetPrefixResultSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+})
+export type ResetPrefixResult = z.infer<typeof ResetPrefixResultSchema>

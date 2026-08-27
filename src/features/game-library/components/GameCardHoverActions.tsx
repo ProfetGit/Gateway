@@ -1,102 +1,64 @@
 import { Download, Play } from 'lucide-react'
+import { cardStripHeight } from '@/components/ui/cards/card-motion'
 
 export type GameCardHoverActionsProps = {
     isInstalled: boolean
     onClick: (e: React.MouseEvent) => void
 }
 
+// The crimson fill and the white copy of the label are clipped by the SAME
+// inset() on the SAME curve, so each letter turns white exactly as the fill
+// edge passes under it. Transitioning the label's `color` instead made the
+// whole word change at once, ahead of the fill it was supposed to react to.
+const WIPE = 'transition-[clip-path] duration-100 ease-out-expo group-hover/strip:duration-[220ms]'
+const CLIPPED = '[clip-path:inset(0_100%_0_0)] group-hover/strip:[clip-path:inset(0_0_0_0)]'
+
+function Label({ isInstalled, className }: { isInstalled: boolean; className: string }) {
+    return (
+        <span
+            className={`absolute inset-0 flex items-center justify-center gap-[0.6em] font-mono font-bold uppercase tracking-[0.2em] ${className}`}
+            style={{
+                fontSize: 'clamp(8px, 3.2cqw, 14px)',
+                // Pinned to grayscale AA. The strip is transform-animated, so the
+                // browser promotes it to its own layer for the duration and drops
+                // back afterwards — subpixel-antialiased text visibly re-renders at
+                // both ends of that, which reads as a snap.
+                WebkitFontSmoothing: 'antialiased',
+                transform: 'translateZ(0)',
+            }}
+        >
+            {isInstalled ? (
+                <Play className="w-[1.2em] h-[1.2em] fill-current" />
+            ) : (
+                <Download className="w-[1.2em] h-[1.2em]" />
+            )}
+            {isInstalled ? 'Launch' : 'Install'}
+        </span>
+    )
+}
+
+// Full-bleed strip that slides up from the bottom edge on card hover. It sits
+// UNDER the corner brackets (z-20 vs the brackets' z-40) on purpose: the leg
+// draws across the strip, then disappears into the crimson fill when the strip
+// itself is hovered, since bracket and fill are a shade apart.
 export function GameCardHoverActions({ isInstalled, onClick }: GameCardHoverActionsProps) {
     return (
-        <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-            <button
-                onClick={onClick}
-                className={`
-                    group/hex relative flex items-center justify-center
-                    transition-all duration-300 ease-out
-                    opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100
-                    pointer-events-auto cursor-pointer focus:outline-none
-                    hover:!scale-110 active:!scale-95
-                `}
-                style={{ width: 60, height: 52 }}
-            >
-                {/* Hexagon shape using SVG for perfect symmetry */}
-                <svg
-                    viewBox="0 0 100 87"
-                    className="absolute inset-0 w-full h-full overflow-visible"
-                    style={{
-                        filter: isInstalled
-                            ? 'drop-shadow(0 0 20px oklch(0.52 0.23 25 / 0.7))'
-                            : 'drop-shadow(0 4px 12px oklch(0.08 0.005 25 / 0.5))'
-                    }}
-                >
-                    <defs>
-                        {/* Installed gradient */}
-                        <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="var(--color-crimson-600)" />
-                            <stop offset="100%" stopColor="var(--color-crimson-800)" />
-                        </linearGradient>
+        <button
+            onClick={onClick}
+            aria-label={isInstalled ? 'Launch' : 'Install'}
+            style={{ height: cardStripHeight }}
+            className="group/strip absolute inset-x-0 bottom-0 z-20 overflow-hidden cursor-pointer bg-void-pure/90 border-t border-crimson-500/45 translate-y-full group-hover:translate-y-0 transition-transform duration-100 ease-out-expo group-hover:duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-crimson-400"
+        >
+            <span className={`absolute inset-0 bg-crimson-600 ${CLIPPED} ${WIPE}`} />
 
-                        {/* Uninstalled ghost background */}
-                        <linearGradient id="hexGradientGhost" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="oklch(0.22 0.005 25 / 0.95)" />
-                            <stop offset="100%" stopColor="oklch(0.16 0.005 25 / 0.95)" />
-                        </linearGradient>
-
-                        {/* Fill gradient for download animation */}
-                        <linearGradient id="hexFillGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                            <stop offset="0%" stopColor="oklch(0.52 0.23 25)" />
-                            <stop offset="100%" stopColor="oklch(0.62 0.235 25)" />
-                        </linearGradient>
-
-                        {/* Hexagon clip path for the fill animation */}
-                        <clipPath id="hexClip">
-                            <polygon points="50,0 100,25 100,62 50,87 0,62 0,25" />
-                        </clipPath>
-                    </defs>
-
-                    {/* Base hexagon shape */}
-                    <polygon
-                        points="50,0 100,25 100,62 50,87 0,62 0,25"
-                        fill={isInstalled ? 'url(#hexGradient)' : 'url(#hexGradientGhost)'}
-                        stroke={isInstalled ? 'none' : 'oklch(0.98 0.003 25 / 0.3)'}
-                        strokeWidth={isInstalled ? 0 : 2}
-                    />
-
-                    {/* Animated fill layer for uninstalled games */}
-                    {!isInstalled && (
-                        <g clipPath="url(#hexClip)">
-                            <rect
-                                x="0"
-                                y="87"
-                                width="100"
-                                height="87"
-                                fill="url(#hexFillGradient)"
-                                className="transition-transform duration-500 ease-out group-hover/hex:-translate-y-full"
-                            />
-                        </g>
-                    )}
-
-                    {/* Border overlay for uninstalled - stays on top */}
-                    {!isInstalled && (
-                        <polygon
-                            points="50,0 100,25 100,62 50,87 0,62 0,25"
-                            fill="none"
-                            stroke="oklch(0.98 0.003 25 / 0.3)"
-                            strokeWidth="2"
-                            className="transition-all duration-500 group-hover/hex:stroke-white/50"
-                        />
-                    )}
-                </svg>
-
-                {/* Icon */}
-                <div className="relative z-10">
-                    {isInstalled ? (
-                        <Play className="w-6 h-6 text-white fill-white ml-0.5 drop-shadow-lg" />
-                    ) : (
-                        <Download className="w-5 h-5 text-white drop-shadow-lg transition-transform duration-300 group-hover/hex:scale-110" />
-                    )}
-                </div>
-            </button>
-        </div>
+            {/* Label lands after the strip has settled — animating text and
+                surface at once is what made it look unsteady. */}
+            <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 ease-out-expo group-hover:duration-150 group-hover:delay-[130ms]">
+                <Label isInstalled={isInstalled} className="text-crimson-300" />
+                <span aria-hidden className={`absolute inset-0 ${CLIPPED} ${WIPE}`}>
+                    <Label isInstalled={isInstalled} className="text-white" />
+                </span>
+            </span>
+        </button>
     )
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '@/features/game-library/game-store'
 import { useUIStore } from '@/stores/ui-store'
+import { OverlayScroll } from '@/components/ui/OverlayScroll'
 import { HomeHeroBanner } from './HomeHeroBanner'
 import { HomeSectionsList } from './HomeSectionsList'
 
@@ -30,9 +31,9 @@ export function HomeView() {
     }, [isScrolled, setIsScrolled])
 
     return (
-        <div
+        <OverlayScroll
             onScroll={handleScroll}
-            className="relative h-full w-full overflow-y-auto overflow-x-hidden bg-void-pure scrollbar-hide"
+            outerClassName="h-full w-full bg-void-pure"
         >
             <AnimatePresence mode="wait">
                 {games.length > 0 ? (
@@ -53,7 +54,7 @@ export function HomeView() {
                     <EmptyVoid key="empty" />
                 )}
             </AnimatePresence>
-        </div>
+        </OverlayScroll>
     )
 }
 

@@ -1,66 +1,49 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { X, PackagePlus } from 'lucide-react'
-import { useGameStore } from '../game-store'
-import { selectExecutable, selectImage } from '@/lib/api/file-dialogs'
-import { addGame as apiAddGame } from '../api/add-game'
+import { useCallback, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeft, X } from 'lucide-react'
+import { ActionStrip } from '@/components/ui/ActionStrip'
+import { CornerBrackets } from '@/components/ui/CornerBrackets'
 import { getLaunchSettings } from '@/lib/api/launch-settings'
+import { useGameStore } from '../game-store'
+import { addGame as apiAddGame } from '../api/add-game'
 import { fetchGameArt } from '../api/fetch-game-art'
-import type { SteamMatchHit } from './SteamMatchResults'
-import { AddGameForm } from './AddGameForm'
-import { AddGameActions } from './AddGameActions'
+import { AddGameChoose } from './AddGameChoose'
+import { AddGameReview } from './AddGameReview'
+import { useAddGameForm } from './use-add-game-form'
 
 export function AddGameModal() {
     const { isAddModalOpen, closeAddModal, addGame, openInstallWizard } = useGameStore()
-
-    const [title, setTitle] = useState('')
-    const [coverUrl, setCoverUrl] = useState('')
-    const [executablePath, setExecutablePath] = useState('')
-    const [linkedAppId, setLinkedAppId] = useState<string | undefined>(undefined)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const form = useAddGameForm()
+    const { reset } = form
 
-    const handleSelectExecutable = async () => {
-        const path = await selectExecutable()
-        if (path) {
-            setExecutablePath(path)
-            // Auto-fill title from filename if empty
-            if (!title) {
-                const filename = path.split('/').pop()?.replace(/\.(exe|sh|AppImage)$/i, '') || ''
-                setTitle(filename)
-            }
-        }
-    }
-
-    const handleSelectImage = async () => {
-        const path = await selectImage()
-        if (path) {
-            setCoverUrl(`file://${path}`)
-        }
-    }
+    const handleClose = useCallback(() => {
+        reset()
+        closeAddModal()
+    }, [reset, closeAddModal])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!title.trim()) return
+        if (!form.title.trim() || isSubmitting) return
 
         setIsSubmitting(true)
-
         try {
-            // Global defaults seed the new game's own values here, once.
-            // They are never re-read at launch, so what Properties shows for
-            // this game afterwards is exactly what runs.
+            // Global defaults seed the new game's own values here, once. They are
+            // never re-read at launch, so what Properties shows for this game
+            // afterwards is exactly what runs.
             const defaults = await getLaunchSettings().catch(() => null)
 
             const newGame = await apiAddGame({
-                title: title.trim(),
-                coverUrl: coverUrl || undefined,
-                executablePath: executablePath || undefined,
-                isInstalled: !!executablePath,
+                title: form.title.trim(),
+                coverUrl: form.coverUrl || undefined,
+                executablePath: form.executablePath || undefined,
+                isInstalled: !!form.executablePath,
                 isFavorite: false,
                 source: 'manual',
-                // metadataAppId, not steamAppId: picking a Steam suggestion
-                // links the game for art, news and achievements — it does not
-                // mean the user owns it there.
-                metadataAppId: linkedAppId,
+                // metadataAppId, not steamAppId: linking a match gets art, news
+                // and achievement definitions — it does not mean the user owns
+                // the game on Steam, and launching through it would fail.
+                metadataAppId: form.linked?.appId,
                 protonPath: defaults?.defaultProtonPath,
                 useMangoHud: defaults?.defaultUseMangoHud,
                 useGameMode: defaults?.defaultUseGameMode,
@@ -68,21 +51,15 @@ export function AddGameModal() {
 
             if (newGame) {
                 addGame(newGame)
-                // Fire and forget: fetch_game_art emits games-updated itself,
-                // so the modal doesn't sit open through three downloads.
-                if (linkedAppId) {
+                // Fire and forget: fetch_game_art emits games-updated itself, so
+                // the modal does not sit open through three downloads.
+                if (form.linked) {
                     void fetchGameArt(newGame.id).catch((err) => {
                         console.error('Failed to fetch art for the new game:', err)
                     })
                 }
             }
-
-            // Reset form
-            setTitle('')
-            setCoverUrl('')
-            setExecutablePath('')
-            setLinkedAppId(undefined)
-            closeAddModal()
+            handleClose()
         } catch (error) {
             console.error('Failed to add game:', error)
         } finally {
@@ -90,83 +67,91 @@ export function AddGameModal() {
         }
     }
 
-    const handleClose = () => {
-        setTitle('')
-        setCoverUrl('')
-        setExecutablePath('')
-        setLinkedAppId(undefined)
-        closeAddModal()
-    }
+    const onReview = form.step === 'review'
 
     return (
         <AnimatePresence>
             {isAddModalOpen && (
                 <>
-                    {/* Backdrop */}
                     <motion.div
-                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-40 bg-void-pure/85 backdrop-blur-md"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                         onClick={handleClose}
                     />
 
-                    {/* Modal */}
                     <motion.div
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="fixed left-1/2 top-1/2 z-50 w-full max-w-[620px] -translate-x-1/2 -translate-y-1/2"
+                        initial={{ opacity: 0, scale: 0.985, y: 14 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        exit={{ opacity: 0, scale: 0.99, y: 8 }}
+                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        {/* No overflow-hidden: the title field's Steam suggestions drop
-                            below the input and would be clipped by it. */}
-                        <div className="bg-void-elevated border border-void-border rounded-xl shadow-void-float">
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-void-border">
-                                <h2 className="text-lg font-semibold text-text-primary">Add Game</h2>
-                                <motion.button
-                                    onClick={handleClose}
-                                    className="p-1.5 text-text-muted hover:text-text-primary hover:bg-void-surface rounded transition-colors"
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                >
-                                    <X className="w-4 h-4" />
-                                </motion.button>
-                            </div>
+                        {/* No overflow-hidden: nothing may clip a dropdown or the brackets. */}
+                        <div className="relative bg-void-pure border border-void-border shadow-void-float">
+                            <CornerBrackets colorClass="border-crimson-500/70" size={26} thickness={2} />
 
-                            {/* Form */}
-                            {/* The other half of adding a game: run its
-                                installer first, then point Gateway at what it
-                                produced. */}
-                            <button
-                                type="button"
-                                onClick={openInstallWizard}
-                                className="w-full px-6 py-3 flex items-center gap-2.5 border-b border-void-border text-left hover:bg-void-surface transition-colors duration-100"
-                            >
-                                <PackagePlus className="w-4 h-4 text-crimson-500 shrink-0" />
-                                <span className="min-w-0">
-                                    <span className="block text-sm text-text-primary">Run an installer instead</span>
-                                    <span className="block text-xs text-text-ghost">
-                                        For a Windows game you have not installed yet
-                                    </span>
-                                </span>
-                            </button>
+                            <header className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-void-border">
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.2em] text-crimson-400">
+                                        {onReview ? 'Step 2 of 2 · check it looks right' : 'Step 1 of 2'}
+                                    </p>
+                                    <h2 className="mt-1.5 font-display font-black italic text-[22px] tracking-[-0.02em] text-white truncate">
+                                        {onReview ? (form.title.trim() || 'Your game') : 'Add a game'}
+                                    </h2>
+                                </div>
 
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                                <AddGameForm
-                                    title={title}
-                                    setTitle={setTitle}
-                                    coverUrl={coverUrl}
-                                    setCoverUrl={setCoverUrl}
-                                    executablePath={executablePath}
-                                    setExecutablePath={setExecutablePath}
-                                    onSelectImage={handleSelectImage}
-                                    onSelectExecutable={handleSelectExecutable}
-                                    linkedAppId={linkedAppId}
-                                    onLink={(hit: SteamMatchHit | null) => setLinkedAppId(hit?.appId)}
-                                />
-                                <AddGameActions disabled={!title.trim() || isSubmitting} isSubmitting={isSubmitting} />
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    {onReview && (
+                                        <button
+                                            type="button"
+                                            onClick={() => form.setStep('choose')}
+                                            aria-label="Back"
+                                            className="w-[34px] h-[34px] flex items-center justify-center border border-void-border/70 text-white/40 hover:text-white hover:border-crimson-500 transition-colors duration-100 ease-out-expo"
+                                        >
+                                            <ArrowLeft className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleClose}
+                                        aria-label="Close"
+                                        className="w-[34px] h-[34px] flex items-center justify-center border border-void-border/70 text-white/40 hover:text-white hover:bg-crimson-600 hover:border-crimson-500 transition-colors duration-100 ease-out-expo"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </header>
+
+                            <form onSubmit={handleSubmit} className="px-6 pt-5 pb-6">
+                                {onReview ? (
+                                    <>
+                                        <AddGameReview
+                                            title={form.title}
+                                            onTitle={form.editTitle}
+                                            executablePath={form.executablePath}
+                                            onBrowseExecutable={() => void form.browseExecutable()}
+                                            coverUrl={form.coverUrl}
+                                            onBrowseCover={() => void form.browseCover()}
+                                            linked={form.linked}
+                                            suggestions={form.suggestions}
+                                            isSearching={form.isSearching}
+                                            onLink={form.chooseMatch}
+                                        />
+                                        <ActionStrip
+                                            type="submit"
+                                            label={isSubmitting ? 'Adding' : 'Add to library'}
+                                            disabled={!form.title.trim() || isSubmitting}
+                                            className="mt-5"
+                                        />
+                                    </>
+                                ) : (
+                                    <AddGameChoose
+                                        onPickFile={() => void form.browseExecutable()}
+                                        onRunInstaller={openInstallWizard}
+                                        onSkipFile={() => form.setStep('review')}
+                                    />
+                                )}
                             </form>
                         </div>
                     </motion.div>

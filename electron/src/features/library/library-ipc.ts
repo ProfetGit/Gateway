@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import os from 'node:os'
 import { ipcMain, shell, dialog, BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import { JsonStore } from '../../shared/store'
@@ -11,6 +13,7 @@ import {
     MANGOHUD_COMMAND,
     type LaunchPlan,
 } from './resolve-launch'
+import { canResetPrefix } from './can-reset-prefix'
 import { detectLaunchTools, listProtonBuilds } from './detect-launch-tools'
 import { prefixPathFor, readLaunchSettings, type LaunchSettings } from './launch-settings'
 import { inspectPrefix } from './scan-prefix-executables'
@@ -224,6 +227,44 @@ export function setupLibraryHandlers(store: JsonStore, getMainWindow: () => Brow
     })
 
     ipcMain.handle('inspect_prefix', (_event, { path }: { path: string }) => inspectPrefix(path))
+
+    // Emptying a prefix so an install can be retried under a different Proton.
+    // Wine refuses to reuse a prefix built by a newer version, so without this a
+    // retry on an older build fails for a reason the user cannot act on.
+    //
+    // The path comes from the renderer and the user can type any folder into
+    // the picker, so it is checked twice: canResetPrefix() rules out paths no
+    // prefix should ever live at, and the fs checks below confirm this really
+    // is a prefix — a directory that is either empty or carries wine's own
+    // layout — before anything is removed.
+    ipcMain.handle('reset_wine_prefix', (_event, { path: prefixPath }: { path: string }) => {
+        if (!canResetPrefix({ prefixPath, homeDir: os.homedir() })) {
+            return { success: false, error: 'That folder is not somewhere Gateway will delete.' }
+        }
+
+        let entries: string[]
+        try {
+            const stat = fs.statSync(prefixPath)
+            if (!stat.isDirectory()) return { success: false, error: 'That is not a folder.' }
+            entries = fs.readdirSync(prefixPath)
+        } catch {
+            // Nothing there is the desired end state anyway.
+            return { success: true }
+        }
+
+        const looksLikePrefix = entries.length === 0
+            || entries.includes('pfx') || entries.includes('drive_c') || entries.includes('system.reg')
+        if (!looksLikePrefix) {
+            return { success: false, error: "That folder holds something other than a game install." }
+        }
+
+        try {
+            fs.rmSync(prefixPath, { recursive: true, force: true })
+            return { success: true }
+        } catch (error) {
+            return { success: false, error: (error as Error).message }
+        }
+    })
 
     ipcMain.handle('run_windows_installer', async (_event, options: RunInstallerOptions) => {
         // Progress is a push event rather than the return value: an installer
